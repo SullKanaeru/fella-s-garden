@@ -732,13 +732,14 @@ function isLandWalkable(x, y) {
     return true;
 }
 
-// Helper: Memastikan titik berada di air untuk hewan air / ikan dengan margin pengaman dari daratan/void
-function isWaterSwimmable(x, y, margin = 10) {
+// Helper: Memastikan titik berada di air untuk hewan air / ikan dengan margin pengaman dari daratan/void/pasir
+function isWaterSwimmable(x, y, margin = 12) {
     if (x < 0 || y < 0 || x >= WORLD_W || y >= WORLD_H) return false;
     if (typeof isPointBlockedByDecoration === 'function' && isPointBlockedByDecoration(x, y, 8)) return false;
     if (typeof isPointOnWater !== 'function') return false;
     if (!isPointOnWater(x, y)) return false;
     if (typeof isPointOnGrass === 'function' && !isPointOnGrass(x, y)) return false;
+    if (typeof isPointOnSand === 'function' && isPointOnSand(x, y)) return false;
 
     if (margin > 0) {
         const d = margin;
@@ -752,6 +753,12 @@ function isWaterSwimmable(x, y, margin = 10) {
         if (typeof isPointOnGrass === 'function') {
             if (!isPointOnGrass(x + d, y) || !isPointOnGrass(x - d, y) ||
                 !isPointOnGrass(x, y + d) || !isPointOnGrass(x, y - d)) {
+                return false;
+            }
+        }
+        if (typeof isPointOnSand === 'function') {
+            if (isPointOnSand(x + d, y) || isPointOnSand(x - d, y) ||
+                isPointOnSand(x, y + d) || isPointOnSand(x, y - d)) {
                 return false;
             }
         }
@@ -896,7 +903,7 @@ function updateAnimals(dt, now) {
                     const dist = 24 + Math.random() * 95;
                     const tx = a.x + Math.cos(ang) * dist;
                     const ty = a.y + Math.sin(ang) * dist * 0.6;
-                    if (isWaterSwimmable(tx, ty, 10) && isPathClearOfLand(a.x, a.y, tx, ty)) {
+                    if (isWaterSwimmable(tx, ty, 16) && isPathClearOfLand(a.x, a.y, tx, ty)) {
                         a.targetX = tx;
                         a.targetY = ty;
                         a.state = 'walking';
@@ -927,7 +934,7 @@ function updateAnimals(dt, now) {
                 const nx = a.x + (dx / dist) * step;
                 const ny = a.y + (dy / dist) * step;
                 // STRICT: Fish can only advance if the new coordinate is safely inside swimmable water!
-                if (isWaterSwimmable(nx, ny, 6)) {
+                if (isWaterSwimmable(nx, ny, 12)) {
                     a.x = nx;
                     a.y = ny;
                     a.facingLeft = dx < 0;

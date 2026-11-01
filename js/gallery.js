@@ -169,6 +169,9 @@ function closeGalleryModal() {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
     }
+    if (typeof stopExclusivePetsAnimationLoop === 'function') {
+        stopExclusivePetsAnimationLoop();
+    }
 }
 
 function switchGalleryTab(tabName) {
@@ -238,6 +241,16 @@ function switchGalleryTab(tabName) {
             headerActionBtn.onclick = () => {
                 closeGalleryModal();
             };
+        }
+    }
+
+    if (tabName === 'exclusive') {
+        if (typeof startExclusivePetsAnimationLoop === 'function') {
+            startExclusivePetsAnimationLoop();
+        }
+    } else {
+        if (typeof stopExclusivePetsAnimationLoop === 'function') {
+            stopExclusivePetsAnimationLoop();
         }
     }
 
@@ -455,15 +468,14 @@ function renderExclusivePetsGrid(container, filterQuery = '') {
                         <!-- Action Buttons -->
                         <div class="w-full mt-2.5 flex items-center gap-1.5">
                             ${isCurrentlyInGarden ? `
-                                <button onclick="focusExclusivePetInGarden('${p.id}')" class="flex-1 py-1.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1 transition active:scale-95" title="Fokus Kamera ke Pet Ini di Kebun">
+                                <button onclick="focusExclusivePetInGarden('${p.id}')" class="flex-1 py-1.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1 transition active:scale-95 cursor-pointer" title="Fokus Kamera ke Pet Ini di Kebun">
                                     <svg class="w-3.5 h-3.5 text-emerald-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
                                     <span>Ada di Kebun</span>
                                 </button>
                             ` : `
-                                <button onclick="summonExclusivePetFromGallery('${p.id}')" class="flex-1 py-1.5 px-2 rounded-xl bg-[#2B5B35] hover:bg-[#1f4627] text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1 transition active:scale-95" title="Panggil Pet Langka Ini ke Kebun">
-                                    <svg class="w-3.5 h-3.5 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                                    <span>Panggil</span>
-                                </button>
+                                <div class="flex-1 py-1 px-2 rounded-xl bg-emerald-50 text-[#2B5B35] font-bold text-xs flex items-center justify-center gap-1 border border-emerald-200">
+                                    <span>✨ Telah Terbuka</span>
+                                </div>
                             `}
                         </div>
                     </div>
@@ -472,18 +484,57 @@ function renderExclusivePetsGrid(container, filterQuery = '') {
         </div>
     `;
 
-    // Render high quality previews for discovered pets into their preview canvases
+    // Start live animation loop for discovered exclusive pets
     setTimeout(() => {
-        list.forEach(p => {
-            if (discoveredList.includes(p.id)) {
-                const cvs = document.getElementById(`ex_prev_canvas_${p.id}`);
-                if (cvs && typeof renderPetPreviewToCanvas === 'function') {
-                    renderPetPreviewToCanvas(cvs, p.id);
-                }
-            }
-        });
+        if (typeof startExclusivePetsAnimationLoop === 'function') {
+            startExclusivePetsAnimationLoop();
+        }
     }, 20);
 }
+
+// Live animation loop for exclusive pets in gallery modal
+var exclusivePetsAnimFrameId = null;
+
+function startExclusivePetsAnimationLoop() {
+    if (exclusivePetsAnimFrameId) {
+        cancelAnimationFrame(exclusivePetsAnimFrameId);
+        exclusivePetsAnimFrameId = null;
+    }
+
+    function animLoop(now) {
+        const modal = document.getElementById('flowerGalleryModal') || document.getElementById('galleryModal');
+        if (!modal || modal.classList.contains('hidden') || currentGalleryTab !== 'exclusive') {
+            exclusivePetsAnimFrameId = null;
+            return;
+        }
+
+        const discoveredList = typeof getDiscoveredPets === 'function' ? getDiscoveredPets() : [];
+        if (typeof EXCLUSIVE_PET_LIST !== 'undefined' && Array.isArray(EXCLUSIVE_PET_LIST)) {
+            for (let i = 0; i < EXCLUSIVE_PET_LIST.length; i++) {
+                const p = EXCLUSIVE_PET_LIST[i];
+                if (discoveredList.includes(p.id)) {
+                    const cvs = document.getElementById(`ex_prev_canvas_${p.id}`);
+                    if (cvs && typeof renderPetPreviewToCanvas === 'function') {
+                        renderPetPreviewToCanvas(cvs, p.id, now);
+                    }
+                }
+            }
+        }
+
+        exclusivePetsAnimFrameId = requestAnimationFrame(animLoop);
+    }
+
+    exclusivePetsAnimFrameId = requestAnimationFrame(animLoop);
+}
+
+function stopExclusivePetsAnimationLoop() {
+    if (exclusivePetsAnimFrameId) {
+        cancelAnimationFrame(exclusivePetsAnimFrameId);
+        exclusivePetsAnimFrameId = null;
+    }
+}
+window.startExclusivePetsAnimationLoop = startExclusivePetsAnimationLoop;
+window.stopExclusivePetsAnimationLoop = stopExclusivePetsAnimationLoop;
 
 // Summon an exclusive unlocked pet from the gallery to the garden
 function summonExclusivePetFromGallery(petId) {

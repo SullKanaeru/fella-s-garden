@@ -607,6 +607,7 @@
         }
 
         function closeFlowerStudioModal() {
+            if (typeof closeStudioMissionPopover === 'function') closeStudioMissionPopover();
             const modal = document.getElementById('flowerStudioModal');
             if (modal) modal.classList.add('hidden');
             updatePendingSpriteFromPad();

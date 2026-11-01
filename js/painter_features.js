@@ -583,7 +583,8 @@
         return activeCommission;
     }
 
-    function cycleAnimalCommission() {
+    function cycleAnimalCommission(e) {
+        if (e && e.stopPropagation) e.stopPropagation();
         generateNewAnimalCommission();
         if (typeof playPencilSound === 'function') playPencilSound();
     }
@@ -665,7 +666,8 @@
         return DAILY_PAINTER_CHALLENGES[currentChallengeIndex % DAILY_PAINTER_CHALLENGES.length];
     }
 
-    function nextDailyPainterChallenge() {
+    function nextDailyPainterChallenge(e) {
+        if (e && e.stopPropagation) e.stopPropagation();
         currentChallengeIndex = (currentChallengeIndex + 1) % DAILY_PAINTER_CHALLENGES.length;
         renderStudioPainterBanner();
     }
@@ -690,6 +692,78 @@
         }
     }
 
+    let currentStudioBannerTab = 'commission'; // 'commission' | 'challenge'
+
+    function switchStudioBannerTab(tab) {
+        currentStudioBannerTab = tab;
+        const commView = document.getElementById('studioCommissionView');
+        const chalView = document.getElementById('studioChallengeView');
+        const commTabBtn = document.getElementById('studioTabCommissionBtn');
+        const chalTabBtn = document.getElementById('studioTabChallengeBtn');
+
+        if (tab === 'challenge') {
+            if (commView) commView.classList.add('hidden');
+            if (chalView) {
+                chalView.classList.remove('hidden');
+                chalView.classList.add('flex');
+            }
+            if (commTabBtn) {
+                commTabBtn.className = "px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold transition flex items-center gap-1 bg-white hover:bg-emerald-50 text-gray-600 border border-gray-200 cursor-pointer";
+            }
+            if (chalTabBtn) {
+                chalTabBtn.className = "px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold transition flex items-center gap-1 bg-purple-100 text-purple-900 border border-purple-300 cursor-pointer";
+            }
+        } else {
+            if (chalView) chalView.classList.add('hidden');
+            if (commView) {
+                commView.classList.remove('hidden');
+                commView.classList.add('flex');
+            }
+            if (commTabBtn) {
+                commTabBtn.className = "px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold transition flex items-center gap-1 bg-emerald-100 text-[#2B5B35] border border-emerald-300 cursor-pointer";
+            }
+            if (chalTabBtn) {
+                chalTabBtn.className = "px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold transition flex items-center gap-1 bg-white hover:bg-purple-50 text-gray-600 border border-gray-200 cursor-pointer";
+            }
+        }
+    }
+    window.switchStudioBannerTab = switchStudioBannerTab;
+
+    function toggleStudioMissionPopover(e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        const p = document.getElementById('studioMissionPopover');
+        if (!p) return;
+        if (p.classList.contains('hidden')) {
+            p.classList.remove('hidden');
+        } else {
+            p.classList.add('hidden');
+        }
+    }
+    window.toggleStudioMissionPopover = toggleStudioMissionPopover;
+
+    function closeStudioMissionPopover() {
+        const p = document.getElementById('studioMissionPopover');
+        if (p) p.classList.add('hidden');
+    }
+    window.closeStudioMissionPopover = closeStudioMissionPopover;
+
+    // Auto close popover on canvas click or outside click
+    document.addEventListener('pointerdown', (e) => {
+        const pop = document.getElementById('studioMissionPopover');
+        if (pop && !pop.classList.contains('hidden')) {
+            const wrapper = document.getElementById('studioPainterBannerWrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                closeStudioMissionPopover();
+            }
+        }
+    });
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeStudioMissionPopover();
+        }
+    });
+
     function renderStudioPainterBanner() {
         const commEl = document.getElementById('studioCommissionBannerText');
         const chEl = document.getElementById('studioDailyChallengeText');
@@ -699,14 +773,53 @@
             return;
         }
 
+        const ch = getActiveDailyPainterChallenge();
+
+        // 1. Update Top Bar Commission View
         if (commEl && activeCommission) {
-            commEl.innerHTML = `<span class="font-bold text-[#2B5B35]">${activeCommission.requesterIcon} Pesanan ${activeCommission.requesterName}:</span> <span>"${activeCommission.desc}"</span> <span class="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 border border-amber-300 font-bold text-[10px]">+${activeCommission.rewardStars}⭐</span>`;
+            commEl.innerHTML = `<span class="font-bold text-[#2B5B35]">${activeCommission.requesterIcon} Pesanan ${activeCommission.requesterName}:</span> <span class="font-normal italic">"${activeCommission.desc}"</span> <span class="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 border border-amber-300 font-bold text-[10px] shrink-0">+${activeCommission.rewardStars}⭐</span>`;
+            commEl.title = `${activeCommission.requesterIcon} Pesanan ${activeCommission.requesterName}: "${activeCommission.desc}" (+${activeCommission.rewardStars}⭐)\n(Klik untuk detail lengkap)`;
         }
 
-        const ch = getActiveDailyPainterChallenge();
+        // 2. Update Top Bar Challenge View
         if (chEl && ch) {
-            chEl.innerHTML = `<span class="font-bold text-purple-800">🎯 Tantangan:</span> <span>${ch.desc}</span> <span class="px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-800 border border-purple-300 font-bold text-[10px]">+${ch.rewardStars}⭐</span>`;
+            chEl.innerHTML = `<span class="font-bold text-purple-900">🎯 Tantangan:</span> <span class="font-normal">${ch.desc}</span> <span class="px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-800 border border-purple-300 font-bold text-[10px] shrink-0">+${ch.rewardStars}⭐</span>`;
+            chEl.title = `🎯 Tantangan Melukis: ${ch.desc} (+${ch.rewardStars}⭐)\n(Klik untuk detail lengkap)`;
         }
+
+        // 3. Update Mobile Pill & Tab Icon
+        const mIcon = document.getElementById('studioMobileRequesterIcon');
+        if (mIcon && activeCommission) mIcon.textContent = activeCommission.requesterIcon;
+
+        const mBadge = document.getElementById('studioMobileRewardBadge');
+        if (mBadge && activeCommission) mBadge.textContent = `+${activeCommission.rewardStars}⭐`;
+
+        const tabIcon = document.getElementById('studioTabCommissionIcon');
+        if (tabIcon && activeCommission) {
+            tabIcon.textContent = activeCommission.requesterIcon;
+        }
+
+        // 4. Update Popover Elements
+        const pIcon = document.getElementById('popoverCommissionIcon');
+        if (pIcon && activeCommission) pIcon.textContent = activeCommission.requesterIcon;
+
+        const pReq = document.getElementById('popoverCommissionRequester');
+        if (pReq && activeCommission) pReq.textContent = activeCommission.requesterName;
+
+        const pStars = document.getElementById('popoverCommissionStars');
+        if (pStars && activeCommission) pStars.textContent = `+${activeCommission.rewardStars} ⭐ Bintang`;
+
+        const pDesc = document.getElementById('popoverCommissionDesc');
+        if (pDesc && activeCommission) pDesc.textContent = `"${activeCommission.desc}"`;
+
+        const cTitle = document.getElementById('popoverChallengeTitle');
+        if (cTitle && ch) cTitle.textContent = ch.title || 'Tantangan Melukis Hari Ini';
+
+        const cStars = document.getElementById('popoverChallengeStars');
+        if (cStars && ch) cStars.textContent = `+${ch.rewardStars} ⭐ Bintang`;
+
+        const cDesc = document.getElementById('popoverChallengeDesc');
+        if (cDesc && ch) cDesc.textContent = ch.desc;
     }
 
     // =========================================================================
@@ -2424,6 +2537,9 @@
     window.drawFlowerPainterEffects = drawFlowerPainterEffects;
     window.cycleAnimalCommission = cycleAnimalCommission;
     window.nextDailyPainterChallenge = nextDailyPainterChallenge;
+    window.switchStudioBannerTab = switchStudioBannerTab;
+    window.toggleStudioMissionPopover = toggleStudioMissionPopover;
+    window.closeStudioMissionPopover = closeStudioMissionPopover;
     window.renderStudioPainterBanner = renderStudioPainterBanner;
     window.drawRealisticEasel = drawRealisticEasel;
     window.openEaselModal = openEaselModal;

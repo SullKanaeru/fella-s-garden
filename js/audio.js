@@ -530,7 +530,7 @@ if (typeof document !== "undefined") {
     "pointerdown",
     (e) => {
       const target = e.target;
-      if (!target) return;
+      if (!target || typeof target.closest !== "function") return;
       // Periksa apakah yang diklik adalah tombol, alat dock, tab, kartu, atau slider
       const clickable = target.closest(
         'button, .tool-btn, .launcher-btn, .plant-btn, .color-dot, input[type="range"], [role="button"]',

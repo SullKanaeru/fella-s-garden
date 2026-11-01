@@ -629,14 +629,18 @@ function removeDecorationById(id) {
 }
 
 function findDecorationAt(wx, wy) {
+    if (!Array.isArray(decorations)) return null;
     for (let i = decorations.length - 1; i >= 0; i--) {
         const d = decorations[i];
         const dir = normalizeCardinalDirection(d.rotation);
         const isSideways = (dir === 90 || dir === 270);
         const scale = typeof d.scale === 'number' ? d.scale : 1.0;
-        const hw = (isSideways ? (d.height || 44) : (d.width || 48)) * 0.6 * scale;
-        const hh = (d.height || 44) * scale;
-        if (wx >= d.x - hw && wx <= d.x + hw && wy >= d.y - hh && wy <= d.y + 18 * scale) {
+        const baseW = isSideways ? (d.height || 48) : (d.width || 48);
+        const baseH = (d.height || 48);
+        const hw = Math.max(32, baseW * 0.65 * scale);
+        const hh = Math.max(32, baseH * scale);
+        const bottomPad = Math.max(22, 20 * scale);
+        if (wx >= d.x - hw && wx <= d.x + hw && wy >= d.y - hh && wy <= d.y + bottomPad) {
             return d;
         }
     }

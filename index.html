@@ -167,6 +167,18 @@
           </span>
           <span id="dayNightLabel" class="font-bold text-[11px] sm:text-xs">Siang</span>
         </button>
+        <button
+          id="topRainShowerBtn"
+          onclick="rainShowerAll()"
+          class="inline-flex items-center gap-1 sm:gap-1.5 text-xs bg-sky-50 hover:bg-sky-100 text-sky-800 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border border-sky-300 transition active:scale-95 shadow-xs shrink-0 cursor-pointer"
+          title="Siram seluruh kebun dengan hujan rintik"
+        >
+          <svg class="w-3.5 h-3.5 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>
+            <path d="M16 14v6M8 14v6M12 16v6"/>
+          </svg>
+          <span class="font-bold text-[11px] sm:text-xs">Hujan</span>
+        </button>
       </div>
 
       <!-- Subtle Status Pill -->
@@ -942,7 +954,7 @@
     <!-- ============================================================== -->
     <div
       id="flowerStudioModal"
-      class="hidden fixed inset-0 z-50 w-screen h-screen bg-[#F3EFE6] select-none pointer-events-auto overflow-hidden transition-opacity duration-200"
+      class="hidden fixed inset-0 z-[60] w-screen h-screen bg-[#F3EFE6] select-none pointer-events-auto overflow-hidden transition-opacity duration-200"
     >
       <!-- Subtly textured canvas viewport with interactive pan & zoom -->
       <div
@@ -1008,39 +1020,92 @@
 
           <!-- Painter Gameplay Mission Ticker (Commission & Daily Challenge) -->
           <div
-            id="studioPainterBanner"
-            class="hidden sm:flex items-center gap-1 bg-white/95 backdrop-blur-md px-2 sm:px-3 py-1 rounded-full border border-[#c5d9b7] shadow-sm text-[10px] sm:text-xs text-[#2B5B35] max-w-[180px] md:max-w-xs lg:max-w-md overflow-hidden truncate"
+            id="studioPainterBannerWrapper"
+            class="relative pointer-events-auto shrink-0"
           >
-            <div class="flex items-center gap-1 truncate min-w-0">
-              <span
-                id="studioCommissionBannerText"
-                class="truncate font-medium"
-                >📜 Pesanan Hewan...</span
-              >
-              <button
-                type="button"
-                onclick="cycleAnimalCommission()"
-                class="px-1 py-0.2 rounded bg-white hover:bg-emerald-50 border border-[#c5d9b7] text-[8px] sm:text-[9px] font-bold text-[#2B5B35] shrink-0 transition cursor-pointer"
-                title="Ganti Pesanan Hewan"
-              >
-                🔄
-              </button>
+            <!-- Compact Pill (< xl: Phones, Tablets, Laptops in landscape) -->
+            <div
+              id="studioPainterBannerMobile"
+              onclick="toggleStudioMissionPopover(event)"
+              class="flex xl:hidden items-center gap-1.5 bg-white/95 hover:bg-white backdrop-blur-md px-2.5 py-1 rounded-full border border-[#c5d9b7] shadow-sm text-xs font-bold text-[#2B5B35] cursor-pointer shrink-0 transition select-none active:scale-95 hover:scale-105"
+              title="Buka Misi & Pesanan Pelukis"
+            >
+              <span id="studioMobileRequesterIcon">🐱</span>
+              <span>Misi</span>
+              <span id="studioMobileRewardBadge" class="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 border border-amber-300 font-bold text-[10px]">+3⭐</span>
+              <span class="text-[10px] text-gray-400">▾</span>
             </div>
-            <div class="w-px h-3 bg-[#c5d9b7] mx-0.5 shrink-0 hidden sm:block"></div>
-            <div class="hidden sm:flex items-center gap-1 truncate min-w-0 justify-end">
-              <span
-                id="studioDailyChallengeText"
-                class="truncate font-medium text-amber-900"
-                >🎯 Tantangan...</span
+
+            <!-- Full Inline Pill (>= xl: Large Desktop Monitors) -->
+            <div
+              id="studioPainterBanner"
+              class="hidden xl:flex items-center gap-2 bg-white/95 hover:bg-white backdrop-blur-md px-3 py-1 rounded-full border border-[#c5d9b7] shadow-sm text-xs text-[#2B5B35] transition cursor-pointer max-w-xl select-none"
+              onclick="toggleStudioMissionPopover(event)"
+              title="Klik untuk melihat detail misi lengkap"
+            >
+              <!-- Tabs / Mode Badges -->
+              <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation()">
+                <button
+                  type="button"
+                  id="studioTabCommissionBtn"
+                  onclick="switchStudioBannerTab('commission')"
+                  class="px-2 py-0.5 rounded-full text-[11px] font-bold transition flex items-center gap-1 bg-emerald-100 text-[#2B5B35] border border-emerald-300 cursor-pointer"
+                  title="Lihat Pesanan Hewan"
+                >
+                  <span id="studioTabCommissionIcon">🐱</span>
+                  <span>Pesanan</span>
+                </button>
+                <button
+                  type="button"
+                  id="studioTabChallengeBtn"
+                  onclick="switchStudioBannerTab('challenge')"
+                  class="px-2 py-0.5 rounded-full text-[11px] font-bold transition flex items-center gap-1 bg-white hover:bg-purple-50 text-gray-600 border border-gray-200 cursor-pointer"
+                  title="Lihat Tantangan Hari Ini"
+                >
+                  <span>🎯</span>
+                  <span>Tantangan</span>
+                </button>
+              </div>
+
+              <div class="w-px h-3.5 bg-[#c5d9b7] mx-0.5 shrink-0"></div>
+
+              <!-- Active View Content -->
+              <div id="studioCommissionView" class="flex items-center gap-1.5 min-w-0 flex-1 truncate">
+                <span
+                  id="studioCommissionBannerText"
+                  class="truncate font-medium text-[#2B5B35]"
+                >📜 Memuat pesanan hewan...</span>
+                <button
+                  type="button"
+                  onclick="cycleAnimalCommission(event)"
+                  class="px-1.5 py-0.5 rounded-md bg-white hover:bg-emerald-50 border border-[#c5d9b7] text-[10px] font-bold text-[#2B5B35] shrink-0 transition active:scale-90 cursor-pointer"
+                  title="Ganti Pesanan Hewan (Acak)"
+                >
+                  🔄
+                </button>
+              </div>
+
+              <div id="studioChallengeView" class="hidden items-center gap-1.5 min-w-0 flex-1 truncate">
+                <span
+                  id="studioDailyChallengeText"
+                  class="truncate font-medium text-purple-900"
+                >🎯 Memuat tantangan melukis...</span>
+                <button
+                  type="button"
+                  onclick="nextDailyPainterChallenge(event)"
+                  class="px-1.5 py-0.5 rounded-md bg-white hover:bg-purple-50 border border-purple-300 text-[10px] font-bold text-purple-800 shrink-0 transition active:scale-90 cursor-pointer"
+                  title="Tantangan Melukis Berikutnya"
+                >
+                  🎲
+                </button>
+              </div>
+
+              <div
+                class="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-50 text-[#2B5B35] hover:bg-emerald-100 text-[10px] font-bold shrink-0 transition"
+                title="Buka Kartu Detail Misi"
               >
-              <button
-                type="button"
-                onclick="nextDailyPainterChallenge()"
-                class="px-1 py-0.2 rounded bg-white hover:bg-amber-50 border border-amber-300 text-[8px] sm:text-[9px] font-bold text-amber-800 shrink-0 transition cursor-pointer"
-                title="Tantangan Melukis Berikutnya"
-              >
-                🎲
-              </button>
+                ℹ️
+              </div>
             </div>
           </div>
         </div>
@@ -1506,6 +1571,103 @@
           <span>🌱 Tanam Acak</span>
         </button>
       </footer>
+
+      <!-- Centered Mission Detail Modal with Backdrop (Direct child of studio, z-[100] above all shelves) -->
+      <div
+        id="studioMissionPopover"
+        class="hidden fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs pointer-events-auto select-none"
+        onclick="closeStudioMissionPopover()"
+      >
+        <div
+          class="w-full max-w-sm sm:max-w-md bg-white rounded-2xl border-2 border-[#8eb477] shadow-2xl p-3 sm:p-4 flex flex-col max-h-[85vh] overflow-hidden"
+          onclick="event.stopPropagation()"
+        >
+          <!-- Modal Header -->
+          <div class="flex items-center justify-between pb-2 border-b border-gray-100 shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="text-base sm:text-lg">🎨</span>
+              <div>
+                <h4 class="text-xs sm:text-sm font-bold text-[#2B5B35] leading-tight">Misi & Pesanan Pelukis</h4>
+                <p class="text-[10px] sm:text-[11px] text-gray-500 font-normal">Selesaikan misi untuk bonus Bintang ⭐</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onclick="closeStudioMissionPopover()"
+              class="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 transition cursor-pointer text-sm font-bold"
+              title="Tutup (Esc)"
+            >
+              ✕
+            </button>
+          </div>
+
+          <!-- Cards Container (Scrollable if height is constrained) -->
+          <div class="space-y-2.5 overflow-y-auto overscroll-contain pr-1 flex-1 min-h-0 my-2">
+            <!-- Card 1: Pesanan Hewan -->
+            <div class="p-2.5 sm:p-3 rounded-xl bg-[#F4F9F1] border border-[#c5d9b7] shadow-2xs">
+              <div class="flex items-center justify-between gap-1 mb-1.5">
+                <div class="flex items-center gap-1.5 font-bold text-xs sm:text-sm text-[#2B5B35]">
+                  <span id="popoverCommissionIcon" class="text-base">🐱</span>
+                  <span>Pesanan dari <span id="popoverCommissionRequester">Mochi</span></span>
+                </div>
+                <span id="popoverCommissionStars" class="px-2 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-800 font-bold text-[10px] sm:text-xs shrink-0">
+                  +3 ⭐ Bintang
+                </span>
+              </div>
+              <p id="popoverCommissionDesc" class="text-xs sm:text-sm text-[#2B5B35] font-hand font-medium leading-relaxed bg-white px-2.5 py-1.5 rounded-lg border border-[#dce6d5] shadow-xs block w-full my-1">
+                "Lukis bunga bernuansa Merah, Pink, atau Jingga!"
+              </p>
+              <div class="mt-2 flex items-center justify-between text-[10px] sm:text-xs text-gray-500">
+                <span>Tanam bungamu untuk klaim</span>
+                <button
+                  type="button"
+                  onclick="cycleAnimalCommission(event)"
+                  class="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-50 border border-[#c5d9b7] text-[#2B5B35] font-bold text-xs transition flex items-center gap-1 cursor-pointer shadow-xs active:scale-95"
+                >
+                  <span>🔄</span> Ganti Pesanan
+                </button>
+              </div>
+            </div>
+
+            <!-- Card 2: Tantangan Melukis Harian -->
+            <div class="p-2.5 sm:p-3 rounded-xl bg-[#FAF5FF] border border-[#E9D5FF] shadow-2xs">
+              <div class="flex items-center justify-between gap-1 mb-1.5">
+                <div class="flex items-center gap-1.5 font-bold text-xs sm:text-sm text-purple-900">
+                  <span class="text-base">🎯</span>
+                  <span id="popoverChallengeTitle">Tantangan Melukis Hari Ini</span>
+                </div>
+                <span id="popoverChallengeStars" class="px-2 py-0.5 rounded-full bg-purple-100 border border-purple-300 text-purple-800 font-bold text-[10px] sm:text-xs shrink-0">
+                  +3 ⭐ Bintang
+                </span>
+              </div>
+              <p id="popoverChallengeDesc" class="text-xs sm:text-sm text-purple-950 font-hand font-medium leading-relaxed bg-white px-2.5 py-1.5 rounded-lg border border-purple-100 shadow-xs block w-full my-1">
+                Gunakan Kuas Cat Air, Krayon, atau Cahaya
+              </p>
+              <div class="mt-2 flex items-center justify-between text-[10px] sm:text-xs text-gray-500">
+                <span>Kuas spesial di rak kiri</span>
+                <button
+                  type="button"
+                  onclick="nextDailyPainterChallenge(event)"
+                  class="px-2.5 py-1 rounded-lg bg-white hover:bg-purple-50 border border-purple-300 text-purple-800 font-bold text-xs transition flex items-center gap-1 cursor-pointer shadow-xs active:scale-95"
+                >
+                  <span>🎲</span> Ganti Tantangan
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action button: Close & Paint (Always pinned at the bottom) -->
+          <div class="pt-2 shrink-0 border-t border-gray-100">
+            <button
+              type="button"
+              onclick="closeStudioMissionPopover()"
+              class="w-full py-2.5 rounded-xl bg-[#2B5B35] hover:bg-[#204527] text-white font-bold text-xs sm:text-sm transition active:scale-98 shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>✓</span> Mengerti, Lanjut Melukis
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
 <!-- SAVE TO GALLERY DIALOG MODAL -->
@@ -4440,7 +4602,7 @@
               type="button"
               onclick="selectPencilSubTool('land')"
               class="subtool-option flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-hand font-bold border border-[#dce6d5] shadow-xs transition text-left group w-full cursor-pointer"
-              title="Medan Hijau: Buat dan perluas daratan hijau pulau (Pintasan: 2)"
+              title="Medan Hijau: Buat dan perluas daratan hijau pulau (Pintasan: 3)"
             >
               <div
                 class="w-7 h-7 rounded-lg bg-emerald-100 border border-emerald-300 flex items-center justify-center text-[#2B5B35] group-hover:scale-105 transition shrink-0"
@@ -4474,7 +4636,7 @@
               type="button"
               onclick="selectPencilSubTool('water-terrain')"
               class="subtool-option flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-hand font-bold border border-[#dce6d5] shadow-xs transition text-left group w-full cursor-pointer"
-              title="Medan Air: Buat kolam air, danau, dan sungai (Pintasan: 3)"
+              title="Medan Air: Buat kolam air, danau, dan sungai (Pintasan: 4)"
             >
               <div
                 class="w-7 h-7 rounded-lg bg-sky-100 border border-sky-300 flex items-center justify-center text-sky-600 group-hover:scale-105 transition shrink-0"
@@ -4507,13 +4669,46 @@
               </div>
             </button>
 
-            <!-- Subtool 3: Rumput -->
+            <!-- Subtool 3: Medan Pasir (Pantai & Pesisir) -->
+            <button
+              id="subtool-sand-terrain"
+              type="button"
+              onclick="selectPencilSubTool('sand-terrain')"
+              class="subtool-option flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-hand font-bold border border-[#dce6d5] shadow-xs transition text-left group w-full cursor-pointer"
+              title="Medan Pasir: Buat pesisir pantai pasir keemasan dan tepian danau (Pintasan: 5)"
+            >
+              <div
+                class="w-7 h-7 rounded-lg bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-600 group-hover:scale-105 transition shrink-0"
+              >
+                <svg
+                  class="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" fill="#FDE68A" />
+                  <path d="M19 17v4" />
+                  <path d="M17 19h4" />
+                </svg>
+              </div>
+              <div class="leading-tight">
+                <div class="text-xs font-bold text-[#D97706]">Medan Pasir</div>
+                <div class="text-[10px] text-gray-500 font-normal">
+                  Pantai & Pesisir
+                </div>
+              </div>
+            </button>
+
+            <!-- Subtool 4: Rumput -->
             <button
               id="subtool-grass"
               type="button"
               onclick="selectPencilSubTool('grass')"
               class="subtool-option flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-hand font-bold border border-[#dce6d5] shadow-xs transition text-left group w-full cursor-pointer"
-              title="Rumput: Tanam kuas rerumputan & clover (Pintasan: 4)"
+              title="Rumput: Tanam kuas rerumputan & clover (Pintasan: 6)"
             >
               <div
                 class="w-7 h-7 rounded-lg bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition shrink-0"
@@ -4632,7 +4827,7 @@
               type="button"
               onclick="selectEraserSubTool('erase-land')"
               class="subtool-option subtool-option-eraser flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-hand font-bold border border-[#dce6d5] shadow-xs transition text-left group w-full cursor-pointer"
-              title="Hapus Medan Hijau: Mengikis daratan tanah hijau pulau"
+              title="Hapus Medan Hijau: Mengikis daratan tanah hijau pulau (Pintasan: 7)"
             >
               <div
                 class="w-7 h-7 rounded-lg bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 group-hover:scale-105 transition shrink-0"
@@ -4676,7 +4871,7 @@
               type="button"
               onclick="selectEraserSubTool('erase-water')"
               class="subtool-option subtool-option-eraser flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-hand font-bold border border-[#dce6d5] shadow-xs transition text-left group w-full cursor-pointer"
-              title="Hapus Medan Air: Mengeringkan kolam air dan sungai"
+              title="Hapus Medan Air: Mengeringkan kolam air dan sungai (Pintasan: 8)"
             >
               <div
                 class="w-7 h-7 rounded-lg bg-sky-100 border border-sky-300 flex items-center justify-center text-sky-700 group-hover:scale-105 transition shrink-0"
@@ -4714,7 +4909,51 @@
               </div>
             </button>
 
-            <!-- Subtool 3: Hapus Rumput -->
+            <!-- Subtool 3: Hapus Medan Pasir -->
+            <button
+              id="subtool-erase-sand"
+              type="button"
+              onclick="selectEraserSubTool('erase-sand')"
+              class="subtool-option subtool-option-eraser flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-hand font-bold border border-[#dce6d5] shadow-xs transition text-left group w-full cursor-pointer"
+              title="Hapus Medan Pasir: Kembalikan pasir pantai menjadi tanah rumput hijau (Pintasan: 9)"
+            >
+              <div
+                class="w-7 h-7 rounded-lg bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 group-hover:scale-105 transition shrink-0"
+              >
+                <svg
+                  class="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"
+                  />
+                  <path d="M22 21H7" />
+                  <line
+                    x1="16"
+                    y1="4"
+                    x2="20"
+                    y2="8"
+                    stroke="#D97706"
+                    stroke-width="2.5"
+                  />
+                </svg>
+              </div>
+              <div class="leading-tight">
+                <div class="text-xs font-bold text-[#D97706]">
+                  Hapus Medan Pasir
+                </div>
+                <div class="text-[10px] text-gray-500 font-normal">
+                  Hapus Pasir Pantai
+                </div>
+              </div>
+            </button>
+
+            <!-- Subtool 4: Hapus Rumput -->
             <button
               id="subtool-erase-grass"
               type="button"
@@ -4803,31 +5042,7 @@
         <!-- Divider -->
         <div class="h-5 w-px bg-[#c5d9b7] mx-1"></div>
 
-        <!-- Utility 1: Rain Shower -->
-        <button
-          onclick="rainShowerAll()"
-          class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 flex items-center justify-center transition active:scale-95"
-          title="Siram seluruh kebun dengan hujan rintik"
-        >
-          <svg
-            class="w-4 h-4 text-sky-600"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path
-              d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"
-            />
-            <path d="M16 14v6" />
-            <path d="M8 14v6" />
-            <path d="M12 16v6" />
-          </svg>
-        </button>
-
-        <!-- Utility 2: Center View -->
+        <!-- Utility: Center View -->
         <button
           onclick="centerGardenView()"
           class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 flex items-center justify-center transition active:scale-95"

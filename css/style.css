@@ -313,13 +313,13 @@ body {
     /* -------------------------------------------------------------
        UNIVERSAL POPUP & MODAL RESPONSIVE FIT IN MOBILE LANDSCAPE
        ------------------------------------------------------------- */
-    .fixed.inset-0.z-50 {
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) {
         padding: 4px 8px !important;
         align-items: center !important;
         justify-content: center !important;
     }
 
-    .fixed.inset-0.z-50 > div {
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) > div {
         max-height: 96vh !important;
         max-width: 96vw !important;
         border-radius: 18px !important;
@@ -328,7 +328,7 @@ body {
     }
 
     /* Compact Universal Modal Headers */
-    .fixed.inset-0.z-50 > div > div:first-child,
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) > div > div:first-child,
     #flowerGalleryModal > div > div:first-child,
     #decorModal > div > div:first-child,
     #animalModal > div > div:first-child,
@@ -342,41 +342,41 @@ body {
     }
 
     /* Header Icons */
-    .fixed.inset-0.z-50 > div > div:first-child .w-8.h-8,
-    .fixed.inset-0.z-50 > div > div:first-child .w-9.h-9,
-    .fixed.inset-0.z-50 > div > div:first-child .w-10.h-10 {
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) > div > div:first-child .w-8.h-8,
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) > div > div:first-child .w-9.h-9,
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) > div > div:first-child .w-10.h-10 {
         width: 26px !important;
         height: 26px !important;
         border-radius: 8px !important;
     }
-    .fixed.inset-0.z-50 > div > div:first-child svg {
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) > div > div:first-child svg {
         width: 15px !important;
         height: 15px !important;
     }
 
     /* Header Title & Badges */
-    .fixed.inset-0.z-50 > div > div:first-child h2 {
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) > div > div:first-child h2 {
         font-size: 14px !important;
         line-height: 1.15 !important;
     }
-    .fixed.inset-0.z-50 > div > div:first-child h2 span:last-child {
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) > div > div:first-child h2 span:last-child {
         font-size: 10px !important;
         padding: 1px 6px !important;
     }
 
     /* Hide long subtitle paragraph in landscape to preserve vertical space */
-    .fixed.inset-0.z-50 > div > div:first-child p {
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) > div > div:first-child p {
         display: none !important;
     }
 
     /* Header Close Button */
-    .fixed.inset-0.z-50 > div > div:first-child button[title*="Tutup"],
-    .fixed.inset-0.z-50 > div > div:first-child button:last-child {
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) > div > div:first-child button[title*="Tutup"],
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) > div > div:first-child button:last-child {
         width: 26px !important;
         height: 26px !important;
     }
-    .fixed.inset-0.z-50 > div > div:first-child button[title*="Tutup"] svg,
-    .fixed.inset-0.z-50 > div > div:first-child button:last-child svg {
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) > div > div:first-child button[title*="Tutup"] svg,
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) > div > div:first-child button:last-child svg {
         width: 14px !important;
         height: 14px !important;
     }
@@ -1353,12 +1353,12 @@ body.zen-mode #zenModeRestorePill {
     /* ========================================================
        UNIVERSAL MOBILE MODAL OPTIMIZATIONS
        ======================================================== */
-    .fixed.inset-0.z-50,
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover),
     .fixed.inset-0.z-\[70\] {
         padding: 8px !important;
     }
 
-    .fixed.inset-0.z-50 > div,
+    .fixed.inset-0.z-50:not(#flowerStudioModal):not(#studioMissionPopover) > div,
     .fixed.inset-0.z-\[70\] > div,
     #flowerGalleryModal > div,
     #worldManagerModal > div,

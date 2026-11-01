@@ -274,7 +274,7 @@ function generateWorldThumbnail() {
     const cropX = (WORLD_W - cropW) / 2;
     const cropY = (WORLD_H - cropH) / 2 + 30;
 
-    // Draw 3D terrain layer (lush meadow, grass blades, shadows, 3D cliffs)
+    // Draw 3D terrain layer (lush meadow, grass blades, shadows)
     tctx.drawImage(
       terrainLayerCanvas,
       cropX,
@@ -429,6 +429,26 @@ function loadWaterFromDataUrl(dataUrl) {
   });
 }
 
+
+function loadSandFromDataUrl(dataUrl) {
+  return new Promise((resolve) => {
+    if (!sandMaskCtx) return resolve();
+    sandMaskCtx.clearRect(0, 0, WORLD_W, WORLD_H);
+    if (!dataUrl) {
+      return resolve();
+    }
+    const img = new Image();
+    img.onload = () => {
+      sandMaskCtx.drawImage(img, 0, 0, WORLD_W, WORLD_H);
+      resolve();
+    };
+    img.onerror = () => {
+      resolve();
+    };
+    img.src = dataUrl;
+  });
+}
+
 async function saveCurrentWorld(silent = false) {
   if (isWorldLoading || !isWorldReady) {
     return;
@@ -520,9 +540,10 @@ async function saveCurrentWorld(silent = false) {
     const existingWorld = await dbGetWorld(currentWorldId);
     const nowIso = new Date().toISOString();
 
-    const [terrainDataUrl, waterDataUrl] = await Promise.all([
+    const [terrainDataUrl, waterDataUrl, sandDataUrl] = await Promise.all([
       canvasToDataUrlAsync(maskCanvas),
       waterMaskCanvas ? canvasToDataUrlAsync(waterMaskCanvas) : Promise.resolve(""),
+      sandMaskCanvas ? canvasToDataUrlAsync(sandMaskCanvas) : Promise.resolve(""),
     ]);
 
     const worldObj = {
@@ -533,6 +554,8 @@ async function saveCurrentWorld(silent = false) {
       lastPlayed: nowIso,
       terrainData: terrainDataUrl,
       waterData: waterDataUrl,
+      sandData: sandDataUrl,
+      sandDetails: typeof sandDetails !== "undefined" && Array.isArray(sandDetails) ? sandDetails : [],
       grassDetails: grassDetails,
       flowerCount: flowers.length,
       flowers: serializedFlowers,
@@ -695,6 +718,14 @@ async function loadWorldById(worldId) {
 
     // Restore water terrain
     await loadWaterFromDataUrl(worldObj.waterData);
+
+    // Restore sand terrain & beach details
+    await loadSandFromDataUrl(worldObj.sandData);
+    if (worldObj.sandDetails && Array.isArray(worldObj.sandDetails)) {
+      sandDetails = worldObj.sandDetails;
+    } else {
+      sandDetails = [];
+    }
 
     // Restore custom painted grass details
     if (worldObj.grassDetails && Array.isArray(worldObj.grassDetails)) {
@@ -964,6 +995,8 @@ async function createNewWorld(name, template = "classic") {
 
   // Setup initial landscape according to template
   if (waterMaskCtx) waterMaskCtx.clearRect(0, 0, WORLD_W, WORLD_H);
+  if (sandMaskCtx) sandMaskCtx.clearRect(0, 0, WORLD_W, WORLD_H);
+  sandDetails = [];
   if (template === "classic") {
     createDefaultOvalIsland();
     flowers = [];

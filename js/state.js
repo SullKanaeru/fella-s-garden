@@ -50,6 +50,20 @@ var waterMaskCtx = waterMaskCanvas ? waterMaskCanvas.getContext('2d') : null;
 var waterLayerCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
 var waterLayerCtx = waterLayerCanvas ? waterLayerCanvas.getContext('2d') : null;
 
+// Offscreen mask for Sand / Beach Terrain (Medan Pasir & Pantai - GPU-accelerated)
+var sandMaskCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+var sandMaskCtx = sandMaskCanvas ? sandMaskCanvas.getContext('2d') : null;
+
+var dirtySandCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+if (dirtySandCanvas) {
+    dirtySandCanvas.width = 640;
+    dirtySandCanvas.height = 640;
+}
+var dirtySandCtx = dirtySandCanvas ? dirtySandCanvas.getContext('2d') : null;
+
+var sandGrid = new Uint8Array(600 * 450);
+var sandDetails = [];
+
 // Small reusable scratch canvases for ultra-fast real-time dirty-rect 3D extrusion
 var dirtyExtrudeCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
 if (dirtyExtrudeCanvas) {

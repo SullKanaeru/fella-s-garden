@@ -70,6 +70,14 @@ function initCanvases() {
     waterMaskCanvas.width = WORLD_W;
     waterMaskCanvas.height = WORLD_H;
   }
+  if (
+    typeof sandMaskCanvas !== "undefined" &&
+    sandMaskCanvas &&
+    (sandMaskCanvas.width !== WORLD_W || sandMaskCanvas.height !== WORLD_H)
+  ) {
+    sandMaskCanvas.width = WORLD_W;
+    sandMaskCanvas.height = WORLD_H;
+  }
 
   // On mobile devices (portrait or landscape phone), default to collapsed sidebar so view is clean and clear from the start
   const isMobileDevice = screenW <= 768 || (screenH <= 500 && screenW <= 1024);
@@ -205,7 +213,10 @@ function worldToScreen(wx, wy) {
 function createDefaultOvalIsland() {
   maskCtx.clearRect(0, 0, WORLD_W, WORLD_H);
   if (waterMaskCtx) waterMaskCtx.clearRect(0, 0, WORLD_W, WORLD_H);
+  if (typeof sandMaskCtx !== "undefined" && sandMaskCtx)
+    sandMaskCtx.clearRect(0, 0, WORLD_W, WORLD_H);
   grassDetails = [];
+  if (typeof sandDetails !== "undefined") sandDetails = [];
 
   const cx = WORLD_W * 0.5;
   const cy = WORLD_H * 0.52;
@@ -278,11 +289,82 @@ function updateCollisionGrids() {
     } else {
       waterGrid.fill(0);
     }
+
+    // 3. Sand mask to collision grid
+    if (typeof sandMaskCanvas !== "undefined" && sandMaskCanvas) {
+      if (typeof sandMaskCtx !== "undefined" && sandMaskCtx) {
+        sandMaskCtx.save();
+        sandMaskCtx.globalCompositeOperation = "destination-in";
+        sandMaskCtx.drawImage(maskCanvas, 0, 0);
+        sandMaskCtx.restore();
+      }
+      collCtx.clearRect(0, 0, COLL_W, COLL_H);
+      collCtx.drawImage(sandMaskCanvas, 0, 0, COLL_W, COLL_H);
+      const sData = collCtx.getImageData(0, 0, COLL_W, COLL_H).data;
+      for (let i = 0; i < total; i++) {
+        sandGrid[i] =
+          sData[i * 4 + 3] > 60 && grassGrid[i] === 1 && waterGrid[i] === 0
+            ? 1
+            : 0;
+      }
+    } else if (typeof sandGrid !== "undefined") {
+      sandGrid.fill(0);
+    }
   } catch (e) {
     console.warn("Collision update error:", e);
   }
 }
 window.updateCollisionGrids = updateCollisionGrids;
+
+/**
+ * Checks whether a given (worldX, worldY) point is on sand/beach terrain.
+ */
+function isPointOnSand(x, y) {
+  if (x < 0 || y < 0 || x >= WORLD_W || y >= WORLD_H) return false;
+  const gx = (x / COLL_SCALE) | 0;
+  const gy = (y / COLL_SCALE) | 0;
+  if (gx < 0 || gy < 0 || gx >= COLL_W || gy >= COLL_H) return false;
+  const idx = gy * COLL_W + gx;
+  return (
+    typeof sandGrid !== "undefined" &&
+    sandGrid[idx] === 1 &&
+    grassGrid[idx] === 1 &&
+    waterGrid[idx] === 0
+  );
+}
+window.isPointOnSand = isPointOnSand;
+
+/**
+ * Checks whether a given (worldX, worldY) point is on or in the immediate vicinity of sand.
+ */
+function isNearSand(x, y, maxDist = 24) {
+  if (isPointOnSand(x, y)) return true;
+  if (typeof sandGrid === "undefined") return false;
+  const r = Math.max(1, (maxDist / COLL_SCALE) | 0);
+  const gx = (x / COLL_SCALE) | 0;
+  const gy = (y / COLL_SCALE) | 0;
+  const rSq = r * r;
+  for (let dy = -r; dy <= r; dy++) {
+    const ny = gy + dy;
+    if (ny < 0 || ny >= COLL_H) continue;
+    const row = ny * COLL_W;
+    for (let dx = -r; dx <= r; dx++) {
+      if (dx * dx + dy * dy > rSq) continue;
+      const nx = gx + dx;
+      if (nx >= 0 && nx < COLL_W) {
+        const idx = row + nx;
+        if (
+          sandGrid[idx] === 1 &&
+          grassGrid[idx] === 1 &&
+          waterGrid[idx] === 0
+        )
+          return true;
+      }
+    }
+  }
+  return false;
+}
+window.isNearSand = isNearSand;
 
 /**
  * Checks whether a given (worldX, worldY) point is directly on the green grass surface
@@ -1216,6 +1298,7 @@ function populateGrassDetailsAcrossIsland() {
 
 function addGrassDetailAt(x, y, forceTuft = false) {
   const rand = Math.random();
+
   if (forceTuft || rand < 0.35) {
     // Bushy grass blade cluster (like the tall strokes in reference)
     grassDetails.push({
@@ -1398,6 +1481,10 @@ function renderTerrainChunk(dx, dy, dw, dh) {
     dirtyExtrudeCanvas.height = Math.max(dirtyExtrudeCanvas.height, sh);
     dirtyWaterCanvas.width = dirtyExtrudeCanvas.width;
     dirtyWaterCanvas.height = dirtyExtrudeCanvas.height;
+    if (typeof dirtySandCanvas !== "undefined" && dirtySandCanvas) {
+      dirtySandCanvas.width = dirtyExtrudeCanvas.width;
+      dirtySandCanvas.height = dirtyExtrudeCanvas.height;
+    }
   }
 
   const sCtx = dirtyExtrudeCtx;
@@ -1510,6 +1597,41 @@ function renderTerrainChunk(dx, dy, dw, dh) {
     }
   }
 
+  // Composite Sand / Beach Terrain on the meadow
+  if (typeof sandMaskCanvas !== "undefined" && sandMaskCanvas) {
+    const sdc = dirtySandCtx;
+    if (sdc) {
+      sdc.save();
+      sdc.beginPath();
+      sdc.rect(0, 0, sw, sh);
+      sdc.clip();
+
+      sdc.clearRect(0, 0, sw, sh);
+      sdc.globalCompositeOperation = "source-over";
+      sdc.drawImage(sandMaskCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+      sdc.globalCompositeOperation = "source-in";
+
+      // Warm golden beach gradient
+      const sGrad = sdc.createLinearGradient(
+        0,
+        WORLD_H * 0.2 - sy,
+        0,
+        WORLD_H * 0.8 - sy,
+      );
+      sGrad.addColorStop(0, "#FFF7E6");
+      sGrad.addColorStop(0.5, "#FCE49C");
+      sGrad.addColorStop(1, "#E8B868");
+      sdc.fillStyle = sGrad;
+      sdc.fillRect(0, 0, sw, sh);
+      sdc.restore();
+
+      sCtx.save();
+      sCtx.globalCompositeOperation = "source-atop";
+      sCtx.drawImage(dirtySandCanvas, 0, 0, sw, sh, 0, 0, sw, sh);
+      sCtx.restore();
+    }
+  }
+
   // Composite Water Bodies on the meadow
   if (waterMaskCanvas) {
     wCtx.save();
@@ -1559,8 +1681,29 @@ function renderTerrainChunk(dx, dy, dw, dh) {
         d.y > dy + dh + 24
       )
         continue;
-      if (isPointOnWater(d.x, d.y)) continue;
+      if (isPointOnWater(d.x, d.y) || isPointOnSand(d.x, d.y)) continue;
       drawGrassTuft(terrainLayerCtx, d.x, d.y, d.size, d.blades, d.color);
+    }
+  }
+
+  // 5. DRAW BEACH DETAILS (SHELLS, STARFISH, PEBBLES)
+  if (
+    typeof sandDetails !== "undefined" &&
+    sandDetails &&
+    sandDetails.length > 0
+  ) {
+    for (let i = 0; i < sandDetails.length; i++) {
+      const sd = sandDetails[i];
+      if (
+        sd.x < dx - 24 ||
+        sd.x > dx + dw + 24 ||
+        sd.y < dy - 24 ||
+        sd.y > dy + dh + 24
+      )
+        continue;
+      if (isPointOnWater(sd.x, sd.y)) continue;
+      if (!isPointOnSand(sd.x, sd.y)) continue;
+      drawBeachDetail(terrainLayerCtx, sd);
     }
   }
 
@@ -1647,6 +1790,99 @@ function drawGrassTuft(targetCtx, x, y, height, bladeCount, color) {
       startY - bladeH,
     );
     targetCtx.stroke();
+  }
+  targetCtx.restore();
+}
+
+/**
+ * Renders charming procedural beach elements (clamshells, starfish, smooth pebbles)
+ */
+function drawBeachDetail(targetCtx, sd) {
+  targetCtx.save();
+  targetCtx.translate(sd.x, sd.y);
+  if (sd.rotation) targetCtx.rotate(sd.rotation);
+  const s = sd.size || 6;
+
+  if (sd.type === "shell") {
+    targetCtx.fillStyle = "rgba(160, 120, 75, 0.35)";
+    targetCtx.beginPath();
+    targetCtx.ellipse(0, s * 0.25, s * 0.9, s * 0.5, 0, 0, Math.PI * 2);
+    targetCtx.fill();
+
+    const baseColor = sd.color || "#FFF5EB";
+    targetCtx.fillStyle = baseColor;
+    targetCtx.beginPath();
+    targetCtx.moveTo(-s * 0.7, s * 0.2);
+    targetCtx.quadraticCurveTo(-s * 0.85, -s * 0.6, 0, -s * 0.85);
+    targetCtx.quadraticCurveTo(s * 0.85, -s * 0.6, 0.7 * s, s * 0.2);
+    targetCtx.quadraticCurveTo(0, s * 0.4, -s * 0.7, s * 0.2);
+    targetCtx.fill();
+
+    targetCtx.strokeStyle = "rgba(190, 150, 110, 0.45)";
+    targetCtx.lineWidth = 0.9;
+    targetCtx.lineCap = "round";
+    for (let r = -2; r <= 2; r++) {
+      targetCtx.beginPath();
+      targetCtx.moveTo(0, s * 0.3);
+      targetCtx.lineTo(r * (s * 0.28), -s * 0.75 + Math.abs(r) * (s * 0.08));
+      targetCtx.stroke();
+    }
+  } else if (sd.type === "starfish") {
+    targetCtx.fillStyle = "rgba(160, 120, 75, 0.35)";
+    targetCtx.beginPath();
+    targetCtx.ellipse(0, 1.5, s * 0.95, s * 0.7, 0, 0, Math.PI * 2);
+    targetCtx.fill();
+
+    const outerR = s;
+    const innerR = s * 0.46;
+    const starColor = sd.color || "#FB923C";
+    targetCtx.fillStyle = starColor;
+    targetCtx.lineJoin = "round";
+    targetCtx.lineWidth = 1.4;
+    targetCtx.strokeStyle = "rgba(190, 80, 20, 0.3)";
+    targetCtx.beginPath();
+    for (let p = 0; p < 10; p++) {
+      const r = p % 2 === 0 ? outerR : innerR;
+      const angle = (p / 10) * Math.PI * 2 - Math.PI / 2;
+      const px = Math.cos(angle) * r;
+      const py = Math.sin(angle) * r;
+      if (p === 0) targetCtx.moveTo(px, py);
+      else targetCtx.lineTo(px, py);
+    }
+    targetCtx.closePath();
+    targetCtx.fill();
+    targetCtx.stroke();
+
+    targetCtx.fillStyle = "#FEF08A";
+    targetCtx.beginPath();
+    targetCtx.arc(0, 0, 1.2, 0, Math.PI * 2);
+    for (let p = 0; p < 5; p++) {
+      const angle = (p / 5) * Math.PI * 2 - Math.PI / 2;
+      targetCtx.arc(
+        Math.cos(angle) * (s * 0.58),
+        Math.sin(angle) * (s * 0.58),
+        0.9,
+        0,
+        Math.PI * 2,
+      );
+    }
+    targetCtx.fill();
+  } else {
+    targetCtx.fillStyle = "rgba(160, 120, 75, 0.4)";
+    targetCtx.beginPath();
+    targetCtx.ellipse(0, s * 0.25, s * 0.9, s * 0.55, 0, 0, Math.PI * 2);
+    targetCtx.fill();
+
+    const pebbleColor = sd.color || "#CBD5E1";
+    targetCtx.fillStyle = pebbleColor;
+    targetCtx.beginPath();
+    targetCtx.ellipse(0, 0, s * 0.85, s * 0.6, 0, 0, Math.PI * 2);
+    targetCtx.fill();
+
+    targetCtx.fillStyle = "rgba(255, 255, 255, 0.65)";
+    targetCtx.beginPath();
+    targetCtx.ellipse(-s * 0.22, -s * 0.2, s * 0.35, s * 0.18, -0.3, 0, Math.PI * 2);
+    targetCtx.fill();
   }
   targetCtx.restore();
 }
@@ -1782,6 +2018,36 @@ function modifyGrassTerrain(x1, y1, x2, y2, isErasing) {
     paintCollisionGridStroke(waterGrid, x1, y1, x2, y2, terrainBrushSize, 0);
   }
 
+  // When painting grass over sand, grass replaces sand directly!
+  if (!isErasing && typeof sandMaskCtx !== "undefined" && sandMaskCtx) {
+    sandMaskCtx.save();
+    sandMaskCtx.globalCompositeOperation = "destination-out";
+    sandMaskCtx.lineCap = "round";
+    sandMaskCtx.lineJoin = "round";
+    sandMaskCtx.lineWidth = terrainBrushSize * 2;
+
+    sandMaskCtx.beginPath();
+    sandMaskCtx.moveTo(x1, y1);
+    sandMaskCtx.lineTo(x2, y2);
+    sandMaskCtx.stroke();
+
+    sandMaskCtx.beginPath();
+    sandMaskCtx.arc(x2, y2, terrainBrushSize, 0, Math.PI * 2);
+    sandMaskCtx.fill();
+    sandMaskCtx.restore();
+
+    paintCollisionGridStroke(sandGrid, x1, y1, x2, y2, terrainBrushSize, 0);
+
+    const rSq = terrainBrushSize * 1.05 * (terrainBrushSize * 1.05);
+    if (typeof sandDetails !== "undefined") {
+      sandDetails = sandDetails.filter((d) => {
+        const dx = d.x - x2;
+        const dy = d.y - y2;
+        return dx * dx + dy * dy > rSq;
+      });
+    }
+  }
+
   paintCollisionGridStroke(
     grassGrid,
     x1,
@@ -1799,6 +2065,53 @@ function modifyGrassTerrain(x1, y1, x2, y2, isErasing) {
       const dy = d.y - y2;
       return dx * dx + dy * dy > rSq;
     });
+
+    if (typeof sandMaskCtx !== "undefined" && sandMaskCtx) {
+      sandMaskCtx.save();
+      sandMaskCtx.globalCompositeOperation = "destination-out";
+      sandMaskCtx.lineCap = "round";
+      sandMaskCtx.lineJoin = "round";
+      sandMaskCtx.lineWidth = terrainBrushSize * 2;
+
+      sandMaskCtx.beginPath();
+      sandMaskCtx.moveTo(x1, y1);
+      sandMaskCtx.lineTo(x2, y2);
+      sandMaskCtx.stroke();
+
+      sandMaskCtx.beginPath();
+      sandMaskCtx.arc(x2, y2, terrainBrushSize, 0, Math.PI * 2);
+      sandMaskCtx.fill();
+      sandMaskCtx.restore();
+
+      paintCollisionGridStroke(sandGrid, x1, y1, x2, y2, terrainBrushSize, 0);
+    }
+    if (typeof sandDetails !== "undefined") {
+      sandDetails = sandDetails.filter((d) => {
+        const dx = d.x - x2;
+        const dy = d.y - y2;
+        return dx * dx + dy * dy > rSq;
+      });
+    }
+
+    if (waterMaskCtx) {
+      waterMaskCtx.save();
+      waterMaskCtx.globalCompositeOperation = "destination-out";
+      waterMaskCtx.lineCap = "round";
+      waterMaskCtx.lineJoin = "round";
+      waterMaskCtx.lineWidth = terrainBrushSize * 2;
+
+      waterMaskCtx.beginPath();
+      waterMaskCtx.moveTo(x1, y1);
+      waterMaskCtx.lineTo(x2, y2);
+      waterMaskCtx.stroke();
+
+      waterMaskCtx.beginPath();
+      waterMaskCtx.arc(x2, y2, terrainBrushSize, 0, Math.PI * 2);
+      waterMaskCtx.fill();
+      waterMaskCtx.restore();
+
+      paintCollisionGridStroke(waterGrid, x1, y1, x2, y2, terrainBrushSize, 0);
+    }
   }
 
   expandIslandBoundingBox(x2, y2, terrainBrushSize);
@@ -1861,6 +2174,209 @@ function paintDecorativeGrass(x1, y1, x2, y2) {
 }
 
 /**
+ * Paints or erases sand/beach terrain (Kuas Pasir & Pantai)
+ */
+function modifySandTerrain(x1, y1, x2, y2, isErasing) {
+  if (typeof sandMaskCtx === "undefined" || !sandMaskCtx) return;
+
+  if (!isErasing) {
+    // 1. Paint onto sandMaskCanvas
+    sandMaskCtx.save();
+    sandMaskCtx.globalCompositeOperation = "source-over";
+    sandMaskCtx.strokeStyle = "#FFFFFF";
+    sandMaskCtx.fillStyle = "#FFFFFF";
+    sandMaskCtx.lineCap = "round";
+    sandMaskCtx.lineJoin = "round";
+    sandMaskCtx.lineWidth = terrainBrushSize * 2;
+    sandMaskCtx.beginPath();
+    sandMaskCtx.moveTo(x1, y1);
+    sandMaskCtx.lineTo(x2, y2);
+    sandMaskCtx.stroke();
+    sandMaskCtx.beginPath();
+    sandMaskCtx.arc(x2, y2, terrainBrushSize, 0, Math.PI * 2);
+    sandMaskCtx.fill();
+    sandMaskCtx.restore();
+
+    // Sifatnya sama seperti kuas air: strictly clipped to existing island landmass
+    if (maskCanvas) {
+      sandMaskCtx.save();
+      sandMaskCtx.globalCompositeOperation = "destination-in";
+      sandMaskCtx.drawImage(maskCanvas, 0, 0);
+      sandMaskCtx.restore();
+    }
+
+    // 2. Sand displaces water
+    if (waterMaskCtx) {
+      waterMaskCtx.save();
+      waterMaskCtx.globalCompositeOperation = "destination-out";
+      waterMaskCtx.lineCap = "round";
+      waterMaskCtx.lineJoin = "round";
+      waterMaskCtx.lineWidth = terrainBrushSize * 2;
+      waterMaskCtx.beginPath();
+      waterMaskCtx.moveTo(x1, y1);
+      waterMaskCtx.lineTo(x2, y2);
+      waterMaskCtx.stroke();
+      waterMaskCtx.beginPath();
+      waterMaskCtx.arc(x2, y2, terrainBrushSize, 0, Math.PI * 2);
+      waterMaskCtx.fill();
+      waterMaskCtx.restore();
+      paintCollisionGridStroke(waterGrid, x1, y1, x2, y2, terrainBrushSize, 0);
+    }
+
+    paintCollisionGridStroke(sandGrid, x1, y1, x2, y2, terrainBrushSize, 1);
+
+    // Strictly clamp sandGrid to grassGrid
+    const rCells = Math.ceil(terrainBrushSize / COLL_SCALE) + 1;
+    const cx1 = (x1 / COLL_SCALE) | 0;
+    const cy1 = (y1 / COLL_SCALE) | 0;
+    const cx2 = (x2 / COLL_SCALE) | 0;
+    const cy2 = (y2 / COLL_SCALE) | 0;
+    const minGX = Math.max(0, Math.min(cx1, cx2) - rCells);
+    const maxGX = Math.min(COLL_W - 1, Math.max(cx1, cx2) + rCells);
+    const minGY = Math.max(0, Math.min(cy1, cy2) - rCells);
+    const maxGY = Math.min(COLL_H - 1, Math.max(cy1, cy2) + rCells);
+    for (let gy = minGY; gy <= maxGY; gy++) {
+      const row = gy * COLL_W;
+      for (let gx = minGX; gx <= maxGX; gx++) {
+        const idx = row + gx;
+        if (grassGrid[idx] === 0) {
+          sandGrid[idx] = 0;
+        }
+      }
+    }
+
+    // 3. Remove grass tufts under the sand brush
+    const rSq = terrainBrushSize * 1.05 * (terrainBrushSize * 1.05);
+    grassDetails = grassDetails.filter((d) => {
+      const dx = d.x - x2;
+      const dy = d.y - y2;
+      return dx * dx + dy * dy > rSq;
+    });
+
+    // 4. Flowers cannot grow on sand: dislodge any flowers under or near sand stroke!
+    const flowerClearR = terrainBrushSize + 16;
+    const flowerClearRSq = flowerClearR * flowerClearR;
+    let flowersChanged = false;
+    for (let i = flowers.length - 1; i >= 0; i--) {
+      const f = flowers[i];
+      const dx = f.x - x2;
+      const dy = f.y - y2;
+      if (
+        dx * dx + dy * dy <= flowerClearRSq ||
+        isPointOnSand(f.x, f.y) ||
+        isNearSand(f.x, f.y, 16)
+      ) {
+        flowers.splice(i, 1);
+        triggerFallingFlower(f, false);
+        flowersChanged = true;
+      }
+    }
+    if (flowersChanged) {
+      updateStatusBadges();
+    }
+
+    if (typeof checkLandObjectsSurvival === "function") {
+      checkLandObjectsSurvival();
+    }
+
+    // 5. Sparsely generate shells & starfish along sand stroke
+    if (typeof sandDetails !== "undefined") {
+      if (Math.random() < 0.22) {
+        const jitterR = Math.random() * (terrainBrushSize * 0.7);
+        const jitterA = Math.random() * Math.PI * 2;
+        const bx = x2 + Math.cos(jitterA) * jitterR;
+        const by = y2 + Math.sin(jitterA) * jitterR;
+        if (isPointOnSand(bx, by) && !isPointOnWater(bx, by)) {
+          let tooClose = false;
+          const minDetailDistSq = 24 * 24;
+          for (let i = 0; i < sandDetails.length; i++) {
+            const sd = sandDetails[i];
+            const dx = sd.x - bx;
+            const dy = sd.y - by;
+            if (dx * dx + dy * dy < minDetailDistSq) {
+              tooClose = true;
+              break;
+            }
+          }
+          if (!tooClose) {
+            const detailTypes = ["shell", "shell", "starfish", "pebble"];
+            const shellColors = ["#FFF5EB", "#FEE2E2", "#FEF3C7", "#FAF5FF"];
+            const starColors = ["#FB923C", "#F59E0B", "#F472B6", "#FB7185"];
+            const type = detailTypes[Math.floor(Math.random() * detailTypes.length)];
+            let color = "#FFF5EB";
+            let size = 6;
+            if (type === "shell") {
+              color = shellColors[Math.floor(Math.random() * shellColors.length)];
+              size = 5 + Math.random() * 3.5;
+            } else if (type === "starfish") {
+              color = starColors[Math.floor(Math.random() * starColors.length)];
+              size = 6 + Math.random() * 4;
+            } else {
+              color = "#CBD5E1";
+              size = 4 + Math.random() * 3;
+            }
+            sandDetails.push({
+              x: bx,
+              y: by,
+              type,
+              color,
+              size,
+              rotation: Math.random() * Math.PI * 2,
+            });
+          }
+        }
+      }
+    }
+
+    if (Math.random() < 0.25) {
+      particles.push({
+        type: "sparkle",
+        x: x2 + (Math.random() - 0.5) * terrainBrushSize,
+        y: y2 + (Math.random() - 0.5) * terrainBrushSize,
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: -0.6 - Math.random() * 1.0,
+        size: 2.2 + Math.random() * 2,
+        color: "#F59E0B",
+        alpha: 0.85,
+      });
+    }
+  } else {
+    sandMaskCtx.save();
+    sandMaskCtx.globalCompositeOperation = "destination-out";
+    sandMaskCtx.lineCap = "round";
+    sandMaskCtx.lineJoin = "round";
+    sandMaskCtx.lineWidth = terrainBrushSize * 2;
+    sandMaskCtx.beginPath();
+    sandMaskCtx.moveTo(x1, y1);
+    sandMaskCtx.lineTo(x2, y2);
+    sandMaskCtx.stroke();
+    sandMaskCtx.beginPath();
+    sandMaskCtx.arc(x2, y2, terrainBrushSize, 0, Math.PI * 2);
+    sandMaskCtx.fill();
+    sandMaskCtx.restore();
+
+    paintCollisionGridStroke(sandGrid, x1, y1, x2, y2, terrainBrushSize, 0);
+
+    const rSq = terrainBrushSize * 1.05 * (terrainBrushSize * 1.05);
+    if (typeof sandDetails !== "undefined") {
+      sandDetails = sandDetails.filter((sd) => {
+        const dx = sd.x - x2;
+        const dy = sd.y - y2;
+        return dx * dx + dy * dy > rSq;
+      });
+    }
+  }
+
+  queueTerrainDirtyRect(
+    Math.min(x1, x2) - terrainBrushSize,
+    Math.min(y1, y2) - terrainBrushSize,
+    Math.max(x1, x2) + terrainBrushSize,
+    Math.max(y1, y2) + terrainBrushSize,
+  );
+}
+window.modifySandTerrain = modifySandTerrain;
+
+/**
  * Paints or erases water terrain (Kolam Air & Aliran Sungai)
  */
 function modifyWaterTerrain(x1, y1, x2, y2, isErasing) {
@@ -1891,6 +2407,34 @@ function modifyWaterTerrain(x1, y1, x2, y2, isErasing) {
     waterMaskCtx.globalCompositeOperation = "destination-in";
     waterMaskCtx.drawImage(maskCanvas, 0, 0);
     waterMaskCtx.restore();
+  }
+
+  // Water replaces sand in painted areas
+  if (!isErasing && typeof sandMaskCtx !== "undefined" && sandMaskCtx) {
+    sandMaskCtx.save();
+    sandMaskCtx.globalCompositeOperation = "destination-out";
+    sandMaskCtx.lineCap = "round";
+    sandMaskCtx.lineJoin = "round";
+    sandMaskCtx.lineWidth = terrainBrushSize * 2;
+    sandMaskCtx.beginPath();
+    sandMaskCtx.moveTo(x1, y1);
+    sandMaskCtx.lineTo(x2, y2);
+    sandMaskCtx.stroke();
+    sandMaskCtx.beginPath();
+    sandMaskCtx.arc(x2, y2, terrainBrushSize, 0, Math.PI * 2);
+    sandMaskCtx.fill();
+    sandMaskCtx.restore();
+
+    paintCollisionGridStroke(sandGrid, x1, y1, x2, y2, terrainBrushSize, 0);
+
+    const rSq = terrainBrushSize * 1.05 * (terrainBrushSize * 1.05);
+    if (typeof sandDetails !== "undefined") {
+      sandDetails = sandDetails.filter((d) => {
+        const dx = d.x - x2;
+        const dy = d.y - y2;
+        return dx * dx + dy * dy > rSq;
+      });
+    }
   }
 
   paintCollisionGridStroke(
@@ -2031,6 +2575,8 @@ function plantFlowerAt(x, y, sourceCanvas) {
   const onGrass = typeof isPointOnGrass === "function" && isPointOnGrass(x, y);
   const onWater = typeof isPointOnWater === "function" && isPointOnWater(x, y);
   const nearWater = typeof isNearWater === "function" && isNearWater(x, y, 22);
+  const onSand = typeof isPointOnSand === "function" && isPointOnSand(x, y);
+  const nearSand = typeof isNearSand === "function" && isNearSand(x, y, 16);
 
   if (onWater || nearWater) {
     if (typeof showGardenNotice === "function")
@@ -2040,9 +2586,17 @@ function plantFlowerAt(x, y, sourceCanvas) {
     if (typeof playErrorSound === "function") playErrorSound();
     return;
   }
+  if (onSand || nearSand) {
+    if (typeof showGardenNotice === "function")
+      showGardenNotice(
+        "Bunga tidak bisa ditanam di pasir atau pantai! 🏖️🌸",
+      );
+    if (typeof playErrorSound === "function") playErrorSound();
+    return;
+  }
   if (!onGrass) {
     if (typeof showGardenNotice === "function")
-      showGardenNotice("Bunga hanya bisa ditanam di atas tanah rumput! 🌿");
+      showGardenNotice("Bunga hanya bisa ditanam di atas tanah rumput hijau! 🌿🌸");
     if (typeof playErrorSound === "function") playErrorSound();
     return;
   }
@@ -2650,6 +3204,7 @@ function updateToolbarUI() {
   const isPencil =
     currentTool === "land" ||
     currentTool === "water-terrain" ||
+    currentTool === "sand-terrain" ||
     currentTool === "grass";
   const pencilMainBtn = document.getElementById("tool-pencil-main");
   if (pencilMainBtn) {
@@ -2657,7 +3212,7 @@ function updateToolbarUI() {
     else pencilMainBtn.classList.remove("active");
   }
 
-  ["land", "water-terrain", "grass"].forEach((st) => {
+  ["land", "water-terrain", "sand-terrain", "grass"].forEach((st) => {
     const subEl = document.getElementById("subtool-" + st);
     if (subEl) {
       if (currentTool === st) {
@@ -2682,6 +3237,7 @@ function updateToolbarUI() {
   const isEraser =
     currentTool === "erase-land" ||
     currentTool === "erase-water" ||
+    currentTool === "erase-sand" ||
     currentTool === "erase-grass" ||
     currentTool === "erase";
   const eraserMainBtn = document.getElementById("tool-eraser-main");
@@ -2690,7 +3246,7 @@ function updateToolbarUI() {
     else eraserMainBtn.classList.remove("active");
   }
 
-  ["erase-land", "erase-water", "erase-grass"].forEach((st) => {
+  ["erase-land", "erase-water", "erase-sand", "erase-grass"].forEach((st) => {
     const subEl = document.getElementById("subtool-" + st);
     if (subEl) {
       if (
@@ -2721,6 +3277,8 @@ function updateToolbarUI() {
       pencilIconEl.innerHTML = `<svg class="w-5 h-5 text-[#2B5B35]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 17a5 5 0 0 0 5 5h10a5 5 0 0 0 5-5c0-2.76-2.24-5-5-5h-1a6 6 0 0 0-11-2c0 .34.03.67.08 1A5 5 0 0 0 2 17z"/><path d="M7 16h10"/></svg>`;
     } else if (currentTool === "water-terrain") {
       pencilIconEl.innerHTML = `<svg class="w-5 h-5 text-sky-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 14c2.5-2 5.5-2 8 0s5.5 2 8 0 4-2 6 0"/><path d="M2 18c2.5-2 5.5-2 8 0s5.5 2 8 0 4-2 6 0"/><circle cx="12" cy="7" r="3.2" fill="#38BDF8" stroke="currentColor"/></svg>`;
+    } else if (currentTool === "sand-terrain") {
+      pencilIconEl.innerHTML = `<svg class="w-5 h-5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18c3-3 7-3 10 0s7 3 10 0"/><circle cx="12" cy="8" r="4" fill="#F59E0B" stroke="currentColor"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/></svg>`;
     } else if (currentTool === "grass") {
       pencilIconEl.innerHTML = `<svg class="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-13"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4.1 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4.1 1-4.9 2z"/></svg>`;
     } else {
@@ -2734,6 +3292,8 @@ function updateToolbarUI() {
       eraserIconEl.innerHTML = `<svg class="w-5 h-5 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><line x1="16" y1="4" x2="20" y2="8" stroke="#D97706" stroke-width="2.5"/></svg>`;
     } else if (currentTool === "erase-water") {
       eraserIconEl.innerHTML = `<svg class="w-5 h-5 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><line x1="16" y1="4" x2="20" y2="8" stroke="#0284C7" stroke-width="2.5"/></svg>`;
+    } else if (currentTool === "erase-sand") {
+      eraserIconEl.innerHTML = `<svg class="w-5 h-5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><line x1="16" y1="4" x2="20" y2="8" stroke="#D97706" stroke-width="2.5"/></svg>`;
     } else if (currentTool === "erase-grass") {
       eraserIconEl.innerHTML = `<svg class="w-5 h-5 text-emerald-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><line x1="17" y1="3" x2="21" y2="7" stroke="#059669" stroke-width="2.5"/></svg>`;
     } else {
@@ -3538,6 +4098,16 @@ function captureTerrainSnapshot() {
       .drawImage(waterMaskCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
   }
 
+  let snapSand = null;
+  if (typeof sandMaskCanvas !== "undefined" && sandMaskCanvas) {
+    snapSand = document.createElement("canvas");
+    snapSand.width = sw;
+    snapSand.height = sh;
+    snapSand
+      .getContext("2d")
+      .drawImage(sandMaskCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+  }
+
   return {
     x: sx,
     y: sy,
@@ -3545,7 +4115,9 @@ function captureTerrainSnapshot() {
     h: sh,
     mask: snapMask,
     water: snapWater,
+    sand: snapSand,
     grassDetails: grassDetails.slice(),
+    sandDetails: typeof sandDetails !== "undefined" && sandDetails ? sandDetails.slice() : [],
     flowers: flowers.map((f) => ({ ...f })),
     animals:
       typeof animals !== "undefined" ? animals.map((a) => ({ ...a })) : [],
@@ -3605,12 +4177,24 @@ function applyTerrainSnapshot(snap) {
     maskCtx.drawImage(snap.mask, sx, sy);
   }
 
-  if (waterMaskCtx && snap.water) {
+  if (waterMaskCtx) {
     waterMaskCtx.clearRect(0, 0, WORLD_W, WORLD_H);
-    waterMaskCtx.drawImage(snap.water, sx, sy);
+    if (snap.water) {
+      waterMaskCtx.drawImage(snap.water, sx, sy);
+    }
+  }
+
+  if (typeof sandMaskCtx !== "undefined" && sandMaskCtx) {
+    sandMaskCtx.clearRect(0, 0, WORLD_W, WORLD_H);
+    if (snap.sand) {
+      sandMaskCtx.drawImage(snap.sand, sx, sy);
+    }
   }
 
   grassDetails = snap.grassDetails ? snap.grassDetails.slice() : [];
+  if (typeof sandDetails !== "undefined") {
+    sandDetails = snap.sandDetails ? snap.sandDetails.slice() : [];
+  }
   if (snap.flowers) {
     flowers = snap.flowers.map((f) => ({ ...f }));
   }
@@ -3748,16 +4332,18 @@ function triggerFallingLandAnimal(animal, sinkIntoWater) {
 }
 
 function checkLandObjectsSurvival() {
-  // 1. Check Flowers: Flowers must NEVER exist on water or near water edges!
+  // 1. Check Flowers: Flowers must NEVER exist on water, near water, on sand, or outside grass!
   for (let i = flowers.length - 1; i >= 0; i--) {
     const f = flowers[i];
     const onWater =
       typeof isPointOnWater === "function" && isPointOnWater(f.x, f.y);
     const nearWater =
       typeof isNearWater === "function" && isNearWater(f.x, f.y, 18);
+    const onSand =
+      typeof isPointOnSand === "function" && isPointOnSand(f.x, f.y);
     const onGrass =
       typeof isPointOnGrass === "function" && isPointOnGrass(f.x, f.y);
-    if (onWater || nearWater || !onGrass) {
+    if (onWater || nearWater || onSand || !onGrass) {
       flowers.splice(i, 1);
       triggerFallingFlower(f, onWater || nearWater);
     }
@@ -4230,6 +4816,12 @@ function initGardenEventListeners() {
       const nearWater =
         typeof isNearWater === "function" &&
         isNearWater(worldPos.x, worldPos.y, 22);
+      const onSand =
+        typeof isPointOnSand === "function" &&
+        isPointOnSand(worldPos.x, worldPos.y);
+      const nearSand =
+        typeof isNearSand === "function" &&
+        isNearSand(worldPos.x, worldPos.y, 16);
 
       if (onWater || nearWater) {
         showGardenNotice(
@@ -4238,8 +4830,15 @@ function initGardenEventListeners() {
         if (typeof playErrorSound === "function") playErrorSound();
         return;
       }
+      if (onSand || nearSand) {
+        showGardenNotice(
+          "Bunga tidak bisa ditanam di pasir atau pantai! 🏖️🌸",
+        );
+        if (typeof playErrorSound === "function") playErrorSound();
+        return;
+      }
       if (!onGrass) {
-        showGardenNotice("Bunga hanya bisa ditanam di atas tanah rumput! 🌿");
+        showGardenNotice("Bunga hanya bisa ditanam di atas tanah rumput hijau! 🌿🌸");
         if (typeof playErrorSound === "function") playErrorSound();
         return;
       }
@@ -4326,26 +4925,17 @@ function initGardenEventListeners() {
         return;
       }
 
+      const hitDecor =
+        typeof findDecorationAt === "function"
+          ? findDecorationAt(worldPos.x, worldPos.y)
+          : null;
       const hitAnimal =
         typeof findAnimalAt === "function"
           ? findAnimalAt(worldPos.x, worldPos.y)
           : null;
       const hit = findFlowerAt(worldPos.x, worldPos.y);
-      const hitDecor =
-        !hit && typeof findDecorationAt === "function"
-          ? findDecorationAt(worldPos.x, worldPos.y)
-          : null;
 
-      if (hit) {
-        draggedFlower = hit;
-        draggedFlowerOrigX = hit.x;
-        draggedFlowerOrigY = hit.y;
-        draggedFlowerOffset = { x: hit.x - worldPos.x, y: hit.y - worldPos.y };
-        selectedDecoration = null;
-        if (typeof window !== "undefined") window.selectedDecoration = null;
-        if (typeof updateDecorScaleWidgetUI === "function") updateDecorScaleWidgetUI();
-        worldCanvas.style.cursor = "grabbing";
-      } else if (hitDecor) {
+      if (hitDecor) {
         selectedDecoration = hitDecor;
         if (typeof window !== "undefined") window.selectedDecoration = hitDecor;
         if (typeof updateDecorScaleWidgetUI === "function") updateDecorScaleWidgetUI();
@@ -4358,6 +4948,15 @@ function initGardenEventListeners() {
         };
         dragStartScreenX = e.clientX;
         dragStartScreenY = e.clientY;
+        worldCanvas.style.cursor = "grabbing";
+      } else if (hit) {
+        draggedFlower = hit;
+        draggedFlowerOrigX = hit.x;
+        draggedFlowerOrigY = hit.y;
+        draggedFlowerOffset = { x: hit.x - worldPos.x, y: hit.y - worldPos.y };
+        selectedDecoration = null;
+        if (typeof window !== "undefined") window.selectedDecoration = null;
+        if (typeof updateDecorScaleWidgetUI === "function") updateDecorScaleWidgetUI();
         worldCanvas.style.cursor = "grabbing";
       } else if (hitAnimal) {
         draggedAnimal = hitAnimal;
@@ -4626,6 +5225,10 @@ function initGardenEventListeners() {
       modifyWaterTerrain(lastWorldX, lastWorldY, worldPos.x, worldPos.y, false);
       lastWorldX = worldPos.x;
       lastWorldY = worldPos.y;
+    } else if (currentTool === "sand-terrain") {
+      modifySandTerrain(lastWorldX, lastWorldY, worldPos.x, worldPos.y, false);
+      lastWorldX = worldPos.x;
+      lastWorldY = worldPos.y;
     } else if (currentTool === "grass") {
       const grassStepDist = Math.hypot(
         worldPos.x - lastGrassPaintX,
@@ -4645,6 +5248,10 @@ function initGardenEventListeners() {
       lastWorldY = worldPos.y;
     } else if (currentTool === "erase-grass") {
       eraseGrassLine(lastWorldX, lastWorldY, worldPos.x, worldPos.y);
+      lastWorldX = worldPos.x;
+      lastWorldY = worldPos.y;
+    } else if (currentTool === "erase-sand") {
+      modifySandTerrain(lastWorldX, lastWorldY, worldPos.x, worldPos.y, true);
       lastWorldX = worldPos.x;
       lastWorldY = worldPos.y;
     } else if (currentTool === "erase-land") {
@@ -4691,9 +5298,6 @@ function initGardenEventListeners() {
   function handlePointerUpOrCancel(e) {
     if (e && e.pointerId !== undefined) {
       activeTouchPointers.delete(e.pointerId);
-    }
-    if (activeTouchPointers.size === 0) {
-      isPointerDown = false;
     }
     if (activeTouchPointers.size < 2) {
       isPinching = false;
@@ -4837,7 +5441,7 @@ function initGardenEventListeners() {
       updateToolbarUI();
     }
 
-    if (!isPointerDown && activeTouchPointers.size === 0) return;
+    if (!isPointerDown && activeTouchPointers.size === 0 && !draggedFlower && !draggedDecoration && !draggedAnimal) return;
     if (activeTouchPointers.size === 0) isPointerDown = false;
 
     try {
@@ -4862,8 +5466,10 @@ function initGardenEventListeners() {
       if (
         currentTool === "land" ||
         currentTool === "water-terrain" ||
+        currentTool === "sand-terrain" ||
         currentTool === "grass" ||
         currentTool === "erase-grass" ||
+        currentTool === "erase-sand" ||
         currentTool === "erase-land" ||
         currentTool === "erase-water" ||
         currentTool === "erase"
@@ -4954,26 +5560,43 @@ function initGardenEventListeners() {
       const nearWater =
         typeof isNearWater === "function" &&
         isNearWater(draggedFlower.x, draggedFlower.y, 22);
+      const onSand =
+        typeof isPointOnSand === "function" &&
+        isPointOnSand(draggedFlower.x, draggedFlower.y);
+      const nearSand =
+        typeof isNearSand === "function" &&
+        isNearSand(draggedFlower.x, draggedFlower.y, 16);
 
       if (onWater || nearWater) {
         draggedFlower.x = draggedFlowerOrigX;
         draggedFlower.y = draggedFlowerOrigY;
-        draggedFlower.onGrass = isPointOnGrass(
-          draggedFlower.x,
-          draggedFlower.y,
-        );
+        draggedFlower.onGrass =
+          isPointOnGrass(draggedFlower.x, draggedFlower.y) &&
+          !isPointOnSand(draggedFlower.x, draggedFlower.y) &&
+          !isPointOnWater(draggedFlower.x, draggedFlower.y);
         showGardenNotice(
           "Bunga tidak bisa ditaruh di kolam air atau tepian air! 💧🌸",
+        );
+        if (typeof playErrorSound === "function") playErrorSound();
+      } else if (onSand || nearSand) {
+        draggedFlower.x = draggedFlowerOrigX;
+        draggedFlower.y = draggedFlowerOrigY;
+        draggedFlower.onGrass =
+          isPointOnGrass(draggedFlower.x, draggedFlower.y) &&
+          !isPointOnSand(draggedFlower.x, draggedFlower.y) &&
+          !isPointOnWater(draggedFlower.x, draggedFlower.y);
+        showGardenNotice(
+          "Bunga tidak bisa ditaruh di padang pasir atau pantai! 🏖️🌸",
         );
         if (typeof playErrorSound === "function") playErrorSound();
       } else if (!onGrass) {
         draggedFlower.x = draggedFlowerOrigX;
         draggedFlower.y = draggedFlowerOrigY;
-        draggedFlower.onGrass = isPointOnGrass(
-          draggedFlower.x,
-          draggedFlower.y,
-        );
-        showGardenNotice("Bunga hanya bisa ditaruh di atas tanah rumput! 🌿");
+        draggedFlower.onGrass =
+          isPointOnGrass(draggedFlower.x, draggedFlower.y) &&
+          !isPointOnSand(draggedFlower.x, draggedFlower.y) &&
+          !isPointOnWater(draggedFlower.x, draggedFlower.y);
+        showGardenNotice("Bunga hanya bisa ditaruh di atas tanah rumput hijau! 🌿🌸");
         if (typeof playErrorSound === "function") playErrorSound();
       } else {
         draggedFlower.onGrass = true;
@@ -5171,21 +5794,21 @@ function initGardenEventListeners() {
     } else if (e.key === "4") {
       setWorldTool("water-terrain");
     } else if (e.key === "5") {
-      setWorldTool("grass");
+      setWorldTool("sand-terrain");
     } else if (e.key === "6") {
-      setWorldTool("erase-land");
+      setWorldTool("grass");
     } else if (e.key === "7") {
-      setWorldTool("erase-water");
+      setWorldTool("erase-land");
     } else if (e.key === "8") {
-      setWorldTool("erase-grass");
+      setWorldTool("erase-water");
     } else if (e.key === "9") {
-      setWorldTool("water");
+      setWorldTool("erase-sand");
+    } else if (e.key === "0") {
+      setWorldTool("erase-grass");
     } else if (e.key === "+" || e.key === "=") {
       zoomIn();
     } else if (e.key === "-" || e.key === "_") {
       zoomOut();
-    } else if (e.key === "0") {
-      resetZoom();
     }
   });
 
@@ -6120,8 +6743,10 @@ function drawCursorPreview(targetCtx) {
   if (
     currentTool === "land" ||
     currentTool === "water-terrain" ||
+    currentTool === "sand-terrain" ||
     currentTool === "grass" ||
     currentTool === "erase-grass" ||
+    currentTool === "erase-sand" ||
     currentTool === "erase-land" ||
     currentTool === "erase-water" ||
     currentTool === "erase"
@@ -6129,6 +6754,12 @@ function drawCursorPreview(targetCtx) {
     if (currentTool === "water-terrain") {
       targetCtx.strokeStyle = "#0284C7";
       targetCtx.fillStyle = "rgba(2, 132, 199, 0.08)";
+    } else if (currentTool === "sand-terrain") {
+      targetCtx.strokeStyle = "#D97706";
+      targetCtx.fillStyle = "rgba(217, 119, 6, 0.12)";
+    } else if (currentTool === "erase-sand") {
+      targetCtx.strokeStyle = "#D97706";
+      targetCtx.fillStyle = "rgba(217, 119, 6, 0.15)";
     } else if (currentTool === "erase-grass") {
       targetCtx.strokeStyle = "#059669";
       targetCtx.fillStyle = "rgba(5, 150, 105, 0.08)";
