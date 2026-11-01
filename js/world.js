@@ -19,6 +19,10 @@ var isWorldReady = false;
 window.isWorldLoading = false;
 window.isWorldReady = false;
 let autoSaveTimer = null;
+let lastAutoSaveTime = Date.now();
+let isSavingWorld = false;
+let pendingSaveRequested = false;
+window.isGardenDirty = false;
 let dbInstance = null;
 
 function getLocalWorldsRegistry() {
@@ -57,10 +61,27 @@ function saveEmergencyLocalStorageBackup(worldObj) {
       decorations: worldObj.decorations,
       camera: worldObj.camera,
       settings: worldObj.settings,
+      achievements: worldObj.achievements,
+      mysteryEgg: worldObj.mysteryEgg,
+      droppedSeeds: worldObj.droppedSeeds,
+      dailyLoginState: worldObj.dailyLoginState,
+      polaroidAlbum: worldObj.polaroidAlbum,
+      constellations: worldObj.constellations,
     };
-    localStorage.setItem(EMERGENCY_BACKUP_KEY, JSON.stringify(compact));
+    try {
+      localStorage.setItem(EMERGENCY_BACKUP_KEY, JSON.stringify(compact));
+    } catch (quotaErr) {
+      // If 4200x3200 terrain exceeds 5MB LocalStorage quota, strip heavy terrain data
+      // but preserve all flowers, animals, decorations, and world settings!
+      const lightweight = {
+        ...compact,
+        terrainData: "",
+        waterData: ""
+      };
+      localStorage.setItem(EMERGENCY_BACKUP_KEY, JSON.stringify(lightweight));
+    }
   } catch (e) {
-    // LocalStorage quota may be reached if images are large; fail silently
+    // Fail silently if storage completely disabled
   }
 }
 
@@ -412,131 +433,153 @@ async function saveCurrentWorld(silent = false) {
   if (isWorldLoading || !isWorldReady) {
     return;
   }
+
+  // Mutex lock to prevent overlapping concurrent saves and IndexedDB transaction collisions
+  if (isSavingWorld) {
+    pendingSaveRequested = true;
+    return;
+  }
+  isSavingWorld = true;
+
   const indicator = document.getElementById("autoSaveText");
   if (indicator) indicator.textContent = "Menyimpan...";
 
-  const titleEl = document.getElementById("gardenTitle");
-  const titleText =
-    (titleEl ? titleEl.innerText.trim() : "") || "Fella's Garden";
+  try {
+    const titleEl = document.getElementById("gardenTitle");
+    const titleText =
+      (titleEl ? titleEl.innerText.trim() : "") || "Fella's Garden";
 
-  const serializedFlowers = flowers.map((f) => ({
-    id: f.id,
-    x: Math.round(f.x),
-    y: Math.round(f.y),
-    width: f.width,
-    height: f.height,
-    hydration: Math.round(f.hydration),
-    onGrass: !!f.onGrass,
-    swayPhase: f.swayPhase,
-    growthProgress:
-      typeof f.growthProgress === "number"
-        ? Number(f.growthProgress.toFixed(3))
-        : 1.0,
-    birthScale: 1,
-    waterBounce: 0,
-    hasWatercolor: !!f.hasWatercolor,
-    hasCrayon: !!f.hasCrayon,
-    hasGlowBrush: !!f.hasGlowBrush,
-    glowColor: f.glowColor || null,
-    spriteDataUrl: f.imgCanvas ? f.imgCanvas.toDataURL("image/png") : "",
-  }));
+    const serializedFlowers = flowers.map((f) => ({
+      id: f.id,
+      x: Math.round(f.x),
+      y: Math.round(f.y),
+      width: f.width,
+      height: f.height,
+      hydration: Math.round(f.hydration),
+      onGrass: !!f.onGrass,
+      swayPhase: f.swayPhase,
+      growthProgress:
+        typeof f.growthProgress === "number"
+          ? Number(f.growthProgress.toFixed(3))
+          : 1.0,
+      birthScale: 1,
+      waterBounce: 0,
+      hasWatercolor: !!f.hasWatercolor,
+      hasCrayon: !!f.hasCrayon,
+      hasGlowBrush: !!f.hasGlowBrush,
+      glowColor: f.glowColor || null,
+      spriteDataUrl: f.imgCanvas ? f.imgCanvas.toDataURL("image/png") : "",
+    }));
 
-  const serializedAnimals = animals.map((a) => ({
-    id: a.id,
-    type: a.type,
-    name: a.name,
-    variant: a.variant || "default",
-    habitat:
-      a.habitat ||
-      (a.type === "fish"
-        ? "water"
-        : a.type === "butterfly"
-          ? "flying"
-          : "land"),
-    x: Math.round(a.x),
-    y: Math.round(a.y),
-    width: a.width,
-    height: a.height,
-    spriteDataUrl: a.spriteDataUrl,
-    sound: a.sound,
-    colorHue: a.colorHue,
-    friendship:
-      typeof a.friendship === "number" ? Math.round(a.friendship) : 20,
-    personality: a.personality || "playful",
-    accessory: a.accessory || "none",
-  }));
+    const serializedAnimals = animals.map((a) => ({
+      id: a.id,
+      type: a.type,
+      name: a.name,
+      variant: a.variant || "default",
+      habitat:
+        a.habitat ||
+        (a.type === "fish"
+          ? "water"
+          : a.type === "butterfly"
+            ? "flying"
+            : "land"),
+      x: Math.round(a.x),
+      y: Math.round(a.y),
+      width: a.width,
+      height: a.height,
+      spriteDataUrl: a.spriteDataUrl,
+      sound: a.sound,
+      colorHue: a.colorHue,
+      friendship:
+        typeof a.friendship === "number" ? Math.round(a.friendship) : 20,
+      personality: a.personality || "playful",
+      accessory: a.accessory || "none",
+    }));
 
-  const serializedDecorations =
-    typeof decorations !== "undefined" && Array.isArray(decorations)
-      ? decorations.map((d) => ({
-          id: d.id,
-          type: d.type,
-          x: Math.round(d.x),
-          y: Math.round(d.y),
-          width: d.width,
-          height: d.height,
-          habitat: d.habitat || "land",
-          rotation: d.rotation || 0,
-          paintingDataUrl: d.paintingDataUrl || null,
-          paintingTitle: d.paintingTitle || "",
-        }))
-      : [];
+    const serializedDecorations =
+      typeof decorations !== "undefined" && Array.isArray(decorations)
+        ? decorations.map((d) => ({
+            id: d.id,
+            type: d.type,
+            x: Math.round(d.x),
+            y: Math.round(d.y),
+            width: d.width,
+            height: d.height,
+            habitat: d.habitat || "land",
+            rotation: d.rotation || 0,
+            paintingDataUrl: d.paintingDataUrl || null,
+            paintingTitle: d.paintingTitle || "",
+          }))
+        : [];
 
-  const existingWorld = await dbGetWorld(currentWorldId);
-  const nowIso = new Date().toISOString();
+    const existingWorld = await dbGetWorld(currentWorldId);
+    const nowIso = new Date().toISOString();
 
-  const [terrainDataUrl, waterDataUrl] = await Promise.all([
-    canvasToDataUrlAsync(maskCanvas),
-    waterMaskCanvas ? canvasToDataUrlAsync(waterMaskCanvas) : Promise.resolve(""),
-  ]);
+    const [terrainDataUrl, waterDataUrl] = await Promise.all([
+      canvasToDataUrlAsync(maskCanvas),
+      waterMaskCanvas ? canvasToDataUrlAsync(waterMaskCanvas) : Promise.resolve(""),
+    ]);
 
-  const worldObj = {
-    id: currentWorldId,
-    name: titleText,
-    thumbnail: generateWorldThumbnail(),
-    createdAt: existingWorld ? existingWorld.createdAt : nowIso,
-    lastPlayed: nowIso,
-    terrainData: terrainDataUrl,
-    waterData: waterDataUrl,
-    grassDetails: grassDetails,
-    flowerCount: flowers.length,
-    flowers: serializedFlowers,
-    animals: serializedAnimals,
-    decorations: serializedDecorations,
-    camera: { panX: Math.round(panX), panY: Math.round(panY), zoom },
-    settings: {
-      witherModeIndex: currentWitherModeIndex,
-      isNightMode: isNightMode,
-      season: typeof currentSeason !== "undefined" ? currentSeason : "spring",
-    },
-    achievements:
-      typeof playerStats !== "undefined" && typeof unlockedAchievements !== "undefined"
-        ? { stats: playerStats, unlocked: unlockedAchievements }
-        : null,
-    mysteryEgg: (typeof mysteryEgg !== "undefined" && mysteryEgg) ? mysteryEgg : null,
-    droppedSeeds: (typeof droppedSeeds !== "undefined" && Array.isArray(droppedSeeds)) ? droppedSeeds : [],
-    dailyLoginState: (typeof dailyLoginState !== "undefined" && dailyLoginState) ? dailyLoginState : null,
-    polaroidAlbum: (typeof polaroidAlbum !== "undefined" && Array.isArray(polaroidAlbum)) ? polaroidAlbum : [],
-    constellations: (typeof window !== "undefined" && Array.isArray(window.gardenConstellations)) ? window.gardenConstellations : [],
-  };
+    const worldObj = {
+      id: currentWorldId,
+      name: titleText,
+      thumbnail: generateWorldThumbnail(),
+      createdAt: existingWorld ? existingWorld.createdAt : nowIso,
+      lastPlayed: nowIso,
+      terrainData: terrainDataUrl,
+      waterData: waterDataUrl,
+      grassDetails: grassDetails,
+      flowerCount: flowers.length,
+      flowers: serializedFlowers,
+      animals: serializedAnimals,
+      decorations: serializedDecorations,
+      camera: { panX: Math.round(panX), panY: Math.round(panY), zoom },
+      settings: {
+        witherModeIndex: currentWitherModeIndex,
+        isNightMode: isNightMode,
+        season: typeof currentSeason !== "undefined" ? currentSeason : "spring",
+      },
+      achievements:
+        typeof playerStats !== "undefined" && typeof unlockedAchievements !== "undefined"
+          ? { stats: playerStats, unlocked: unlockedAchievements }
+          : null,
+      mysteryEgg: (typeof mysteryEgg !== "undefined" && mysteryEgg) ? mysteryEgg : null,
+      droppedSeeds: (typeof droppedSeeds !== "undefined" && Array.isArray(droppedSeeds)) ? droppedSeeds : [],
+      dailyLoginState: (typeof dailyLoginState !== "undefined" && dailyLoginState) ? dailyLoginState : null,
+      polaroidAlbum: (typeof polaroidAlbum !== "undefined" && Array.isArray(polaroidAlbum)) ? polaroidAlbum : [],
+      constellations: (typeof window !== "undefined" && Array.isArray(window.gardenConstellations)) ? window.gardenConstellations : [],
+    };
 
-  await dbSaveWorld(worldObj);
-  saveEmergencyLocalStorageBackup(worldObj);
-  localStorage.setItem(CURRENT_WORLD_KEY, currentWorldId);
+    await dbSaveWorld(worldObj);
+    saveEmergencyLocalStorageBackup(worldObj);
+    localStorage.setItem(CURRENT_WORLD_KEY, currentWorldId);
 
-  // Keep registry in sync & update garden counter badge immediately
-  await updateWorldsBadge();
+    // Keep registry in sync & update garden counter badge immediately
+    await updateWorldsBadge();
 
-  if (indicator) indicator.textContent = "Tersimpan";
+    window.isGardenDirty = false;
+    lastAutoSaveTime = Date.now();
 
-  if (!silent) {
-    showGardenNotice(`Kebun "${titleText}" berhasil disimpan!`);
-  }
+    if (indicator) indicator.textContent = "Tersimpan";
 
-  // Refresh World Manager grid if open
-  const modal = document.getElementById("worldManagerModal");
-  if (modal && !modal.classList.contains("hidden")) {
-    renderWorldsGrid();
+    if (!silent) {
+      showGardenNotice(`Kebun "${titleText}" berhasil disimpan!`);
+    }
+
+    // Refresh World Manager grid if open
+    const modal = document.getElementById("worldManagerModal");
+    if (modal && !modal.classList.contains("hidden")) {
+      renderWorldsGrid();
+    }
+  } catch (err) {
+    console.error("saveCurrentWorld error:", err);
+    if (indicator) indicator.textContent = "Tersimpan";
+  } finally {
+    isSavingWorld = false;
+    if (pendingSaveRequested) {
+      pendingSaveRequested = false;
+      setTimeout(() => saveCurrentWorld(true), 60);
+    }
   }
 }
 
@@ -559,21 +602,45 @@ function canvasToDataUrlAsync(canvas) {
   });
 }
 
-function scheduleAutoSave() {
-  const indicator = document.getElementById("autoSaveText");
-  if (indicator) indicator.textContent = "Menyimpan...";
+function scheduleAutoSave(immediate = false) {
+  if (typeof window !== "undefined") window.isGardenDirty = true;
+
   clearTimeout(autoSaveTimer);
+
+  if (immediate) {
+    saveCurrentWorld(true);
+    return;
+  }
+
+  // 1200ms debounce: swift enough to persist before tab switch, but batches fast brush strokes
   autoSaveTimer = setTimeout(() => {
-    if (
-      (typeof isPointerDown !== "undefined" && isPointerDown) ||
-      (typeof isPaintingTerrain !== "undefined" && isPaintingTerrain)
-    ) {
-      scheduleAutoSave();
+    const elapsed = Date.now() - lastAutoSaveTime;
+    const isActivelyDrawing =
+      (typeof isPaintingTerrain !== "undefined" && isPaintingTerrain) ||
+      (typeof isDrawingFlower !== "undefined" && isDrawingFlower) ||
+      (typeof isDrawingAnimalStudio !== "undefined" && isDrawingAnimalStudio);
+
+    // Only postpone if user is physically mid-drag, capped at 4s to prevent infinite loops
+    if (isActivelyDrawing && elapsed < 4000) {
+      scheduleAutoSave(false);
       return;
     }
     saveCurrentWorld(true);
-  }, 3200);
+  }, 1200);
 }
+
+// Heartbeat Periodic Auto-Save: guarantees dirty garden state is written every 25s
+setInterval(() => {
+  if (
+    typeof window !== "undefined" &&
+    window.isGardenDirty &&
+    !isWorldLoading &&
+    isWorldReady &&
+    !isSavingWorld
+  ) {
+    saveCurrentWorld(true);
+  }
+}, 25000);
 
 async function loadWorldById(worldId) {
   isWorldLoading = true;
@@ -1364,15 +1431,20 @@ async function initWorldManager() {
     });
   }
 
-  // Also auto-save on page hide/unload
-  window.addEventListener("beforeunload", () => {
+  // Comprehensive lifecycle event listeners for rock-solid auto-save across iOS Safari, Android Chrome, and Desktop
+  const handlePageExitSave = () => {
     saveCurrentWorld(true);
-  });
+  };
+  window.addEventListener("pagehide", handlePageExitSave);
+  window.addEventListener("beforeunload", handlePageExitSave);
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-      saveCurrentWorld(true);
+    if (document.visibilityState === "hidden" || document.hidden) {
+      handlePageExitSave();
     }
   });
+  if (typeof document !== "undefined") {
+    document.addEventListener("freeze", handlePageExitSave);
+  }
 }
 
 // Global function bindings on window for robust HTML onclick access

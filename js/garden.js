@@ -4596,9 +4596,18 @@ function initGardenEventListeners() {
     if (e && e.pointerId !== undefined) {
       activeTouchPointers.delete(e.pointerId);
     }
+    if (activeTouchPointers.size === 0) {
+      isPointerDown = false;
+    }
     if (activeTouchPointers.size < 2) {
       isPinching = false;
     }
+
+    try {
+      if (e && e.pointerId !== undefined && worldCanvas) {
+        worldCanvas.releasePointerCapture(e.pointerId);
+      }
+    } catch (err) {}
 
     if (draggedConstellation) {
       const c = draggedConstellation;
@@ -4874,6 +4883,18 @@ function initGardenEventListeners() {
 
   window.addEventListener("pointerup", handlePointerUpOrCancel);
   window.addEventListener("pointercancel", handlePointerUpOrCancel);
+
+  // Safety: reset interaction states on window blur (e.g. app switch, alt-tab)
+  window.addEventListener("blur", () => {
+    isPointerDown = false;
+    isPaintingTerrain = false;
+    isDraggingCanvas = false;
+    isPinching = false;
+    activeTouchPointers.clear();
+    if (typeof stopWateringSound === "function") {
+      stopWateringSound();
+    }
+  });
 
   // Trackpad / Mouse Wheel smooth canvas pan & zoom
   function handleWheel(e) {
