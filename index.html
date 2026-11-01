@@ -3318,7 +3318,7 @@
             >
               Gambar properti / dekorasimu di sini<br />
               <span class="text-[10px] sm:text-xs font-normal opacity-75"
-                >Pondok, batu, lentera, jembatan, perahu, furnitur & atur skalanya</span
+                >Kuas lengkap, cat air, krayon, neon, pipet warna & zoom bebas</span
               >
             </span>
           </div>
@@ -3331,13 +3331,15 @@
         </div>
       </div>
 
-      <!-- Top Bar: Navigation, History, Info Pill, Place to Garden -->
+      <!-- ============================================================== -->
+      <!-- 1. FLOATING TOP BAR (Navigation, History, Prop Info, Place)     -->
+      <!-- ============================================================== -->
       <header
         id="propStudioFullscreenTopBar"
         class="absolute top-2 sm:top-3 left-2 right-2 sm:left-4 sm:right-4 z-30 pointer-events-none flex items-center justify-between gap-1.5 sm:gap-2 select-none transition-opacity duration-200"
       >
-        <!-- Left: Back Button + Studio Title -->
-        <div class="pointer-events-auto flex items-center gap-1 sm:gap-2 max-w-[45%] sm:max-w-none">
+        <!-- Left: Back Button + Prop Info Pill -->
+        <div class="pointer-events-auto flex items-center gap-1 sm:gap-2 max-w-[48%] sm:max-w-none">
           <button
             type="button"
             onclick="closePropStudioModal()"
@@ -3359,155 +3361,280 @@
             <span class="hidden xs:inline">Kebun</span>
           </button>
 
-          <!-- Studio Title Pill -->
-          <div
-            class="flex items-center gap-1 sm:gap-1.5 bg-white/95 backdrop-blur-md px-2 sm:px-3 py-1 rounded-full border border-[#c5d9b7] shadow-sm text-xs sm:text-sm font-hand font-bold text-[#2B5B35] truncate"
+          <!-- Prop Info Pill (Click to configure Name, Habitat & Scale) -->
+          <button
+            type="button"
+            onclick="togglePropConfigModal()"
+            id="propInfoPillBtn"
+            class="h-8 sm:h-9 px-2.5 sm:px-3 rounded-full bg-white/95 hover:bg-emerald-50 text-[#2B5B35] border border-[#c5d9b7] shadow-sm flex items-center gap-1.5 font-bold text-xs transition hover:scale-105 active:scale-95 cursor-pointer max-w-[150px] xs:max-w-[200px] truncate"
+            title="Atur Nama, Habitat & Skala Properti"
           >
-            <span class="text-emerald-700">🏡</span>
-            <span class="truncate">Studio Properti</span>
-          </div>
+            <span>🏡</span>
+            <span id="propInfoPillText" class="truncate font-hand font-bold text-xs sm:text-sm">Pondok (1.0x)</span>
+            <span class="text-[10px] text-gray-400">⚙️</span>
+          </button>
         </div>
 
-        <!-- Center: History, Zoom, Clear -->
+        <!-- Center / Right Controls: Undo/Redo, Clear, Zoom/Pan -->
         <div class="pointer-events-auto flex items-center gap-1 sm:gap-1.5">
+          <!-- Canvas Tools Pill: Undo, Redo, Clear -->
           <div
             class="flex items-center gap-0.5 sm:gap-1 bg-white/95 backdrop-blur-md px-1.5 sm:px-2 py-1 rounded-full border border-[#c5d9b7] shadow-sm text-gray-700"
           >
+            <!-- Undo -->
             <button
               id="propStudioUndoBtn"
               type="button"
               onclick="undoPropStroke()"
               class="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-emerald-50 text-gray-700 hover:text-[#2B5B35] transition active:scale-90 cursor-pointer"
-              title="Undo Goresan (Ctrl+Z)"
+              title="Batal Goresan (Ctrl+Z)"
             >
-              <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" /></svg>
+              <svg
+                class="w-3.5 h-3.5 sm:w-4 sm:h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M3 7v6h6" />
+                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+              </svg>
             </button>
+            <!-- Redo -->
             <button
               id="propStudioRedoBtn"
               type="button"
               onclick="redoPropStroke()"
               class="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-emerald-50 text-gray-700 hover:text-[#2B5B35] transition active:scale-90 cursor-pointer"
-              title="Redo Goresan (Ctrl+Y)"
+              title="Ulangi Goresan (Ctrl+Y)"
             >
-              <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" /></svg>
+              <svg
+                class="w-3.5 h-3.5 sm:w-4 sm:h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 7v6h-6" />
+                <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
+              </svg>
             </button>
 
             <div class="w-px h-4 bg-gray-200 mx-0.5"></div>
 
-            <!-- Zoom / Pan Controls -->
-            <button
-              type="button"
-              onclick="zoomPropCanvas(-0.25)"
-              class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-700 transition active:scale-90 text-xs font-bold cursor-pointer"
-              title="Perkecil Zoom Kanvas"
-            >
-              -
-            </button>
-            <span id="propZoomLevelText" class="text-[10px] sm:text-xs font-mono font-bold text-[#2B5B35] px-0.5 min-w-[32px] text-center select-none">100%</span>
-            <button
-              type="button"
-              onclick="zoomPropCanvas(0.25)"
-              class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-700 transition active:scale-90 text-xs font-bold cursor-pointer"
-              title="Perbesar Zoom Kanvas"
-            >
-              +
-            </button>
-            <button
-              type="button"
-              onclick="resetPropZoom()"
-              class="hidden sm:flex text-[10px] px-1.5 py-0.5 rounded-full hover:bg-gray-100 text-gray-600 font-medium transition cursor-pointer"
-              title="Reset Zoom & Geser Kanvas"
-            >
-              Reset
-            </button>
-            <button
-              id="propPanToggleBtn"
-              type="button"
-              onclick="togglePropPanMode()"
-              class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-emerald-100 text-gray-700 transition active:scale-90 cursor-pointer"
-              title="Mode Geser Layar Kanvas (Pan)"
-            >
-              ✋
-            </button>
-
-            <div class="w-px h-4 bg-gray-200 mx-0.5"></div>
-
+            <!-- Clear -->
             <button
               type="button"
               onclick="clearPropPad()"
-              class="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-rose-50 text-gray-500 hover:text-rose-600 transition active:scale-90 cursor-pointer"
-              title="Hapus Seluruh Gambar"
+              class="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-rose-50 text-rose-600 transition active:scale-90 cursor-pointer"
+              title="Bersihkan Kanvas"
             >
-              <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+              <svg
+                class="w-3.5 h-3.5 sm:w-4 sm:h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M3 6h18" />
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
             </button>
+
+            <div class="w-px h-4 bg-gray-200 mx-0.5 hidden xs:block"></div>
+
+            <!-- Zoom & Pan Controls -->
+            <div class="hidden xs:flex items-center gap-0.5 text-xs text-[#2B5B35]">
+              <button
+                type="button"
+                onclick="zoomPropCanvas(-0.25)"
+                class="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:bg-emerald-100 text-[#2B5B35] font-bold text-xs transition active:scale-90 cursor-pointer"
+                title="Zoom Out (-)"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                onclick="resetPropZoom()"
+                id="propZoomLevelText"
+                class="px-1 py-0.5 text-[10px] sm:text-[11px] font-mono font-bold text-[#2B5B35] hover:bg-emerald-50 rounded transition cursor-pointer"
+                title="Reset Zoom (100%)"
+              >
+                100%
+              </button>
+              <button
+                type="button"
+                onclick="zoomPropCanvas(0.25)"
+                class="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:bg-emerald-100 text-[#2B5B35] font-bold text-xs transition active:scale-90 cursor-pointer"
+                title="Zoom In (+)"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                id="propPanToggleBtn"
+                onclick="togglePropPanMode()"
+                class="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:bg-emerald-100 text-gray-700 transition active:scale-90 cursor-pointer"
+                title="Alat Geser Kanvas (Pan / Geser)"
+              >
+                <svg
+                  class="w-3 h-3 sm:w-3.5 sm:h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M18 11V6a2 2 0 0 0-4 0v4" />
+                  <path d="M14 10V4a2 2 0 0 0-4 0v7" />
+                  <path d="M10 10.5V6a2 2 0 0 0-4 0v8" />
+                  <path
+                    d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
-        </div>
 
-        <!-- Right: Config & Place to Garden Action -->
-        <div class="pointer-events-auto flex items-center gap-1.5 sm:gap-2">
-          <button
-            type="button"
-            onclick="togglePropConfigModal()"
-            class="h-8 sm:h-9 px-2 sm:px-3 rounded-full bg-white/95 hover:bg-white text-[#2B5B35] border border-[#c5d9b7] shadow-sm flex items-center gap-1.5 text-xs font-bold transition hover:scale-105 active:scale-95 cursor-pointer"
-            title="Atur Nama, Habitat & Skala Properti"
-          >
-            <span class="text-sm">⚙️</span>
-            <span id="propInfoPillText" class="truncate max-w-[90px] sm:max-w-[150px]">Pondok (1.0x)</span>
-          </button>
-
+          <!-- Primary Finish Button (Pasang ke Kebun!) -->
           <button
             id="finishAndSpawnPropBtn"
             type="button"
             onclick="finishDrawingAndSpawnProp()"
-            class="h-8 sm:h-9 px-3 sm:px-4 rounded-full bg-[#2B5B35] hover:bg-[#1f4627] text-white shadow-md flex items-center gap-1.5 font-bold text-xs sm:text-sm transition hover:scale-105 active:scale-95 cursor-pointer"
-            title="Selesai & Pasang Properti ke Kebun"
+            class="plant-btn h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm font-bold flex items-center gap-1 shadow-md rounded-full transition hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+            title="Selesai dan pasang properti ke kebun!"
           >
-            <span>🌿</span>
-            <span class="font-hand font-bold tracking-wide">Pasang ke Kebun</span>
+            <svg
+              class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#2B5B35]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 2v20M2 12h20" />
+            </svg>
+            <span>Pasang!</span>
           </button>
         </div>
       </header>
 
-      <!-- Left Floating Toolbar: Tools & Size -->
-      <aside
+      <!-- ============================================================== -->
+      <!-- 2. FLOATING LEFT TOOL SHELF (Brushes, Eraser, Eyedropper)       -->
+      <!-- ============================================================== -->
+      <nav
         id="propStudioFullscreenLeftToolbar"
-        class="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-2 p-1.5 sm:p-2 bg-white/95 backdrop-blur-md rounded-2xl border border-[#c5d9b7] shadow-lg pointer-events-auto transition-opacity duration-200 select-none"
+        class="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 sm:gap-1.5 p-1.5 sm:p-2 bg-white/95 backdrop-blur-md rounded-2xl border border-[#c5d9b7] shadow-lg pointer-events-auto transition-opacity duration-200 select-none"
       >
-        <!-- Pencil -->
+        <!-- Brush: Pencil -->
         <button
-          id="propStudioToolPencil"
           type="button"
-          onclick="setPropStudioTool('pencil')"
-          class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-[#2B5B35] text-white shadow-md ring-2 ring-[#7DB852] transition active:scale-95 cursor-pointer"
-          title="Pensil Gambar (P)"
+          id="propBrushTypeBtn-pencil"
+          onclick="setPropStudioBrushType('pencil')"
+          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-[#2B5B35] text-white shadow-xs ring-2 ring-[#7DB852] cursor-pointer"
+          title="Pensil Klasik"
         >
-          <svg class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
+          <span class="text-xs sm:text-sm">✏️</span>
+        </button>
+        <!-- Brush: Watercolor -->
+        <button
+          type="button"
+          id="propBrushTypeBtn-watercolor"
+          onclick="setPropStudioBrushType('watercolor')"
+          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-white/80 text-[#2B5B35] hover:bg-[#eef5e6] border border-[#c5d9b7] cursor-pointer"
+          title="Cat Air Bergradasi Lembut"
+        >
+          <span class="text-xs sm:text-sm">💧</span>
+        </button>
+        <!-- Brush: Crayon -->
+        <button
+          type="button"
+          id="propBrushTypeBtn-crayon"
+          onclick="setPropStudioBrushType('crayon')"
+          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-white/80 text-[#2B5B35] hover:bg-[#eef5e6] border border-[#c5d9b7] cursor-pointer"
+          title="Krayon Bertekstur Kasar / Kayu"
+        >
+          <span class="text-xs sm:text-sm">🖍️</span>
+        </button>
+        <!-- Brush: Glow -->
+        <button
+          type="button"
+          id="propBrushTypeBtn-glow"
+          onclick="setPropStudioBrushType('glow')"
+          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-white/80 text-[#2B5B35] hover:bg-[#eef5e6] border border-[#c5d9b7] cursor-pointer"
+          title="Kuas Cahaya Lentera Neon"
+        >
+          <span class="text-xs sm:text-sm">🌙</span>
         </button>
 
-        <!-- Eraser -->
+        <div class="w-4 sm:w-5 h-px bg-gray-200 my-0.5"></div>
+
+        <!-- Tool: Eraser -->
         <button
-          id="propStudioToolEraser"
           type="button"
+          id="propStudioToolEraser"
           onclick="setPropStudioTool('eraser')"
-          class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-white/90 hover:bg-white text-gray-700 hover:text-[#2B5B35] border border-[#c5d9b7] shadow-xs transition active:scale-95 cursor-pointer"
+          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition hover:bg-[#eef5e6] text-gray-700 cursor-pointer"
           title="Penghapus (E)"
         >
-          <svg class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" /><path d="M22 21H7" /><path d="m5 11 9 9" /></svg>
+          <svg
+            class="w-3.5 h-3.5 sm:w-4 sm:h-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"
+            />
+            <path d="M22 21H7" />
+            <path d="m5 11 9 9" />
+          </svg>
         </button>
 
-        <!-- Eyedropper -->
+        <!-- Tool: Eyedropper / Color Picker Sampler -->
         <button
-          id="propStudioToolEyedrop"
           type="button"
+          id="propStudioToolEyedrop"
           onclick="setPropStudioTool('eyedropper')"
-          class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-white/90 hover:bg-white text-gray-700 hover:text-[#2B5B35] border border-[#c5d9b7] shadow-xs transition active:scale-95 cursor-pointer"
-          title="Pipet Warna (I)"
+          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition hover:bg-[#eef5e6] text-gray-700 cursor-pointer"
+          title="Pipet Salin Warna / Eyedropper (I)"
         >
-          <svg class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 2 6 6-9.5 9.5a4 4 0 0 1-2.5 1.5L4 20l1-4a4 4 0 0 1 1.5-2.5Z" /><path d="m13 7 4 4" /></svg>
+          <svg
+            class="w-3.5 h-3.5 sm:w-4 sm:h-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="m2 22 1-1h3l9-9" />
+            <path d="M3 21v-3l9-9" />
+            <path
+              d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 0 1 0 3l-2.8 2.8a2.1 2.1 0 0 1-3 0l-4-4a2.1 2.1 0 0 1 0-3l2.8-2.8a2.1 2.1 0 0 1 3 0z"
+            />
+          </svg>
         </button>
-      </aside>
 
-      <!-- Bottom Floating Shelf: Size, Colors, Custom Picker -->
+        <!-- Hidden propStudioToolPencil for backward compatibility -->
+        <button id="propStudioToolPencil" class="hidden" onclick="setPropStudioTool('pencil')"></button>
+      </nav>
+
+      <!-- ============================================================== -->
+      <!-- 3. FLOATING BOTTOM SHELF (Brush Size, Colors, Color Picker)    -->
+      <!-- ============================================================== -->
       <footer
         id="propStudioFullscreenBottomShelf"
         class="absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 sm:gap-2.5 px-2.5 sm:px-3 py-1.5 bg-white/95 backdrop-blur-md rounded-2xl border border-[#c5d9b7] shadow-lg pointer-events-auto max-w-[96vw] overflow-x-auto no-scrollbar transition-opacity duration-200 select-none"
@@ -3517,33 +3644,33 @@
           <div class="flex items-center gap-0.5 sm:gap-1">
             <button
               type="button"
-              onclick="setPropBrushSize(4, this)"
+              onclick="setPropBrushSize(3, this)"
               class="prop-size-btn w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:bg-gray-100 cursor-pointer"
-              title="Kecil 4px"
+              title="Kecil 3px"
             >
               <span class="w-1.5 h-1.5 bg-gray-800 rounded-full"></span>
             </button>
             <button
               type="button"
-              onclick="setPropBrushSize(8, this)"
+              onclick="setPropBrushSize(7, this)"
               class="prop-size-btn w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full bg-emerald-100 ring-1 ring-emerald-700 cursor-pointer"
-              title="Sedang 8px"
+              title="Sedang 7px"
             >
               <span class="w-2.5 h-2.5 bg-gray-800 rounded-full"></span>
             </button>
             <button
               type="button"
-              onclick="setPropBrushSize(16, this)"
+              onclick="setPropBrushSize(14, this)"
               class="prop-size-btn w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:bg-gray-100 cursor-pointer"
-              title="Besar 16px"
+              title="Besar 14px"
             >
               <span class="w-3.5 h-3.5 bg-gray-800 rounded-full"></span>
             </button>
             <button
               type="button"
-              onclick="setPropBrushSize(28, this)"
+              onclick="setPropBrushSize(26, this)"
               class="prop-size-btn w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:bg-gray-100 cursor-pointer"
-              title="Tebal 28px"
+              title="Tebal 26px"
             >
               <span class="w-4 h-4 bg-gray-800 rounded-full"></span>
             </button>
@@ -3552,21 +3679,21 @@
             id="propBrushSlider"
             type="range"
             min="1"
-            max="50"
-            value="8"
+            max="45"
+            value="7"
             class="w-12 sm:w-16 accent-[#477431] cursor-pointer"
             oninput="setPropBrushSizeFromSlider(this.value)"
           />
           <span
             id="propBrushValText"
             class="w-5 text-right font-mono text-[10px] hidden xs:inline"
-            >8px</span
+            >7px</span
           >
         </div>
 
         <div class="w-px h-5 sm:h-6 bg-gray-200 mx-0.5 shrink-0"></div>
 
-        <!-- Color Palette Swatches for Props (Wood, Stone, Nature, Accents) -->
+        <!-- Color Palette Swatches & Custom Color Picker -->
         <div class="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
@@ -3634,7 +3761,7 @@
           <button
             type="button"
             class="color-dot"
-            style="background-color: #ffffff"
+            style="background-color: #ffffff; border: 1.5px solid #d1d5db"
             onclick="selectPropColor('#ffffff', this)"
             title="Putih Bersih"
           ></button>
@@ -3646,14 +3773,36 @@
             title="Hitam Arang"
           ></button>
 
-          <!-- Native HTML Color Picker Button -->
+          <!-- Custom Color Picker Wheel -->
           <label
             id="customPropColorPickerLabel"
-            class="relative w-6 h-6 sm:w-7 sm:h-7 rounded-full cursor-pointer flex items-center justify-center shadow-xs border border-gray-300 hover:scale-110 transition active:scale-95 overflow-hidden shrink-0"
+            class="color-dot relative flex items-center justify-center cursor-pointer border-2 border-gray-300 hover:border-gray-800 shadow-xs transition overflow-hidden"
             title="Pilih Warna Bebas"
-            style="background: conic-gradient(from 180deg at 50% 50%, #ff0000 0deg, #ffff00 60deg, #00ff00 120deg, #00ffff 180deg, #0000ff 240deg, #ff00ff 300deg, #ff0000 360deg);"
+            style="
+              background: conic-gradient(
+                from 180deg at 50% 50%,
+                #ff0000 0deg,
+                #ffff00 60deg,
+                #00ff00 120deg,
+                #00ffff 180deg,
+                #0000ff 240deg,
+                #ff00ff 300deg,
+                #ff0000 360deg
+              );
+            "
           >
-            <svg class="w-3.5 h-3.5 text-gray-800 drop-shadow-sm select-none pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="m4.93 4.93 4.24 4.24" /></svg>
+            <svg
+              class="w-3.5 h-3.5 text-gray-800 drop-shadow-sm select-none pointer-events-none"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="m4.93 4.93 4.24 4.24" />
+            </svg>
             <input
               type="color"
               id="propCustomColorPicker"

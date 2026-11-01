@@ -1,7 +1,9 @@
 /********************************************************************
  * FELLA'S GARDEN - CUSTOM PROPERTY & PROP STUDIO (js/prop_studio.js)
- * Studio gambar properti & dekorasi custom dengan peralatan lengkap:
- * Pensil, Penghapus, Pipet Warna, Undo/Redo, Palet Warna + Color Picker,
+ * Studio gambar properti & dekorasi custom dengan peralatan lengkap
+ * identik dan konsisten dengan Studio Hewan & Studio Bunga:
+ * Pensil, Cat Air Lembut, Krayon Tekstur Kayu/Batu, Kuas Cahaya Neon,
+ * Penghapus, Pipet Warna, Undo/Redo, Palet Warna + Color Picker,
  * Pilihan Nama Properti, Pilihan Habitat (Darat / Air / Keduanya),
  * dan SISTEM LOGIKA PENGATUR SKALA PROPERTI (0.3x - 3.0x) baik saat
  * mendesain di studio maupun interaktif di kebun.
@@ -10,8 +12,9 @@
 var propPadCanvas = null;
 var propPadCtx = null;
 var propStudioTool = 'pencil';
+var propStudioBrushType = 'pencil'; // 'pencil', 'watercolor', 'crayon', 'glow'
 var propStudioCurrentColor = '#78350f'; // Warm wood / earth tone
-var propStudioBrushSize = 8;
+var propStudioBrushSize = 7;
 var isDrawingPropStudio = false;
 var propStudioStrokes = [];
 var propStudioRedoStack = [];
@@ -54,6 +57,195 @@ function saveCustomPropsCatalog(list) {
     } catch (e) {}
 }
 
+// =========================================================================
+// SMOOTH STROKE & TEXTURED BRUSH ENGINE (Cat Air, Krayon, Kuas Cahaya)
+// =========================================================================
+var propLiveStroke = null;
+
+function hexToRgb(hex) {
+    let h = String(hex || '#000000').replace('#', '');
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    const n = parseInt(h, 16);
+    if (isNaN(n)) return { r: 0, g: 0, b: 0 };
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function rgba(c, a) {
+    return 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + a + ')';
+}
+
+function mixWithWhite(c, amt) {
+    return {
+        r: Math.round(c.r + (255 - c.r) * amt),
+        g: Math.round(c.g + (255 - c.g) * amt),
+        b: Math.round(c.b + (255 - c.b) * amt)
+    };
+}
+
+function traceSmoothPath(ctx, pts) {
+    ctx.beginPath();
+    if (pts.length === 1) {
+        ctx.moveTo(pts[0].x, pts[0].y);
+        ctx.lineTo(pts[0].x + 0.01, pts[0].y);
+        return;
+    }
+    ctx.moveTo(pts[0].x, pts[0].y);
+    if (pts.length === 2) {
+        ctx.lineTo(pts[1].x, pts[1].y);
+        return;
+    }
+    for (let i = 1; i < pts.length - 1; i++) {
+        const mx = (pts[i].x + pts[i + 1].x) / 2;
+        const my = (pts[i].y + pts[i + 1].y) / 2;
+        ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+    }
+    const last = pts[pts.length - 1];
+    ctx.lineTo(last.x, last.y);
+}
+
+function relaxPoints(pts) {
+    if (pts.length < 3) return pts;
+    const out = [pts[0]];
+    for (let i = 1; i < pts.length - 1; i++) {
+        out.push({
+            x: pts[i - 1].x * 0.25 + pts[i].x * 0.5 + pts[i + 1].x * 0.25,
+            y: pts[i - 1].y * 0.25 + pts[i].y * 0.5 + pts[i + 1].y * 0.25
+        });
+    }
+    out.push(pts[pts.length - 1]);
+    return out;
+}
+
+function paintWatercolorLayer(lctx, pts, color, size) {
+    const c = hexToRgb(color);
+    const W = Math.max(6, size * 1.7);
+    lctx.lineCap = 'round';
+    lctx.lineJoin = 'round';
+
+    const rings = 8;
+    for (let i = 0; i < rings; i++) {
+        const k = i / (rings - 1);
+        lctx.lineWidth = W * (1.35 - k * 0.7);
+        lctx.strokeStyle = rgba(c, 0.085);
+        traceSmoothPath(lctx, pts);
+        lctx.stroke();
+    }
+
+    lctx.lineWidth = W * 0.66;
+    lctx.strokeStyle = rgba(c, 0.26);
+    traceSmoothPath(lctx, pts);
+    lctx.stroke();
+}
+
+function paintGlowLayer(lctx, pts, color, size) {
+    const c = hexToRgb(color);
+    const core = Math.max(2.5, size * 0.95);
+    lctx.lineCap = 'round';
+    lctx.lineJoin = 'round';
+
+    const halo = 9;
+    for (let i = 0; i < halo; i++) {
+        const k = i / (halo - 1);
+        lctx.lineWidth = core * (4.2 - k * 3.0);
+        lctx.strokeStyle = rgba(c, 0.045);
+        traceSmoothPath(lctx, pts);
+        lctx.stroke();
+    }
+
+    lctx.lineWidth = core * 1.15;
+    lctx.strokeStyle = rgba(c, 0.85);
+    traceSmoothPath(lctx, pts);
+    lctx.stroke();
+
+    lctx.lineWidth = Math.max(1.2, core * 0.5);
+    lctx.strokeStyle = rgba(mixWithWhite(c, 0.82), 0.95);
+    traceSmoothPath(lctx, pts);
+    lctx.stroke();
+}
+
+function paintCrayonSegment(ctx, fromPos, toPos, color, size) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = color;
+    const dist = Math.hypot(toPos.x - fromPos.x, toPos.y - fromPos.y);
+    const steps = Math.max(1, Math.ceil(dist / 3));
+    const rad = Math.max(2, size * 0.6);
+    for (let s = 0; s <= steps; s++) {
+        const t = s / steps;
+        const cx = fromPos.x + (toPos.x - fromPos.x) * t;
+        const cy = fromPos.y + (toPos.y - fromPos.y) * t;
+        for (let i = 0; i < 6; i++) {
+            const ox = (Math.random() - 0.5) * rad * 1.4;
+            const oy = (Math.random() - 0.5) * rad * 1.4;
+            ctx.globalAlpha = 0.4 + Math.random() * 0.5;
+            ctx.fillRect(cx + ox, cy + oy, 2.1, 2.1);
+        }
+    }
+    ctx.restore();
+}
+
+function renderPropLiveStroke() {
+    const s = propLiveStroke;
+    if (!s) return;
+    const ctx = s.ctx;
+    const lctx = s.layerCtx;
+    lctx.clearRect(0, 0, s.layer.width, s.layer.height);
+    const pts = relaxPoints(s.points);
+    if (s.type === 'watercolor') {
+        paintWatercolorLayer(lctx, pts, s.color, s.size);
+    } else {
+        paintGlowLayer(lctx, pts, s.color, s.size);
+    }
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.drawImage(s.base, 0, 0);
+    ctx.drawImage(s.layer, 0, 0);
+    ctx.restore();
+}
+
+function beginPropLiveStroke(ctx, pos, brushType, color, size) {
+    const cv = ctx.canvas;
+    const base = document.createElement('canvas');
+    base.width = cv.width;
+    base.height = cv.height;
+    base.getContext('2d').drawImage(cv, 0, 0);
+    const layer = document.createElement('canvas');
+    layer.width = cv.width;
+    layer.height = cv.height;
+    propLiveStroke = {
+        ctx: ctx,
+        type: brushType,
+        color: color,
+        size: size,
+        base: base,
+        layer: layer,
+        layerCtx: layer.getContext('2d'),
+        points: [{ x: pos.x, y: pos.y }]
+    };
+    renderPropLiveStroke();
+}
+
+function extendPropLiveStroke(ctx, fromPos, toPos, brushType, color, size) {
+    if (!propLiveStroke || propLiveStroke.ctx !== ctx || propLiveStroke.type !== brushType) {
+        beginPropLiveStroke(ctx, fromPos, brushType, color, size);
+    }
+    const pts = propLiveStroke.points;
+    const last = pts[pts.length - 1];
+    if (Math.hypot(toPos.x - last.x, toPos.y - last.y) < 1.2) return;
+    pts.push({ x: toPos.x, y: toPos.y });
+    renderPropLiveStroke();
+}
+
+function endPropLiveStroke() {
+    propLiveStroke = null;
+}
+
+// =========================================================================
+// CANVAS TRANSFORM & VIEWPORT CONTROLS
+// =========================================================================
+
 function applyPropTransform(immediate = false) {
     const paper = document.getElementById('propCanvasPaper');
     if (paper) {
@@ -88,6 +280,7 @@ function cancelPropStrokeImmediately() {
         isDrawingPropStudio = false;
         document.getElementById('propStudioModal')?.classList.remove('drawing-active');
         try { propPadCtx.restore(); } catch (err) {}
+        endPropLiveStroke();
         redrawPropPadFromStrokes();
     }
 }
@@ -101,10 +294,10 @@ function updatePropPanButtonUI() {
     const panBtn = document.getElementById('propPanToggleBtn');
     if (!panBtn) return;
     if (isPropPanMode) {
-        panBtn.className = 'w-6 h-6 flex items-center justify-center rounded-full bg-[#2B5B35] text-white shadow-sm ring-2 ring-[#7DB852] transition active:scale-90';
+        panBtn.className = 'w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full bg-[#2B5B35] text-white shadow-sm ring-2 ring-[#7DB852] transition active:scale-90';
         if (propPadCanvas) propPadCanvas.style.cursor = 'grab';
     } else {
-        panBtn.className = 'w-6 h-6 flex items-center justify-center rounded-full hover:bg-emerald-100 text-gray-700 transition active:scale-90';
+        panBtn.className = 'w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:bg-emerald-100 text-gray-700 transition active:scale-90';
         if (propPadCanvas) {
             propPadCanvas.style.cursor = (propStudioTool === 'eyedropper') ? 'crosshair' : (propStudioTool === 'eraser' ? 'cell' : 'crosshair');
         }
@@ -129,6 +322,8 @@ function openPropStudioModal() {
     modal.classList.add('flex');
     initPropStudioCanvas();
     resetPropZoom();
+    setPropStudioBrushType('pencil');
+    selectPropColor('#78350f', null);
     updatePropInfoPillText();
     updatePropScalePreview();
 }
@@ -152,6 +347,7 @@ function clearPropPad() {
             if (ok) {
                 propStudioStrokes = [];
                 propStudioRedoStack = [];
+                endPropLiveStroke();
                 redrawPropPadFromStrokes();
                 updatePropScalePreview();
             }
@@ -160,24 +356,55 @@ function clearPropPad() {
         if (confirm('Hapus seluruh gambar di kanvas?')) {
             propStudioStrokes = [];
             propStudioRedoStack = [];
+            endPropLiveStroke();
             redrawPropPadFromStrokes();
             updatePropScalePreview();
         }
     }
 }
 
+// =========================================================================
+// BRUSHES & TOOL SWITCHING
+// =========================================================================
+
+function setPropStudioBrushType(type) {
+    propStudioBrushType = type;
+    setPropStudioTool('pencil');
+
+    const activePill = 'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-[#2B5B35] text-white shadow-xs ring-2 ring-[#7DB852] cursor-pointer';
+    const inactiveBrush = 'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-white/80 text-[#2B5B35] hover:bg-[#eef5e6] border border-[#c5d9b7] cursor-pointer';
+
+    const types = ['pencil', 'watercolor', 'crayon', 'glow'];
+    types.forEach(t => {
+        const btn = document.getElementById('propBrushTypeBtn-' + t);
+        if (btn) {
+            btn.className = (t === type) ? activePill : inactiveBrush;
+        }
+    });
+}
+
 function setPropStudioTool(toolName) {
     propStudioTool = toolName;
-    const pencilBtn = document.getElementById('propStudioToolPencil');
+    isPropPanMode = false;
+    updatePropPanButtonUI();
+
+    const activePill = 'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-[#2B5B35] text-white shadow-xs ring-2 ring-[#7DB852] cursor-pointer';
+    const inactivePill = 'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition hover:bg-[#eef5e6] text-gray-700 cursor-pointer';
+    const inactiveBrush = 'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-white/80 text-[#2B5B35] hover:bg-[#eef5e6] border border-[#c5d9b7] cursor-pointer';
+
+    const types = ['pencil', 'watercolor', 'crayon', 'glow'];
+    types.forEach(t => {
+        const btn = document.getElementById('propBrushTypeBtn-' + t);
+        if (btn) {
+            btn.className = (toolName === 'pencil' && propStudioBrushType === t) ? activePill : inactiveBrush;
+        }
+    });
+
     const eraserBtn = document.getElementById('propStudioToolEraser');
     const eyedropBtn = document.getElementById('propStudioToolEyedrop');
 
-    const activeCls = 'w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-[#2B5B35] text-white shadow-md ring-2 ring-[#7DB852] transition active:scale-95 cursor-pointer';
-    const inactiveCls = 'w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-white/90 hover:bg-white text-gray-700 hover:text-[#2B5B35] border border-[#c5d9b7] shadow-xs transition active:scale-95 cursor-pointer';
-
-    if (pencilBtn) pencilBtn.className = (toolName === 'pencil') ? activeCls : inactiveCls;
-    if (eraserBtn) eraserBtn.className = (toolName === 'eraser') ? activeCls : inactiveCls;
-    if (eyedropBtn) eyedropBtn.className = (toolName === 'eyedropper') ? activeCls : inactiveCls;
+    if (eraserBtn) eraserBtn.className = (toolName === 'eraser') ? activePill : inactivePill;
+    if (eyedropBtn) eyedropBtn.className = (toolName === 'eyedropper') ? activePill : inactivePill;
 
     if (propPadCanvas) {
         if (toolName === 'eyedropper') propPadCanvas.style.cursor = 'crosshair';
@@ -218,7 +445,7 @@ function selectPropColor(hexColor, btnEl) {
     } else {
         document.querySelectorAll('#propStudioModal .color-dot').forEach(el => {
             const bg = el.style.backgroundColor;
-            if (bg && bg.toLowerCase() === hexColor.toLowerCase()) {
+            if (bg && (bg.toLowerCase() === hexColor.toLowerCase() || hexToRgb(bg) === hexToRgb(hexColor))) {
                 el.classList.add('active');
             }
         });
@@ -236,6 +463,10 @@ function handleCustomPropColorPick(hexColor) {
     selectPropColor(hexColor, pickerLabel);
 }
 
+// =========================================================================
+// HABITAT & INFO PILL CONFIGURATION
+// =========================================================================
+
 function updatePropHabitatUI(habitat) {
     selectedPropHabitat = habitat;
     const habitats = ['land', 'water', 'both'];
@@ -243,123 +474,17 @@ function updatePropHabitatUI(habitat) {
         const card = document.getElementById('propHabitatCard-' + h);
         if (card) {
             if (h === habitat) {
-                card.className = 'relative flex items-center gap-2 p-2.5 rounded-xl border-2 border-[#2B5B35] bg-emerald-50/70 cursor-pointer transition shadow-2xs hover:border-[#2B5B35]';
+                card.className = 'relative flex flex-col items-center text-center p-2 rounded-xl border-2 border-[#2B5B35] bg-emerald-50/70 cursor-pointer transition shadow-2xs hover:border-[#2B5B35]';
                 const radio = card.querySelector('input[type="radio"]');
                 if (radio) radio.checked = true;
             } else {
-                card.className = 'relative flex items-center gap-2 p-2.5 rounded-xl border-2 border-gray-200 bg-white cursor-pointer transition shadow-2xs hover:border-[#2B5B35]';
+                card.className = 'relative flex flex-col items-center text-center p-2 rounded-xl border-2 border-gray-200 bg-white cursor-pointer transition shadow-2xs hover:border-[#2B5B35]';
                 const radio = card.querySelector('input[type="radio"]');
                 if (radio) radio.checked = false;
             }
         }
     });
     updatePropInfoPillText();
-}
-
-/**
- * SISTEM LOGIKA PENGATUR SKALA PROPERTI (STUDIO CREATION STAGE)
- */
-function setPropStudioScale(scaleVal, btnEl) {
-    const val = Math.min(3.0, Math.max(0.3, Math.round(Number(scaleVal) * 100) / 100));
-    selectedPropScale = val;
-
-    const slider = document.getElementById('propScaleSlider');
-    if (slider) slider.value = val;
-
-    const text = document.getElementById('propScaleValueDisplay');
-    if (text) text.textContent = `${val.toFixed(2)}x (${Math.round(val * 100)}%)`;
-
-    document.querySelectorAll('.prop-scale-preset-btn').forEach(b => {
-        b.classList.remove('bg-[#2B5B35]', 'text-white', 'border-[#2B5B35]', 'shadow-xs');
-        b.classList.add('bg-white', 'text-gray-700', 'border-gray-200', 'hover:border-[#7DB852]');
-    });
-    if (btnEl) {
-        btnEl.classList.remove('bg-white', 'text-gray-700', 'border-gray-200');
-        btnEl.classList.add('bg-[#2B5B35]', 'text-white', 'border-[#2B5B35]', 'shadow-xs');
-    }
-
-    updatePropInfoPillText();
-    updatePropScalePreview();
-}
-
-function setPropStudioScaleFromSlider(val) {
-    setPropStudioScale(parseFloat(val), null);
-}
-
-function updatePropScalePreview() {
-    const previewCanvas = document.getElementById('propScalePreviewCanvas');
-    if (!previewCanvas) return;
-    const ctx = previewCanvas.getContext('2d');
-    const w = previewCanvas.width;
-    const h = previewCanvas.height;
-    ctx.clearRect(0, 0, w, h);
-
-    // Baseline ground line
-    const groundY = h - 16;
-    ctx.strokeStyle = '#c5d9b7';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(8, groundY);
-    ctx.lineTo(w - 8, groundY);
-    ctx.stroke();
-
-    // Reference companion silhouette (cute 34px flower/pet reference)
-    ctx.fillStyle = 'rgba(71, 116, 49, 0.45)';
-    const refX = 32;
-    // Pet body & ears
-    ctx.beginPath();
-    ctx.ellipse(refX, groundY - 14, 11, 14, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Pet head & ears
-    ctx.beginPath();
-    ctx.arc(refX, groundY - 26, 9, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(refX - 7, groundY - 32);
-    ctx.lineTo(refX - 4, groundY - 40);
-    ctx.lineTo(refX - 1, groundY - 32);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(refX + 1, groundY - 32);
-    ctx.lineTo(refX + 4, groundY - 40);
-    ctx.lineTo(refX + 7, groundY - 32);
-    ctx.fill();
-
-    ctx.fillStyle = '#477431';
-    ctx.font = 'bold 9px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Hewan', refX, groundY + 11);
-
-    // Prop preview scaled by selectedPropScale
-    const propX = w - 65;
-    const trimmed = extractTrimmedPropCanvas();
-    if (trimmed) {
-        // Base normalized size roughly 44px
-        const baseNormH = 44;
-        const aspect = trimmed.width / trimmed.height;
-        const drawH = baseNormH * selectedPropScale;
-        const drawW = drawH * aspect;
-
-        // Ground shadow
-        ctx.fillStyle = 'rgba(25, 45, 20, 0.2)';
-        ctx.beginPath();
-        ctx.ellipse(propX, groundY + 1, drawW * 0.45, 4 * selectedPropScale, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Draw trimmed prop resting on ground baseline
-        ctx.drawImage(trimmed, propX - drawW / 2, groundY - drawH, drawW, drawH);
-    } else {
-        // Placeholder prop silhouette
-        const drawH = 40 * selectedPropScale;
-        const drawW = 46 * selectedPropScale;
-        ctx.fillStyle = 'rgba(120, 53, 15, 0.5)';
-        ctx.fillRect(propX - drawW / 2, groundY - drawH, drawW, drawH);
-    }
-
-    ctx.fillStyle = '#2B5B35';
-    ctx.font = 'bold 9px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${selectedPropScale.toFixed(1)}x`, propX, groundY + 11);
 }
 
 function togglePropConfigModal() {
@@ -379,26 +504,156 @@ function togglePropConfigModal() {
 function updatePropInfoPillText() {
     const txt = document.getElementById('propInfoPillText');
     const nameInput = document.getElementById('customPropNameInput');
-    const name = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : 'Pondok Santai';
-    const habitat = selectedPropHabitat || 'land';
-    const habitatMap = { land: 'Darat', water: 'Air', both: 'Darat/Air' };
-    if (txt) txt.textContent = `${name} (${habitatMap[habitat] || 'Darat'} • ${selectedPropScale.toFixed(1)}x)`;
+    const name = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : 'Pondok';
+    const scaleStr = Number(selectedPropScale.toFixed(2)) + 'x';
+    if (txt) txt.textContent = `${name} (${scaleStr})`;
 }
+
+// =========================================================================
+// SISTEM LOGIKA PENGATUR SKALA PROPERTI (STUDIO PREVIEW & MATH ENGINE)
+// =========================================================================
+
+function setPropStudioScale(scaleValue, btnEl) {
+    const clamped = Math.min(2.5, Math.max(0.3, Math.round(Number(scaleValue) * 100) / 100));
+    selectedPropScale = clamped;
+
+    const slider = document.getElementById('propScaleSlider');
+    if (slider) slider.value = clamped;
+
+    const display = document.getElementById('propScaleValueDisplay');
+    if (display) display.textContent = `${clamped.toFixed(2)}x (${Math.round(clamped * 100)}%)`;
+
+    document.querySelectorAll('.prop-scale-preset-btn').forEach(btn => {
+        btn.className = 'prop-scale-preset-btn py-1 px-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 text-[10px] font-bold text-center transition active:scale-95 hover:border-[#7DB852]';
+    });
+    if (btnEl) {
+        btnEl.className = 'prop-scale-preset-btn py-1 px-1.5 rounded-lg border border-[#2B5B35] bg-[#2B5B35] text-white text-[10px] font-bold text-center transition active:scale-95 shadow-xs';
+    }
+
+    updatePropInfoPillText();
+    updatePropScalePreview();
+}
+
+function setPropStudioScaleFromSlider(val) {
+    setPropStudioScale(parseFloat(val), null);
+}
+
+function updatePropScalePreview() {
+    const canvas = document.getElementById('propScalePreviewCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Draw baseline ground
+    ctx.strokeStyle = '#c5d9b7';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(10, h - 14);
+    ctx.lineTo(w - 10, h - 14);
+    ctx.stroke();
+
+    // Draw reference character / avatar (Fella / human scale benchmark ~ 44px)
+    const avatarX = 35;
+    const groundY = h - 14;
+
+    // Head
+    ctx.fillStyle = '#fcd34d';
+    ctx.beginPath();
+    ctx.arc(avatarX, groundY - 32, 8, 0, Math.PI * 2);
+    ctx.fill();
+    // Eyes
+    ctx.fillStyle = '#1f2937';
+    ctx.beginPath();
+    ctx.arc(avatarX - 2.5, groundY - 32, 1.2, 0, Math.PI * 2);
+    ctx.arc(avatarX + 2.5, groundY - 32, 1.2, 0, Math.PI * 2);
+    ctx.fill();
+    // Torso / Body
+    ctx.fillStyle = '#2B5B35';
+    ctx.beginPath();
+    ctx.roundRect(avatarX - 7, groundY - 24, 14, 16, 4);
+    ctx.fill();
+    // Legs
+    ctx.strokeStyle = '#1f2937';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(avatarX - 3.5, groundY - 8);
+    ctx.lineTo(avatarX - 3.5, groundY);
+    ctx.moveTo(avatarX + 3.5, groundY - 8);
+    ctx.lineTo(avatarX + 3.5, groundY);
+    ctx.stroke();
+
+    // Label Benchmark
+    ctx.fillStyle = '#477431';
+    ctx.font = 'bold 9px "Patrick Hand", cursive, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Avatar (1.0x)', avatarX, groundY + 11);
+
+    // Draw player's drawn prop at current scale
+    const propX = 145;
+    const scale = selectedPropScale;
+
+    if (propPadCanvas && propStudioStrokes.length > 0) {
+        const trimmed = extractTrimmedPropCanvas();
+        if (trimmed && trimmed.width > 0 && trimmed.height > 0) {
+            const aspect = trimmed.width / trimmed.height;
+            const baseVisualH = 36;
+            const drawH = Math.max(12, Math.min(52, baseVisualH * scale));
+            const drawW = drawH * aspect;
+
+            ctx.save();
+            ctx.drawImage(trimmed, propX - drawW / 2, groundY - drawH, drawW, drawH);
+            ctx.restore();
+        } else {
+            drawFallbackPropPreview(ctx, propX, groundY, scale);
+        }
+    } else {
+        drawFallbackPropPreview(ctx, propX, groundY, scale);
+    }
+
+    ctx.fillStyle = '#2B5B35';
+    ctx.font = 'bold 9px "Patrick Hand", cursive, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Properti (${scale.toFixed(1)}x)`, propX, groundY + 11);
+}
+
+function drawFallbackPropPreview(ctx, x, groundY, scale) {
+    const size = 32 * scale;
+    ctx.fillStyle = '#854d0e';
+    ctx.fillRect(x - size / 2, groundY - size, size, size);
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.moveTo(x - size * 0.65, groundY - size);
+    ctx.lineTo(x, groundY - size * 1.5);
+    ctx.lineTo(x + size * 0.65, groundY - size);
+    ctx.closePath();
+    ctx.fill();
+}
+
+// =========================================================================
+// UNDO, REDO & REDRAW
+// =========================================================================
 
 function undoPropStroke() {
     if (propStudioStrokes.length === 0) return;
-    const popped = propStudioStrokes.pop();
-    propStudioRedoStack.push(popped);
+    const last = propStudioStrokes.pop();
+    propStudioRedoStack.push(last);
+    endPropLiveStroke();
     redrawPropPadFromStrokes();
     updatePropScalePreview();
+    if (typeof playPencilSound === 'function') playPencilSound();
 }
 
 function redoPropStroke() {
     if (propStudioRedoStack.length === 0) return;
-    const popped = propStudioRedoStack.pop();
-    propStudioStrokes.push(popped);
+    const next = propStudioRedoStack.pop();
+    propStudioStrokes.push(next);
+    endPropLiveStroke();
     redrawPropPadFromStrokes();
     updatePropScalePreview();
+    if (typeof playPencilSound === 'function') playPencilSound();
 }
 
 function redrawPropPadFromStrokes() {
@@ -410,26 +665,53 @@ function redrawPropPadFromStrokes() {
     }
     for (const stroke of propStudioStrokes) {
         if (!stroke.points || stroke.points.length === 0) continue;
-        propPadCtx.save();
-        propPadCtx.beginPath();
-        propPadCtx.lineCap = 'round';
-        propPadCtx.lineJoin = 'round';
-        propPadCtx.lineWidth = stroke.size;
         if (stroke.tool === 'eraser') {
+            propPadCtx.save();
             propPadCtx.globalCompositeOperation = 'destination-out';
-            propPadCtx.strokeStyle = 'rgba(0,0,0,1)';
+            propPadCtx.lineWidth = stroke.size * 1.8;
+            propPadCtx.lineCap = 'round';
+            propPadCtx.lineJoin = 'round';
+            propPadCtx.beginPath();
+            propPadCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+            for (let i = 1; i < stroke.points.length; i++) {
+                propPadCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            }
+            propPadCtx.stroke();
+            propPadCtx.restore();
+            continue;
+        }
+
+        const bType = stroke.brushType || 'pencil';
+        if (bType === 'watercolor') {
+            paintWatercolorLayer(propPadCtx, relaxPoints(stroke.points), stroke.color, stroke.size);
+        } else if (bType === 'glow') {
+            paintGlowLayer(propPadCtx, relaxPoints(stroke.points), stroke.color, stroke.size);
+        } else if (bType === 'crayon') {
+            for (let i = 1; i < stroke.points.length; i++) {
+                paintCrayonSegment(propPadCtx, stroke.points[i - 1], stroke.points[i], stroke.color, stroke.size);
+            }
         } else {
+            // Classic Pencil
+            propPadCtx.save();
             propPadCtx.globalCompositeOperation = 'source-over';
             propPadCtx.strokeStyle = stroke.color;
+            propPadCtx.lineWidth = stroke.size;
+            propPadCtx.lineCap = 'round';
+            propPadCtx.lineJoin = 'round';
+            propPadCtx.beginPath();
+            propPadCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+            for (let i = 1; i < stroke.points.length; i++) {
+                propPadCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            }
+            propPadCtx.stroke();
+            propPadCtx.restore();
         }
-        propPadCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-        for (let i = 1; i < stroke.points.length; i++) {
-            propPadCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
-        }
-        propPadCtx.stroke();
-        propPadCtx.restore();
     }
 }
+
+// =========================================================================
+// EVENT LISTENERS: POINTER, TOUCH, ZOOM & PAN
+// =========================================================================
 
 function initPropStudioEventListeners() {
     if (!propPadCanvas) return;
@@ -550,28 +832,43 @@ function initPropStudioEventListeners() {
 
         currentStroke = {
             tool: propStudioTool,
+            brushType: propStudioBrushType,
             color: propStudioCurrentColor,
             size: propStudioBrushSize,
             points: [pos]
         };
 
-        propPadCtx.save();
-        propPadCtx.beginPath();
-        propPadCtx.lineCap = 'round';
-        propPadCtx.lineJoin = 'round';
-        propPadCtx.lineWidth = propStudioBrushSize;
-
         if (propStudioTool === 'eraser') {
+            propPadCtx.save();
             propPadCtx.globalCompositeOperation = 'destination-out';
-            propPadCtx.strokeStyle = 'rgba(0,0,0,1)';
-        } else {
+            propPadCtx.beginPath();
+            propPadCtx.arc(pos.x, pos.y, Math.max(2, (propStudioBrushSize * 1.8) / 2), 0, Math.PI * 2);
+            propPadCtx.fill();
+            propPadCtx.restore();
+        } else if (propStudioBrushType === 'watercolor' || propStudioBrushType === 'glow') {
+            beginPropLiveStroke(propPadCtx, pos, propStudioBrushType, propStudioCurrentColor, propStudioBrushSize);
+        } else if (propStudioBrushType === 'crayon') {
+            propPadCtx.save();
             propPadCtx.globalCompositeOperation = 'source-over';
-            propPadCtx.strokeStyle = propStudioCurrentColor;
+            propPadCtx.fillStyle = propStudioCurrentColor;
+            const rad = Math.max(2, propStudioBrushSize * 0.65);
+            for (let i = 0; i < 10; i++) {
+                const ox = (Math.random() - 0.5) * rad * 1.5;
+                const oy = (Math.random() - 0.5) * rad * 1.5;
+                propPadCtx.globalAlpha = 0.45 + Math.random() * 0.45;
+                propPadCtx.fillRect(pos.x + ox, pos.y + oy, 2.2, 2.2);
+            }
+            propPadCtx.restore();
+        } else {
+            // Classic Pencil
+            propPadCtx.save();
+            propPadCtx.globalCompositeOperation = 'source-over';
+            propPadCtx.fillStyle = propStudioCurrentColor;
+            propPadCtx.beginPath();
+            propPadCtx.arc(pos.x, pos.y, Math.max(1, propStudioBrushSize / 2), 0, Math.PI * 2);
+            propPadCtx.fill();
+            propPadCtx.restore();
         }
-
-        propPadCtx.moveTo(pos.x, pos.y);
-        propPadCtx.lineTo(pos.x, pos.y);
-        propPadCtx.stroke();
 
         const hint = document.getElementById('drawPropBoxHint');
         if (hint) hint.style.opacity = '0';
@@ -589,10 +886,38 @@ function initPropStudioEventListeners() {
         if (!isDrawingPropStudio || !currentStroke) return;
 
         const pos = getPos(e);
+        const lastPos = currentStroke.points[currentStroke.points.length - 1];
         currentStroke.points.push(pos);
 
-        propPadCtx.lineTo(pos.x, pos.y);
-        propPadCtx.stroke();
+        if (propStudioTool === 'eraser') {
+            propPadCtx.save();
+            propPadCtx.globalCompositeOperation = 'destination-out';
+            propPadCtx.lineWidth = propStudioBrushSize * 1.8;
+            propPadCtx.lineCap = 'round';
+            propPadCtx.lineJoin = 'round';
+            propPadCtx.beginPath();
+            propPadCtx.moveTo(lastPos.x, lastPos.y);
+            propPadCtx.lineTo(pos.x, pos.y);
+            propPadCtx.stroke();
+            propPadCtx.restore();
+        } else if (propStudioBrushType === 'watercolor' || propStudioBrushType === 'glow') {
+            extendPropLiveStroke(propPadCtx, lastPos, pos, propStudioBrushType, propStudioCurrentColor, propStudioBrushSize);
+        } else if (propStudioBrushType === 'crayon') {
+            paintCrayonSegment(propPadCtx, lastPos, pos, propStudioCurrentColor, propStudioBrushSize);
+        } else {
+            // Classic Pencil
+            propPadCtx.save();
+            propPadCtx.globalCompositeOperation = 'source-over';
+            propPadCtx.strokeStyle = propStudioCurrentColor;
+            propPadCtx.lineWidth = propStudioBrushSize;
+            propPadCtx.lineCap = 'round';
+            propPadCtx.lineJoin = 'round';
+            propPadCtx.beginPath();
+            propPadCtx.moveTo(lastPos.x, lastPos.y);
+            propPadCtx.lineTo(pos.x, pos.y);
+            propPadCtx.stroke();
+            propPadCtx.restore();
+        }
     }
 
     function endDrawing(e) {
@@ -611,7 +936,9 @@ function initPropStudioEventListeners() {
         isDrawingPropStudio = false;
         document.getElementById('propStudioModal')?.classList.remove('drawing-active');
 
-        try { propPadCtx.restore(); } catch (err) {}
+        if (propLiveStroke) {
+            endPropLiveStroke();
+        }
 
         if (currentStroke && currentStroke.points.length > 0) {
             propStudioStrokes.push(currentStroke);
@@ -960,6 +1287,7 @@ window.openPropStudioModal = openPropStudioModal;
 window.closePropStudioModal = closePropStudioModal;
 window.clearPropPad = clearPropPad;
 window.setPropStudioTool = setPropStudioTool;
+window.setPropStudioBrushType = setPropStudioBrushType;
 window.setPropBrushSize = setPropBrushSize;
 window.setPropBrushSizeFromSlider = setPropBrushSizeFromSlider;
 window.selectPropColor = selectPropColor;
