@@ -1646,10 +1646,11 @@ body.zen-mode #zenModeRestorePill {
 }
 
 /* ==============================================================
-   FULLSCREEN STUDIOS WORKSPACE (Flower & Animal Studios - Ibis Paint Style)
+   FULLSCREEN STUDIOS WORKSPACE (Flower, Animal & Prop Studios - Ibis Paint Style)
    ============================================================== */
 #flowerStudioModal,
-#animalStudioModal {
+#animalStudioModal,
+#propStudioModal {
     background-color: #F3EFE6 !important;
     background-image: 
         radial-gradient(circle at 50% 50%, rgba(142, 180, 119, 0.08) 0%, transparent 80%),
@@ -1667,7 +1668,8 @@ body.zen-mode #zenModeRestorePill {
 }
 
 #studioViewport,
-#animalStudioViewport {
+#animalStudioViewport,
+#propStudioViewport {
     padding-left: 48px;
     padding-top: 8px;
     padding-bottom: 20px;
@@ -1675,7 +1677,8 @@ body.zen-mode #zenModeRestorePill {
 
 @media (orientation: landscape) and (max-height: 550px) {
     #studioViewport,
-    #animalStudioViewport {
+    #animalStudioViewport,
+    #propStudioViewport {
         padding-left: 0;
         padding-top: 0;
         padding-bottom: 0;
@@ -1684,7 +1687,8 @@ body.zen-mode #zenModeRestorePill {
 
 @media (min-width: 1024px) {
     #studioViewport,
-    #animalStudioViewport {
+    #animalStudioViewport,
+    #propStudioViewport {
         padding-left: 0;
         padding-top: 0;
         padding-bottom: 0;
@@ -1692,7 +1696,8 @@ body.zen-mode #zenModeRestorePill {
 }
 
 #flowerCanvasPaper,
-#animalCanvasPaper {
+#animalCanvasPaper,
+#propCanvasPaper {
     width: min(calc(100vw - 72px), 58vh, 520px);
     height: min(calc(100vw - 72px), 58vh, 520px);
     aspect-ratio: 1 / 1;
@@ -1706,7 +1711,8 @@ body.zen-mode #zenModeRestorePill {
 
 @media (orientation: landscape) and (max-height: 550px) {
     #flowerCanvasPaper,
-    #animalCanvasPaper {
+    #animalCanvasPaper,
+    #propCanvasPaper {
         width: min(58vw, 75vh, 310px) !important;
         height: min(58vw, 75vh, 310px) !important;
     }
@@ -1714,7 +1720,8 @@ body.zen-mode #zenModeRestorePill {
 
 @media (min-width: 1024px) {
     #flowerCanvasPaper,
-    #animalCanvasPaper {
+    #animalCanvasPaper,
+    #propCanvasPaper {
         width: 600px !important;
         height: 600px !important;
     }
@@ -1727,7 +1734,10 @@ body.zen-mode #zenModeRestorePill {
 #flowerStudioModal.drawing-active #studioFullscreenBottomShelf,
 #animalStudioModal.drawing-active #animalStudioFullscreenTopBar,
 #animalStudioModal.drawing-active #animalStudioFullscreenLeftToolbar,
-#animalStudioModal.drawing-active #animalStudioFullscreenBottomShelf {
+#animalStudioModal.drawing-active #animalStudioFullscreenBottomShelf,
+#propStudioModal.drawing-active #propStudioFullscreenTopBar,
+#propStudioModal.drawing-active #propStudioFullscreenLeftToolbar,
+#propStudioModal.drawing-active #propStudioFullscreenBottomShelf {
     opacity: 0.25;
     pointer-events: none;
     transition: opacity 0.15s ease-out;

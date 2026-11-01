@@ -281,6 +281,7 @@ function cancelPropStrokeImmediately() {
         document.getElementById('propStudioModal')?.classList.remove('drawing-active');
         try { propPadCtx.restore(); } catch (err) {}
         endPropLiveStroke();
+        propStudioCurrentStroke = null;
         redrawPropPadFromStrokes();
     }
 }
@@ -712,19 +713,25 @@ function redrawPropPadFromStrokes() {
 // =========================================================================
 // EVENT LISTENERS: POINTER, TOUCH, ZOOM & PAN
 // =========================================================================
+// INTERACTIVE DRAWING & VIEWPORT EVENT HANDLERS
+// =========================================================================
+
+var propStudioCurrentStroke = null;
+var propStudioEventsInitialized = false;
 
 function initPropStudioEventListeners() {
-    if (!propPadCanvas) return;
-
-    let currentStroke = null;
+    if (propStudioEventsInitialized || !propPadCanvas) return;
+    propStudioEventsInitialized = true;
 
     function getPos(e) {
         const rect = propPadCanvas.getBoundingClientRect();
+        const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+        const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
         const scaleX = propPadCanvas.width / rect.width;
         const scaleY = propPadCanvas.height / rect.height;
         return {
-            x: (e.clientX - rect.left) * scaleX,
-            y: (e.clientY - rect.top) * scaleY
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
         };
     }
 
@@ -792,26 +799,51 @@ function initPropStudioEventListeners() {
             if (e.touches.length === 0) {
                 isPropPanning = false;
                 suppressPropDrawUntilAllUp = false;
+                activePropTouchPointers.clear();
             }
         };
         propStudioViewport.addEventListener('touchend', endTouchTransform, { passive: false });
         propStudioViewport.addEventListener('touchcancel', endTouchTransform, { passive: false });
+
+        propStudioViewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? 0.2 : -0.2;
+            zoomPropCanvas(delta);
+        }, { passive: false });
+
+        propStudioViewport.addEventListener('pointerdown', (e) => {
+            if (e.target !== propPadCanvas) {
+                isPropPanning = true;
+                propPanStartX = e.clientX - propPanX;
+                propPanStartY = e.clientY - propPanY;
+            }
+        });
     }
 
     function startDrawing(e) {
+        e.stopPropagation();
+        if (typeof initAudio === 'function') initAudio();
+
         if (e.pointerType === 'touch') {
             activePropTouchPointers.add(e.pointerId);
-            if (activePropTouchPointers.size >= 2 || suppressPropDrawUntilAllUp) return;
+            if (activePropTouchPointers.size >= 2 || suppressPropDrawUntilAllUp || !e.isPrimary) {
+                cancelPropStrokeImmediately();
+                suppressPropDrawUntilAllUp = true;
+                return;
+            }
         }
 
-        if (isPropPanMode || e.button === 1 || e.button === 2) {
+        if (suppressPropDrawUntilAllUp) return;
+
+        if (isPropPanMode || e.button === 1 || e.shiftKey) {
             isPropPanning = true;
             propPanStartX = e.clientX - propPanX;
             propPanStartY = e.clientY - propPanY;
+            if (propPadCanvas) propPadCanvas.style.cursor = 'grabbing';
             return;
         }
 
-        if (e.button !== 0) return;
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
 
         const pos = getPos(e);
 
@@ -830,7 +862,7 @@ function initPropStudioEventListeners() {
         document.getElementById('propStudioModal')?.classList.add('drawing-active');
         propStudioRedoStack = [];
 
-        currentStroke = {
+        propStudioCurrentStroke = {
             tool: propStudioTool,
             brushType: propStudioBrushType,
             color: propStudioCurrentColor,
@@ -876,18 +908,20 @@ function initPropStudioEventListeners() {
 
     function moveDrawing(e) {
         if (isPropPanning) {
+            propPanX = e.clientX - propPanStartX;
+            propPanY = e.clientY - propPanStartY;
             const maxPan = Math.max(350, 420 * propZoom);
-            propPanX = Math.max(-maxPan, Math.min(maxPan, e.clientX - propPanStartX));
-            propPanY = Math.max(-maxPan, Math.min(maxPan, e.clientY - propPanStartY));
+            propPanX = Math.max(-maxPan, Math.min(maxPan, propPanX));
+            propPanY = Math.max(-maxPan, Math.min(maxPan, propPanY));
             applyPropTransform(true);
             return;
         }
 
-        if (!isDrawingPropStudio || !currentStroke) return;
+        if (!isDrawingPropStudio || !propStudioCurrentStroke || suppressPropDrawUntilAllUp || isTwoFingerTransformingProp) return;
 
         const pos = getPos(e);
-        const lastPos = currentStroke.points[currentStroke.points.length - 1];
-        currentStroke.points.push(pos);
+        const lastPos = propStudioCurrentStroke.points[propStudioCurrentStroke.points.length - 1];
+        propStudioCurrentStroke.points.push(pos);
 
         if (propStudioTool === 'eraser') {
             propPadCtx.save();
@@ -930,6 +964,9 @@ function initPropStudioEventListeners() {
 
         if (isPropPanning) {
             isPropPanning = false;
+            if (propPadCanvas) {
+                propPadCanvas.style.cursor = isPropPanMode ? 'grab' : (propStudioTool === 'eyedropper' ? 'crosshair' : (propStudioTool === 'eraser' ? 'cell' : 'crosshair'));
+            }
         }
 
         if (!isDrawingPropStudio) return;
@@ -940,9 +977,9 @@ function initPropStudioEventListeners() {
             endPropLiveStroke();
         }
 
-        if (currentStroke && currentStroke.points.length > 0) {
-            propStudioStrokes.push(currentStroke);
-            currentStroke = null;
+        if (propStudioCurrentStroke && propStudioCurrentStroke.points.length > 0) {
+            propStudioStrokes.push(propStudioCurrentStroke);
+            propStudioCurrentStroke = null;
         }
 
         updatePropScalePreview();
@@ -952,6 +989,35 @@ function initPropStudioEventListeners() {
     window.addEventListener('pointermove', moveDrawing);
     window.addEventListener('pointerup', endDrawing);
     window.addEventListener('pointercancel', endDrawing);
+
+    // Global keyboard shortcuts for Prop Studio
+    window.addEventListener('keydown', (e) => {
+        const modal = document.getElementById('propStudioModal');
+        const isModalOpen = modal && !modal.classList.contains('hidden');
+        if (!isModalOpen) return;
+
+        if (e.key === 'Escape') {
+            closePropStudioModal();
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+            e.preventDefault();
+            if (e.shiftKey) redoPropStroke();
+            else undoPropStroke();
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+            e.preventDefault();
+            redoPropStroke();
+            return;
+        }
+        if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+            const k = e.key.toLowerCase();
+            if (k === 'p') setPropStudioTool('pencil');
+            else if (k === 'e') setPropStudioTool('eraser');
+            else if (k === 'i') setPropStudioTool('eyedropper');
+        }
+    });
 }
 
 /**
