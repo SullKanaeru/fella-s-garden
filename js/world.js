@@ -496,21 +496,26 @@ async function saveCurrentWorld(silent = false) {
       accessory: a.accessory || "none",
     }));
 
-    const serializedDecorations =
-      typeof decorations !== "undefined" && Array.isArray(decorations)
-        ? decorations.map((d) => ({
-            id: d.id,
-            type: d.type,
-            x: Math.round(d.x),
-            y: Math.round(d.y),
-            width: d.width,
-            height: d.height,
-            habitat: d.habitat || "land",
-            rotation: d.rotation || 0,
-            paintingDataUrl: d.paintingDataUrl || null,
-            paintingTitle: d.paintingTitle || "",
-          }))
-        : [];
+    const activeDecors = (typeof window !== "undefined" && Array.isArray(window.decorations))
+      ? window.decorations
+      : ((typeof decorations !== "undefined" && Array.isArray(decorations)) ? decorations : []);
+
+    const serializedDecorations = activeDecors.map((d) => ({
+      id: d.id,
+      type: d.type,
+      name: d.name || "",
+      x: Math.round(d.x),
+      y: Math.round(d.y),
+      width: d.width,
+      height: d.height,
+      scale: typeof d.scale === "number" ? Number(d.scale.toFixed(2)) : 1.0,
+      habitat: d.habitat || "land",
+      rotation: d.rotation || 0,
+      paintingDataUrl: d.paintingDataUrl || null,
+      paintingTitle: d.paintingTitle || "",
+      isCustomProp: !!d.isCustomProp,
+      spriteDataUrl: d.spriteDataUrl || null,
+    }));
 
     const existingWorld = await dbGetWorld(currentWorldId);
     const nowIso = new Date().toISOString();
@@ -800,26 +805,38 @@ async function loadWorldById(worldId) {
     updateAnimalsBadge();
 
   // Restore Decorations
-  if (typeof decorations !== "undefined") {
-    decorations.length = 0;
-    if (worldObj.decorations && Array.isArray(worldObj.decorations)) {
-      for (const sd of worldObj.decorations) {
-        decorations.push({
-          id: sd.id || "dec_" + Math.random().toString(36).slice(2, 6),
-          type: sd.type || "fence",
-          x: sd.x,
-          y: sd.y,
-          width: sd.width || 48,
-          height: sd.height || 40,
-          habitat: sd.habitat || (sd.type === "bridge" ? "both" : "land"),
-          rotation: sd.rotation || 0,
-          paintingDataUrl: sd.paintingDataUrl || null,
-          paintingTitle: sd.paintingTitle || "",
-          birthScale: 1,
-        });
+  const targetDecorList = (typeof window !== "undefined" && Array.isArray(window.decorations))
+    ? window.decorations
+    : ((typeof decorations !== "undefined" && Array.isArray(decorations)) ? decorations : []);
+  targetDecorList.length = 0;
+  if (worldObj.decorations && Array.isArray(worldObj.decorations)) {
+    for (const sd of worldObj.decorations) {
+      const decorObj = {
+        id: sd.id || "dec_" + Math.random().toString(36).slice(2, 6),
+        type: sd.type || "fence",
+        name: sd.name || "",
+        x: sd.x,
+        y: sd.y,
+        width: sd.width || 48,
+        height: sd.height || 40,
+        scale: typeof sd.scale === "number" ? sd.scale : 1.0,
+        habitat: sd.habitat || (sd.type === "bridge" ? "both" : "land"),
+        rotation: sd.rotation || 0,
+        paintingDataUrl: sd.paintingDataUrl || null,
+        paintingTitle: sd.paintingTitle || "",
+        isCustomProp: !!sd.isCustomProp,
+        spriteDataUrl: sd.spriteDataUrl || null,
+        birthScale: 1,
+      };
+      if (decorObj.spriteDataUrl) {
+        const img = new Image();
+        img.src = decorObj.spriteDataUrl;
+        decorObj.spriteImg = img;
       }
+      targetDecorList.push(decorObj);
     }
   }
+  if (typeof window !== "undefined") window.decorations = targetDecorList;
 
   // Restore Night Sky Constellations
   if (typeof window !== "undefined") {

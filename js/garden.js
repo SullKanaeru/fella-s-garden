@@ -4250,10 +4250,12 @@ function initGardenEventListeners() {
         draggedFlowerOffset = { x: hit.x - worldPos.x, y: hit.y - worldPos.y };
         selectedDecoration = null;
         if (typeof window !== "undefined") window.selectedDecoration = null;
+        if (typeof updateDecorScaleWidgetUI === "function") updateDecorScaleWidgetUI();
         worldCanvas.style.cursor = "grabbing";
       } else if (hitDecor) {
         selectedDecoration = hitDecor;
         if (typeof window !== "undefined") window.selectedDecoration = hitDecor;
+        if (typeof updateDecorScaleWidgetUI === "function") updateDecorScaleWidgetUI();
         draggedDecoration = hitDecor;
         draggedDecorationOrigX = hitDecor.x;
         draggedDecorationOrigY = hitDecor.y;
@@ -4276,6 +4278,7 @@ function initGardenEventListeners() {
       } else {
         selectedDecoration = null;
         if (typeof window !== "undefined") window.selectedDecoration = null;
+        if (typeof updateDecorScaleWidgetUI === "function") updateDecorScaleWidgetUI();
         // Smoothly drag garden canvas on empty area
         isDraggingCanvas = true;
         dragStartScreenX = e.clientX;
@@ -4809,13 +4812,16 @@ function initGardenEventListeners() {
       const valid =
         draggedDecoration.habitat === "both"
           ? onGrass || onWater
-          : onGrass && !onWater;
+          : draggedDecoration.habitat === "water"
+            ? onWater
+            : onGrass && !onWater;
       if (!valid) {
         draggedDecoration.x = draggedDecorationOrigX;
         draggedDecoration.y = draggedDecorationOrigY;
-        showGardenNotice(
-          "Dekorasi darat hanya bisa ditaruh di atas tanah rumput! (Jembatan bisa di atas air) 🌿",
-        );
+        const reasonMsg = draggedDecoration.habitat === "water"
+          ? "Objek air hanya bisa ditaruh di atas kolam air! 💧"
+          : "Dekorasi darat hanya bisa ditaruh di atas tanah rumput! (Jembatan bisa di atas air) 🌿";
+        showGardenNotice(reasonMsg);
         if (typeof playErrorSound === "function") playErrorSound();
       } else {
         if (
@@ -4838,6 +4844,7 @@ function initGardenEventListeners() {
       }
       draggedDecoration = null;
       updateToolbarUI();
+      if (typeof updateDecorScaleWidgetUI === "function") updateDecorScaleWidgetUI();
     }
 
     if (draggedFlower) {

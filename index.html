@@ -808,6 +808,25 @@
           >
         </button>
 
+        <!-- 4B. Prop Studio Button (Studio Gambar Properti) -->
+        <button
+          id="openPropStudioBtn"
+          onclick="openPropStudioModal()"
+          class="launcher-btn group relative flex flex-col items-center justify-center gap-0.5 sm:gap-1 w-[56px] sm:w-[94px] h-[54px] sm:h-[86px] bg-[#FDFBF2]/95 hover:bg-white active:scale-95 border-2 border-emerald-500 rounded-2xl p-1 sm:p-2 shadow-lg sm:shadow-xl hover:shadow-2xl transition duration-200 snap-start shrink-0"
+          title="Buka Studio Gambar Properti & Dekorasi Custom"
+        >
+          <div
+            class="w-7 h-7 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-gradient-to-br from-[#2B5B35] to-[#477431] text-white flex items-center justify-center shadow-md group-hover:scale-105 transition"
+          >
+            <span class="text-xs sm:text-lg">🏡</span>
+          </div>
+          <span
+            class="font-hand font-bold text-[10px] sm:text-xs md:text-sm text-[#2B5B35] tracking-wide whitespace-nowrap"
+          >
+            Properti
+          </span>
+        </button>
+
         <!-- 5. Journal Button (Buku Jurnal, Harian & Streak) -->
         <button
           id="openJournalBtn"
@@ -3273,6 +3292,648 @@
       </div>
     </div>
 
+    <!-- ============================================================== -->
+    <!-- CUSTOM PROPERTY & PROP STUDIO MODAL (#propStudioModal)         -->
+    <!-- ============================================================== -->
+    <div
+      id="propStudioModal"
+      class="hidden fixed inset-0 z-50 w-screen h-screen bg-[#F3EFE6] select-none pointer-events-auto overflow-hidden transition-opacity duration-200"
+    >
+      <!-- Subtly textured canvas viewport with interactive pan & zoom -->
+      <div
+        id="propStudioViewport"
+        class="absolute inset-0 flex items-center justify-center overflow-hidden touch-none"
+      >
+        <!-- The Main High-Resolution Paper Canvas -->
+        <div
+          id="propCanvasPaper"
+          class="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl border-2 border-[#8eb477]/30 flex items-center justify-center overflow-hidden"
+        >
+          <div
+            id="drawPropBoxHint"
+            class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center opacity-40 transition-opacity z-10"
+          >
+            <span
+              class="text-xs sm:text-base text-center text-[#477431] px-4 font-hand font-bold tracking-wide"
+            >
+              Gambar properti / dekorasimu di sini<br />
+              <span class="text-[10px] sm:text-xs font-normal opacity-75"
+                >Pondok, batu, lentera, jembatan, perahu, furnitur & atur skalanya</span
+              >
+            </span>
+          </div>
+          <canvas
+            id="propPadCanvas"
+            width="600"
+            height="600"
+            class="w-full h-full cursor-crosshair touch-none"
+          ></canvas>
+        </div>
+      </div>
+
+      <!-- Top Bar: Navigation, History, Info Pill, Place to Garden -->
+      <header
+        id="propStudioFullscreenTopBar"
+        class="absolute top-2 sm:top-3 left-2 right-2 sm:left-4 sm:right-4 z-30 pointer-events-none flex items-center justify-between gap-1.5 sm:gap-2 select-none transition-opacity duration-200"
+      >
+        <!-- Left: Back Button + Studio Title -->
+        <div class="pointer-events-auto flex items-center gap-1 sm:gap-2 max-w-[45%] sm:max-w-none">
+          <button
+            type="button"
+            onclick="closePropStudioModal()"
+            class="h-8 sm:h-9 px-2 sm:px-3 rounded-full bg-white/95 hover:bg-white text-[#2B5B35] border border-[#c5d9b7] shadow-sm flex items-center gap-1.5 font-bold text-xs sm:text-sm transition hover:scale-105 active:scale-95 cursor-pointer"
+            title="Tutup & Kembali ke Kebun"
+          >
+            <svg
+              class="w-3.5 h-3.5 sm:w-4 sm:h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+            <span class="hidden xs:inline">Kebun</span>
+          </button>
+
+          <!-- Studio Title Pill -->
+          <div
+            class="flex items-center gap-1 sm:gap-1.5 bg-white/95 backdrop-blur-md px-2 sm:px-3 py-1 rounded-full border border-[#c5d9b7] shadow-sm text-xs sm:text-sm font-hand font-bold text-[#2B5B35] truncate"
+          >
+            <span class="text-emerald-700">🏡</span>
+            <span class="truncate">Studio Properti</span>
+          </div>
+        </div>
+
+        <!-- Center: History, Zoom, Clear -->
+        <div class="pointer-events-auto flex items-center gap-1 sm:gap-1.5">
+          <div
+            class="flex items-center gap-0.5 sm:gap-1 bg-white/95 backdrop-blur-md px-1.5 sm:px-2 py-1 rounded-full border border-[#c5d9b7] shadow-sm text-gray-700"
+          >
+            <button
+              id="propStudioUndoBtn"
+              type="button"
+              onclick="undoPropStroke()"
+              class="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-emerald-50 text-gray-700 hover:text-[#2B5B35] transition active:scale-90 cursor-pointer"
+              title="Undo Goresan (Ctrl+Z)"
+            >
+              <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" /></svg>
+            </button>
+            <button
+              id="propStudioRedoBtn"
+              type="button"
+              onclick="redoPropStroke()"
+              class="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-emerald-50 text-gray-700 hover:text-[#2B5B35] transition active:scale-90 cursor-pointer"
+              title="Redo Goresan (Ctrl+Y)"
+            >
+              <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" /></svg>
+            </button>
+
+            <div class="w-px h-4 bg-gray-200 mx-0.5"></div>
+
+            <!-- Zoom / Pan Controls -->
+            <button
+              type="button"
+              onclick="zoomPropCanvas(-0.25)"
+              class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-700 transition active:scale-90 text-xs font-bold cursor-pointer"
+              title="Perkecil Zoom Kanvas"
+            >
+              -
+            </button>
+            <span id="propZoomLevelText" class="text-[10px] sm:text-xs font-mono font-bold text-[#2B5B35] px-0.5 min-w-[32px] text-center select-none">100%</span>
+            <button
+              type="button"
+              onclick="zoomPropCanvas(0.25)"
+              class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-700 transition active:scale-90 text-xs font-bold cursor-pointer"
+              title="Perbesar Zoom Kanvas"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onclick="resetPropZoom()"
+              class="hidden sm:flex text-[10px] px-1.5 py-0.5 rounded-full hover:bg-gray-100 text-gray-600 font-medium transition cursor-pointer"
+              title="Reset Zoom & Geser Kanvas"
+            >
+              Reset
+            </button>
+            <button
+              id="propPanToggleBtn"
+              type="button"
+              onclick="togglePropPanMode()"
+              class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-emerald-100 text-gray-700 transition active:scale-90 cursor-pointer"
+              title="Mode Geser Layar Kanvas (Pan)"
+            >
+              ✋
+            </button>
+
+            <div class="w-px h-4 bg-gray-200 mx-0.5"></div>
+
+            <button
+              type="button"
+              onclick="clearPropPad()"
+              class="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-rose-50 text-gray-500 hover:text-rose-600 transition active:scale-90 cursor-pointer"
+              title="Hapus Seluruh Gambar"
+            >
+              <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Config & Place to Garden Action -->
+        <div class="pointer-events-auto flex items-center gap-1.5 sm:gap-2">
+          <button
+            type="button"
+            onclick="togglePropConfigModal()"
+            class="h-8 sm:h-9 px-2 sm:px-3 rounded-full bg-white/95 hover:bg-white text-[#2B5B35] border border-[#c5d9b7] shadow-sm flex items-center gap-1.5 text-xs font-bold transition hover:scale-105 active:scale-95 cursor-pointer"
+            title="Atur Nama, Habitat & Skala Properti"
+          >
+            <span class="text-sm">⚙️</span>
+            <span id="propInfoPillText" class="truncate max-w-[90px] sm:max-w-[150px]">Pondok (1.0x)</span>
+          </button>
+
+          <button
+            id="finishAndSpawnPropBtn"
+            type="button"
+            onclick="finishDrawingAndSpawnProp()"
+            class="h-8 sm:h-9 px-3 sm:px-4 rounded-full bg-[#2B5B35] hover:bg-[#1f4627] text-white shadow-md flex items-center gap-1.5 font-bold text-xs sm:text-sm transition hover:scale-105 active:scale-95 cursor-pointer"
+            title="Selesai & Pasang Properti ke Kebun"
+          >
+            <span>🌿</span>
+            <span class="font-hand font-bold tracking-wide">Pasang ke Kebun</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Left Floating Toolbar: Tools & Size -->
+      <aside
+        id="propStudioFullscreenLeftToolbar"
+        class="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-2 p-1.5 sm:p-2 bg-white/95 backdrop-blur-md rounded-2xl border border-[#c5d9b7] shadow-lg pointer-events-auto transition-opacity duration-200 select-none"
+      >
+        <!-- Pencil -->
+        <button
+          id="propStudioToolPencil"
+          type="button"
+          onclick="setPropStudioTool('pencil')"
+          class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-[#2B5B35] text-white shadow-md ring-2 ring-[#7DB852] transition active:scale-95 cursor-pointer"
+          title="Pensil Gambar (P)"
+        >
+          <svg class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
+        </button>
+
+        <!-- Eraser -->
+        <button
+          id="propStudioToolEraser"
+          type="button"
+          onclick="setPropStudioTool('eraser')"
+          class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-white/90 hover:bg-white text-gray-700 hover:text-[#2B5B35] border border-[#c5d9b7] shadow-xs transition active:scale-95 cursor-pointer"
+          title="Penghapus (E)"
+        >
+          <svg class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" /><path d="M22 21H7" /><path d="m5 11 9 9" /></svg>
+        </button>
+
+        <!-- Eyedropper -->
+        <button
+          id="propStudioToolEyedrop"
+          type="button"
+          onclick="setPropStudioTool('eyedropper')"
+          class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-white/90 hover:bg-white text-gray-700 hover:text-[#2B5B35] border border-[#c5d9b7] shadow-xs transition active:scale-95 cursor-pointer"
+          title="Pipet Warna (I)"
+        >
+          <svg class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 2 6 6-9.5 9.5a4 4 0 0 1-2.5 1.5L4 20l1-4a4 4 0 0 1 1.5-2.5Z" /><path d="m13 7 4 4" /></svg>
+        </button>
+      </aside>
+
+      <!-- Bottom Floating Shelf: Size, Colors, Custom Picker -->
+      <footer
+        id="propStudioFullscreenBottomShelf"
+        class="absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 sm:gap-2.5 px-2.5 sm:px-3 py-1.5 bg-white/95 backdrop-blur-md rounded-2xl border border-[#c5d9b7] shadow-lg pointer-events-auto max-w-[96vw] overflow-x-auto no-scrollbar transition-opacity duration-200 select-none"
+      >
+        <!-- Brush Size Presets & Slider -->
+        <div class="flex items-center gap-1 sm:gap-1.5 shrink-0 text-xs text-[#2B5B35]">
+          <div class="flex items-center gap-0.5 sm:gap-1">
+            <button
+              type="button"
+              onclick="setPropBrushSize(4, this)"
+              class="prop-size-btn w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:bg-gray-100 cursor-pointer"
+              title="Kecil 4px"
+            >
+              <span class="w-1.5 h-1.5 bg-gray-800 rounded-full"></span>
+            </button>
+            <button
+              type="button"
+              onclick="setPropBrushSize(8, this)"
+              class="prop-size-btn w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full bg-emerald-100 ring-1 ring-emerald-700 cursor-pointer"
+              title="Sedang 8px"
+            >
+              <span class="w-2.5 h-2.5 bg-gray-800 rounded-full"></span>
+            </button>
+            <button
+              type="button"
+              onclick="setPropBrushSize(16, this)"
+              class="prop-size-btn w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:bg-gray-100 cursor-pointer"
+              title="Besar 16px"
+            >
+              <span class="w-3.5 h-3.5 bg-gray-800 rounded-full"></span>
+            </button>
+            <button
+              type="button"
+              onclick="setPropBrushSize(28, this)"
+              class="prop-size-btn w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:bg-gray-100 cursor-pointer"
+              title="Tebal 28px"
+            >
+              <span class="w-4 h-4 bg-gray-800 rounded-full"></span>
+            </button>
+          </div>
+          <input
+            id="propBrushSlider"
+            type="range"
+            min="1"
+            max="50"
+            value="8"
+            class="w-12 sm:w-16 accent-[#477431] cursor-pointer"
+            oninput="setPropBrushSizeFromSlider(this.value)"
+          />
+          <span
+            id="propBrushValText"
+            class="w-5 text-right font-mono text-[10px] hidden xs:inline"
+            >8px</span
+          >
+        </div>
+
+        <div class="w-px h-5 sm:h-6 bg-gray-200 mx-0.5 shrink-0"></div>
+
+        <!-- Color Palette Swatches for Props (Wood, Stone, Nature, Accents) -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            class="color-dot active"
+            style="background-color: #78350f"
+            onclick="selectPropColor('#78350f', this)"
+            title="Cokelat Kayu (Wood)"
+          ></button>
+          <button
+            type="button"
+            class="color-dot"
+            style="background-color: #451a03"
+            onclick="selectPropColor('#451a03', this)"
+            title="Kayu Tua (Dark Bark)"
+          ></button>
+          <button
+            type="button"
+            class="color-dot"
+            style="background-color: #c2410c"
+            onclick="selectPropColor('#c2410c', this)"
+            title="Bata / Terracotta"
+          ></button>
+          <button
+            type="button"
+            class="color-dot"
+            style="background-color: #15803d"
+            onclick="selectPropColor('#15803d', this)"
+            title="Hijau Daun (Forest Green)"
+          ></button>
+          <button
+            type="button"
+            class="color-dot"
+            style="background-color: #4ade80"
+            onclick="selectPropColor('#4ade80', this)"
+            title="Hijau Muda (Soft Leaf)"
+          ></button>
+          <button
+            type="button"
+            class="color-dot"
+            style="background-color: #4b5563"
+            onclick="selectPropColor('#4b5563', this)"
+            title="Batu Alam (Stone Gray)"
+          ></button>
+          <button
+            type="button"
+            class="color-dot"
+            style="background-color: #94a3b8"
+            onclick="selectPropColor('#94a3b8', this)"
+            title="Batu Terang (Light Slate)"
+          ></button>
+          <button
+            type="button"
+            class="color-dot"
+            style="background-color: #eab308"
+            onclick="selectPropColor('#eab308', this)"
+            title="Kuning Lentera / Jerami"
+          ></button>
+          <button
+            type="button"
+            class="color-dot"
+            style="background-color: #0284c7"
+            onclick="selectPropColor('#0284c7', this)"
+            title="Biru Air / Kolam"
+          ></button>
+          <button
+            type="button"
+            class="color-dot"
+            style="background-color: #ffffff"
+            onclick="selectPropColor('#ffffff', this)"
+            title="Putih Bersih"
+          ></button>
+          <button
+            type="button"
+            class="color-dot"
+            style="background-color: #1f2937"
+            onclick="selectPropColor('#1f2937', this)"
+            title="Hitam Arang"
+          ></button>
+
+          <!-- Native HTML Color Picker Button -->
+          <label
+            id="customPropColorPickerLabel"
+            class="relative w-6 h-6 sm:w-7 sm:h-7 rounded-full cursor-pointer flex items-center justify-center shadow-xs border border-gray-300 hover:scale-110 transition active:scale-95 overflow-hidden shrink-0"
+            title="Pilih Warna Bebas"
+            style="background: conic-gradient(from 180deg at 50% 50%, #ff0000 0deg, #ffff00 60deg, #00ff00 120deg, #00ffff 180deg, #0000ff 240deg, #ff00ff 300deg, #ff0000 360deg);"
+          >
+            <svg class="w-3.5 h-3.5 text-gray-800 drop-shadow-sm select-none pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="m4.93 4.93 4.24 4.24" /></svg>
+            <input
+              type="color"
+              id="propCustomColorPicker"
+              value="#78350f"
+              class="absolute inset-0 opacity-0 cursor-pointer w-full h-full p-0 border-0"
+              oninput="handleCustomPropColorPick(this.value)"
+              onchange="handleCustomPropColorPick(this.value)"
+            />
+          </label>
+
+          <!-- Active Color Preview -->
+          <div
+            id="activePropColorPreview"
+            class="w-5 h-5 sm:w-6 sm:h-6 rounded-lg border border-gray-300 shadow-inner shrink-0"
+            style="background-color: #78350f"
+            title="Warna Aktif"
+          ></div>
+        </div>
+      </footer>
+
+      <!-- ============================================================== -->
+      <!-- FLOATING PROP CONFIG MODAL (Name, Habitat, Scale Logic)         -->
+      <!-- ============================================================== -->
+      <div
+        id="propConfigModal"
+        class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/45 backdrop-blur-sm pointer-events-auto transition-opacity"
+      >
+        <div
+          class="bg-[#FDFBF2] border-2 sm:border-[3px] border-[#2B5B35] rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-2xl relative flex flex-col gap-3 max-h-[92vh] overflow-y-auto"
+        >
+          <div class="flex items-center justify-between pb-2 border-b border-[#c5d9b7]">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">🏡</span>
+              <h3 class="font-hand font-bold text-base sm:text-lg text-[#2B5B35]">
+                Atur Properti & Skala
+              </h3>
+            </div>
+            <button
+              type="button"
+              onclick="togglePropConfigModal()"
+              class="w-7 h-7 rounded-full bg-white/80 hover:bg-white border border-[#c5d9b7] flex items-center justify-center text-[#2B5B35] transition cursor-pointer"
+              title="Tutup Pengaturan"
+            >
+              ✕
+            </button>
+          </div>
+
+          <!-- Name Input -->
+          <div class="flex flex-col gap-2.5">
+            <div>
+              <label class="block text-xs font-bold text-[#2B5B35] mb-1">Nama Properti / Dekorasi:</label>
+              <input
+                id="customPropNameInput"
+                type="text"
+                maxlength="24"
+                placeholder="Contoh: Pondok Santai, Lentera Air..."
+                value="Pondok Santai"
+                oninput="updatePropInfoPillText()"
+                class="w-full px-3 py-1.5 rounded-xl border-2 border-[#b5cca3] bg-white text-[#2B5B35] font-medium text-xs sm:text-sm focus:outline-none focus:border-[#477431]"
+              />
+            </div>
+
+            <!-- Habitat Selection -->
+            <div>
+              <label class="block text-xs font-bold text-[#2B5B35] mb-1">Area Penempatan (Habitat):</label>
+              <div class="grid grid-cols-3 gap-2">
+                <!-- Option 1: Darat -->
+                <label
+                  id="propHabitatCard-land"
+                  class="relative flex flex-col items-center text-center p-2 rounded-xl border-2 border-[#2B5B35] bg-emerald-50/70 cursor-pointer transition shadow-2xs hover:border-[#2B5B35]"
+                >
+                  <input
+                    type="radio"
+                    name="customPropHabitat"
+                    value="land"
+                    checked
+                    onchange="updatePropHabitatUI('land')"
+                    class="accent-[#2B5B35] mb-1"
+                  />
+                  <span class="text-base">🌿</span>
+                  <span class="font-bold text-xs text-[#2B5B35] leading-tight">Darat</span>
+                  <span class="text-[9px] text-gray-500">Tanah rumput</span>
+                </label>
+
+                <!-- Option 2: Air -->
+                <label
+                  id="propHabitatCard-water"
+                  class="relative flex flex-col items-center text-center p-2 rounded-xl border-2 border-gray-200 bg-white cursor-pointer transition shadow-2xs hover:border-[#2B5B35]"
+                >
+                  <input
+                    type="radio"
+                    name="customPropHabitat"
+                    value="water"
+                    onchange="updatePropHabitatUI('water')"
+                    class="accent-[#2B5B35] mb-1"
+                  />
+                  <span class="text-base">💧</span>
+                  <span class="font-bold text-xs text-sky-700 leading-tight">Air</span>
+                  <span class="text-[9px] text-gray-500">Kolam & danau</span>
+                </label>
+
+                <!-- Option 3: Keduanya -->
+                <label
+                  id="propHabitatCard-both"
+                  class="relative flex flex-col items-center text-center p-2 rounded-xl border-2 border-gray-200 bg-white cursor-pointer transition shadow-2xs hover:border-[#2B5B35]"
+                >
+                  <input
+                    type="radio"
+                    name="customPropHabitat"
+                    value="both"
+                    onchange="updatePropHabitatUI('both')"
+                    class="accent-[#2B5B35] mb-1"
+                  />
+                  <span class="text-base">🌉</span>
+                  <span class="font-bold text-xs text-amber-800 leading-tight">Keduanya</span>
+                  <span class="text-[9px] text-gray-500">Darat & air</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- SISTEM LOGIKA PENGATUR SKALA PROPERTI -->
+            <div class="pt-2 border-t border-[#e2d5bc]">
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="text-xs font-bold text-[#2B5B35] flex items-center gap-1">
+                  <span>🔍 Atur Skala Ukuran Properti:</span>
+                </label>
+                <span
+                  id="propScaleValueDisplay"
+                  class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 font-mono"
+                  >1.00x (100%)</span
+                >
+              </div>
+
+              <!-- Slider Skala -->
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-[10px] text-gray-500 font-bold">0.3x</span>
+                <input
+                  id="propScaleSlider"
+                  type="range"
+                  min="0.3"
+                  max="2.5"
+                  step="0.05"
+                  value="1.0"
+                  oninput="setPropStudioScaleFromSlider(this.value)"
+                  class="flex-1 accent-[#2B5B35] cursor-pointer"
+                />
+                <span class="text-[10px] text-gray-500 font-bold">2.5x</span>
+              </div>
+
+              <!-- Preset Skala Cepat -->
+              <div class="grid grid-cols-4 gap-1.5 mb-2.5">
+                <button
+                  type="button"
+                  onclick="setPropStudioScale(0.6, this)"
+                  class="prop-scale-preset-btn py-1 px-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 text-[10px] font-bold text-center transition active:scale-95 hover:border-[#7DB852]"
+                >
+                  Kecil (0.6x)
+                </button>
+                <button
+                  type="button"
+                  onclick="setPropStudioScale(1.0, this)"
+                  class="prop-scale-preset-btn py-1 px-1.5 rounded-lg border border-[#2B5B35] bg-[#2B5B35] text-white text-[10px] font-bold text-center transition active:scale-95 shadow-xs"
+                >
+                  Normal (1.0x)
+                </button>
+                <button
+                  type="button"
+                  onclick="setPropStudioScale(1.6, this)"
+                  class="prop-scale-preset-btn py-1 px-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 text-[10px] font-bold text-center transition active:scale-95 hover:border-[#7DB852]"
+                >
+                  Besar (1.6x)
+                </button>
+                <button
+                  type="button"
+                  onclick="setPropStudioScale(2.2, this)"
+                  class="prop-scale-preset-btn py-1 px-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 text-[10px] font-bold text-center transition active:scale-95 hover:border-[#7DB852]"
+                >
+                  Megah (2.2x)
+                </button>
+              </div>
+
+              <!-- Live Visual Comparison Preview Canvas -->
+              <div class="bg-emerald-50/50 rounded-xl border border-[#c5d9b7] p-2 flex flex-col items-center">
+                <span class="text-[10px] font-bold text-[#2B5B35] mb-1">Pratinjau Perbandingan Ukuran di Kebun:</span>
+                <canvas
+                  id="propScalePreviewCanvas"
+                  width="220"
+                  height="75"
+                  class="w-[220px] h-[75px] rounded-lg bg-white/80 border border-[#d2e0cb]"
+                ></canvas>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onclick="togglePropConfigModal()"
+            class="mt-1 w-full py-2 rounded-xl bg-[#2B5B35] hover:bg-[#1f4627] text-white font-bold text-xs sm:text-sm transition shadow-sm cursor-pointer"
+          >
+            ✓ Simpan & Lanjut Menggambar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- FLOATING DECORATION & PROP SCALE CONTROLLER WIDGET IN GARDEN   -->
+    <!-- ============================================================== -->
+    <div
+      id="decorScaleWidget"
+      class="hidden fixed bottom-16 sm:bottom-20 left-1/2 -translate-x-1/2 z-40 bg-[#FDFBF2]/95 backdrop-blur-md border-2 border-[#2B5B35] rounded-2xl sm:rounded-3xl shadow-2xl p-2.5 sm:p-3 select-none pointer-events-auto transition-all max-w-[96vw] sm:max-w-md w-auto"
+    >
+      <div class="flex flex-col gap-1.5 sm:gap-2">
+        <!-- Top row: Thumbnail/Icon, Title, Scale Badge, Close -->
+        <div class="flex items-center justify-between gap-2 border-b border-[#c5d9b7] pb-1.5">
+          <div class="flex items-center gap-2 min-w-0">
+            <div id="decorScaleWidgetThumb" class="w-7 h-7 rounded-lg bg-white border border-[#c5d9b7] flex items-center justify-center text-sm shrink-0 overflow-hidden">
+              <span>🎨</span>
+            </div>
+            <div class="min-w-0">
+              <span id="decorScaleWidgetTitle" class="font-hand font-bold text-xs sm:text-sm text-[#2B5B35] truncate block leading-tight">Properti</span>
+              <span class="text-[9px] text-[#477431] block leading-none">Ketuk & geser skala</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span id="decorScaleWidgetBadge" class="text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 font-mono">1.00x (100%)</span>
+            <button
+              onclick="closeDecorScaleWidget()"
+              class="w-6 h-6 rounded-full bg-white/80 hover:bg-white border border-[#c5d9b7] text-gray-500 hover:text-gray-800 flex items-center justify-center text-xs transition cursor-pointer"
+              title="Selesai Mengatur"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <!-- Scale controls row: Step Minus, Slider, Step Plus -->
+        <div class="flex items-center gap-2 px-1">
+          <button
+            onclick="changeSelectedDecorScale(-0.1)"
+            class="w-7 h-7 rounded-xl bg-white hover:bg-emerald-50 border border-[#c5d9b7] text-[#2B5B35] font-bold text-sm flex items-center justify-center transition active:scale-95 shadow-2xs cursor-pointer"
+            title="Kecilkan Skala (-0.1x)"
+          >
+            −
+          </button>
+          <input
+            id="decorScaleWidgetSlider"
+            type="range"
+            min="0.3"
+            max="3.0"
+            step="0.05"
+            value="1.0"
+            oninput="setSelectedDecorScaleFromSlider(this.value)"
+            class="flex-1 accent-[#2B5B35] cursor-pointer"
+          />
+          <button
+            onclick="changeSelectedDecorScale(0.1)"
+            class="w-7 h-7 rounded-xl bg-white hover:bg-emerald-50 border border-[#c5d9b7] text-[#2B5B35] font-bold text-sm flex items-center justify-center transition active:scale-95 shadow-2xs cursor-pointer"
+            title="Besarkan Skala (+0.1x)"
+          >
+            +
+          </button>
+        </div>
+
+        <!-- Preset buttons and Action buttons row -->
+        <div class="flex items-center justify-between gap-1 pt-1 border-t border-[#e2d5bc] text-[10px]">
+          <div class="flex items-center gap-1">
+            <button onclick="setSelectedDecorScale(0.6)" class="px-2 py-0.5 rounded-lg bg-white hover:bg-emerald-50 border border-[#c5d9b7] text-[#2B5B35] font-bold transition active:scale-95 cursor-pointer">0.6x</button>
+            <button onclick="setSelectedDecorScale(1.0)" class="px-2 py-0.5 rounded-lg bg-white hover:bg-emerald-50 border border-[#c5d9b7] text-[#2B5B35] font-bold transition active:scale-95 cursor-pointer">1.0x</button>
+            <button onclick="setSelectedDecorScale(1.6)" class="px-2 py-0.5 rounded-lg bg-white hover:bg-emerald-50 border border-[#c5d9b7] text-[#2B5B35] font-bold transition active:scale-95 cursor-pointer">1.6x</button>
+            <button onclick="setSelectedDecorScale(2.2)" class="px-2 py-0.5 rounded-lg bg-white hover:bg-emerald-50 border border-[#c5d9b7] text-[#2B5B35] font-bold transition active:scale-95 cursor-pointer">2.2x</button>
+          </div>
+          <div class="flex items-center gap-1">
+            <button onclick="duplicateSelectedDecoration()" class="px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold transition active:scale-95 cursor-pointer" title="Duplikat Properti">📋 Duplikat</button>
+            <button onclick="removeSelectedDecoration()" class="px-2 py-0.5 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 font-bold transition active:scale-95 cursor-pointer" title="Hapus Properti">🗑️ Hapus</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 <!-- CUSTOM DIALOG MODAL (Replaces native browser alert, confirm, and prompt) -->
     <div
       id="customDialogModal"
@@ -4875,6 +5536,37 @@
         </div>
 
         <div class="p-4 sm:p-5 overflow-y-auto space-y-4">
+          <!-- Featured Banner: Studio Menggambar Properti Baru -->
+          <div
+            class="p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-[#f4faee] to-amber-50 border-2 border-[#7DB852] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3"
+          >
+            <div class="flex items-center gap-3">
+              <div
+                class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-[#2B5B35] to-[#477431] text-white flex items-center justify-center text-xl shadow-sm shrink-0"
+              >
+                🎨
+              </div>
+              <div>
+                <h4
+                  class="font-hand font-bold text-sm sm:text-base text-[#2B5B35] leading-tight flex items-center gap-1.5"
+                >
+                  <span>Studio Gambar Properti Baru!</span>
+                  <span class="text-[10px] px-2 py-0.2 rounded-full bg-emerald-200 text-emerald-900 font-sans font-bold">Fitur Baru</span>
+                </h4>
+                <p class="text-[11px] text-[#477431]">
+                  Gambar pondok, batu, lentera, jembatan, perahu, atau mebel unik dan atur skalanya bebas di kebun!
+                </p>
+              </div>
+            </div>
+            <button
+              onclick="closeDecorModal(); openPropStudioModal();"
+              class="w-full sm:w-auto px-4 py-2 rounded-full bg-[#2B5B35] hover:bg-[#1f4627] text-white text-xs font-bold shadow-md transition active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>Gambar Properti Baru</span>
+            </button>
+          </div>
+
           <div
             id="decorCatalogGrid"
             class="grid grid-cols-2 sm:grid-cols-4 gap-2.5"
@@ -5296,6 +5988,7 @@
     <script src="js/audio.js"></script>
     <script src="js/animals.js"></script>
     <script src="js/animal_studio.js"></script>
+    <script src="js/prop_studio.js"></script>
     <script src="js/exclusive_pets.js"></script>
     <script src="js/painter_features.js"></script>
     <script src="js/studio.js"></script>

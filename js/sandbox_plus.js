@@ -524,23 +524,39 @@ function renderDecorModalCatalog() {
         if (decorations.length === 0) {
             activeEl.innerHTML = `
                 <div class="p-4 text-center bg-[#fdfbf7] rounded-xl border border-dashed border-[#d2e0cb] text-xs text-gray-500">
-                    Belum ada dekorasi terpasang. Pilih dekorasi di atas lalu geser posisinya di kebun dengan alat <b>Geser & Atur</b>!
+                    Belum ada dekorasi terpasang. Pilih dekorasi di atas atau buat kreasimu sendiri di <b>Studio Properti</b>!
                 </div>
             `;
         } else {
             activeEl.innerHTML = decorations.map(d => {
-                const info = DECORATION_CATALOG.find(c => c.type === d.type) || DECORATION_CATALOG[0];
+                const isCustom = d.isCustomProp || d.type === 'custom_prop';
+                const info = DECORATION_CATALOG.find(c => c.type === d.type) || {
+                    name: d.name || 'Properti Kustom',
+                    icon: '<svg class="w-5 h-5 text-[#2B5B35]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>'
+                };
                 const isEasel = d.type === 'easel';
+                const displayName = isCustom ? (d.name || 'Properti Kustom') : info.name;
+                const scaleVal = (typeof d.scale === 'number' ? d.scale : 1.0).toFixed(1);
+
                 return `
                     <div class="flex items-center justify-between gap-2 p-2.5 bg-[#fdfbf7] rounded-xl border border-[#e2d5bc] shadow-xs">
                         <div class="flex items-center gap-2.5 min-w-0">
-                            <span class="w-8 h-8 rounded-xl bg-white border border-[#c5d9b7] flex items-center justify-center shrink-0">${info.icon}</span>
+                            <span class="w-8 h-8 rounded-xl bg-white border border-[#c5d9b7] flex items-center justify-center shrink-0 overflow-hidden">
+                                ${isCustom && d.spriteDataUrl ? `<img src="${d.spriteDataUrl}" class="w-7 h-7 object-contain" alt="" />` : info.icon}
+                            </span>
                             <div class="min-w-0">
-                                <div class="font-hand font-bold text-xs sm:text-sm text-[#2B5B35] truncate leading-tight">${info.name} ${d.paintingTitle ? `<span class="text-[10px] text-amber-700">(${d.paintingTitle})</span>` : ''}</div>
+                                <div class="font-hand font-bold text-xs sm:text-sm text-[#2B5B35] truncate leading-tight flex items-center gap-1.5">
+                                    <span>${displayName}</span>
+                                    <span class="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold">${scaleVal}x</span>
+                                    ${d.paintingTitle ? `<span class="text-[10px] text-amber-700">(${d.paintingTitle})</span>` : ''}
+                                </div>
                             </div>
                         </div>
                         <div class="flex items-center gap-1.5 shrink-0">
-                            ${isEasel ? `<button onclick="closeDecorModal(); openEaselModal(decorations.find(x => x.id === '${d.id}'))" class="px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold transition active:scale-95 shadow-2xs">🖼️ Pajang Lukisan</button>` : ''}
+                            <button onclick="closeDecorModal(); selectDecorationForScaling('${d.id}');" class="px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-bold transition active:scale-95 shadow-2xs">
+                                🔍 Skala
+                            </button>
+                            ${isEasel ? `<button onclick="closeDecorModal(); openEaselModal(decorations.find(x => x.id === '${d.id}'))" class="px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold transition active:scale-95 shadow-2xs">🖼️ Lukisan</button>` : ''}
                             <button onclick="removeDecorationById('${d.id}')" class="px-2.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[11px] font-bold transition active:scale-95 shadow-2xs">
                                 Hapus
                             </button>
@@ -617,9 +633,10 @@ function findDecorationAt(wx, wy) {
         const d = decorations[i];
         const dir = normalizeCardinalDirection(d.rotation);
         const isSideways = (dir === 90 || dir === 270);
-        const hw = (isSideways ? (d.height || 44) : (d.width || 48)) * 0.6;
-        const hh = (d.height || 44);
-        if (wx >= d.x - hw && wx <= d.x + hw && wy >= d.y - hh && wy <= d.y + 18) {
+        const scale = typeof d.scale === 'number' ? d.scale : 1.0;
+        const hw = (isSideways ? (d.height || 44) : (d.width || 48)) * 0.6 * scale;
+        const hh = (d.height || 44) * scale;
+        if (wx >= d.x - hw && wx <= d.x + hw && wy >= d.y - hh && wy <= d.y + 18 * scale) {
             return d;
         }
     }
@@ -634,6 +651,7 @@ function getDecorationCollisionFootprint(d) {
     if (!d) return { x: 0, y: 0, rx: 16, ry: 12 };
     const dir = normalizeCardinalDirection(d.rotation);
     const isEastWest = (dir === 90 || dir === 270);
+    const scale = typeof d.scale === 'number' ? d.scale : 1.0;
     let rx = (d.width || 48) * 0.44;
     let ry = 14;
 
@@ -709,7 +727,9 @@ function getDecorationCollisionFootprint(d) {
         default:
             break;
     }
-    return { x: d.x, y: d.y - 3, rx, ry };
+    rx *= scale;
+    ry *= scale;
+    return { x: d.x, y: d.y - 3 * scale, rx, ry };
 }
 
 /**
@@ -2754,7 +2774,8 @@ function drawDecorationInstance(ctx, d, now, dt) {
     if (d.birthScale !== undefined && d.birthScale < 1) {
         d.birthScale = Math.min(1, d.birthScale + (dt || 0.016) * 5.0);
     }
-    const scale = d.birthScale || 1;
+    const propScale = typeof d.scale === 'number' ? d.scale : 1.0;
+    const scale = (d.birthScale !== undefined ? d.birthScale : 1) * propScale;
     const isSelected = (typeof selectedDecoration !== 'undefined' && selectedDecoration && selectedDecoration.id === d.id);
 
     ctx.save();
@@ -2831,10 +2852,30 @@ function drawDecorationInstance(ctx, d, now, dt) {
         drawRealisticPetPillow(ctx, d, now);
     } else if (d.type === 'easel' && typeof drawRealisticEasel === 'function') {
         drawRealisticEasel(ctx, d, now);
+    } else if (d.isCustomProp || d.type === 'custom_prop') {
+        drawCustomPropInstance(ctx, d, now);
     }
     ctx.restore();
 
     ctx.restore();
+}
+
+function drawCustomPropInstance(ctx, d, now) {
+    if (!d.spriteImg && d.spriteDataUrl) {
+        d.spriteImg = new Image();
+        d.spriteImg.src = d.spriteDataUrl;
+    }
+    if (d.spriteImg && d.spriteImg.complete && d.spriteImg.naturalWidth > 0) {
+        const w = d.width || d.spriteImg.width;
+        const h = d.height || d.spriteImg.height;
+        // Centered horizontally, anchored to ground plane (0, 0)
+        ctx.drawImage(d.spriteImg, -w / 2, -h, w, h);
+    } else if (d.spriteDataUrl) {
+        const w = d.width || 48;
+        const h = d.height || 48;
+        ctx.fillStyle = 'rgba(71, 116, 49, 0.25)';
+        ctx.fillRect(-w / 2, -h, w, h);
+    }
 }
 
 
