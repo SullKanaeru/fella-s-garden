@@ -5350,13 +5350,6 @@ function animateGarden(now) {
       checkAmbientMysteryEggSpawn(dt);
     }
 
-    // Periodic safety check: ensures flowers never stay on water and animals are in valid habitats
-    periodicSurvivalTimer = (periodicSurvivalTimer || 0) + dt;
-    if (periodicSurvivalTimer >= 0.75) {
-      periodicSurvivalTimer = 0;
-      checkLandObjectsSurvival();
-    }
-
     // 4. Update & Draw All Depth-Sorted Flowers, Decorations & Animal Companions
     const witherRate = witherModes[currentWitherModeIndex].rate;
 
