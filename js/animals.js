@@ -364,12 +364,12 @@ function spawnAnimal(species, customName, variantId) {
 
     if (species === 'fish') {
         let foundWater = false;
-        for (let attempt = 0; attempt < 80; attempt++) {
+        for (let attempt = 0; attempt < 100; attempt++) {
             const angle = Math.random() * Math.PI * 2;
             const dist = Math.random() * 450;
             const testX = cx + Math.cos(angle) * dist;
             const testY = cy + Math.sin(angle) * (dist * 0.55);
-            if (typeof isPointOnWater === 'function' && isPointOnWater(testX, testY)) {
+            if (isWaterSwimmable(testX, testY, 12)) {
                 sx = testX;
                 sy = testY;
                 foundWater = true;
@@ -377,19 +377,17 @@ function spawnAnimal(species, customName, variantId) {
             }
         }
         if (!foundWater) {
-            // Scan garden grid for any water spot
-            if (typeof isPointOnWater === 'function') {
-                for (let rx = 300; rx < WORLD_W - 300; rx += 70) {
-                    for (let ry = 300; ry < WORLD_H - 300; ry += 70) {
-                        if (isPointOnWater(rx, ry)) {
-                            sx = rx;
-                            sy = ry;
-                            foundWater = true;
-                            break;
-                        }
+            // Scan garden grid for any swimmable water spot
+            for (let rx = 300; rx < WORLD_W - 300; rx += 50) {
+                for (let ry = 300; ry < WORLD_H - 300; ry += 50) {
+                    if (isWaterSwimmable(rx, ry, 10)) {
+                        sx = rx;
+                        sy = ry;
+                        foundWater = true;
+                        break;
                     }
-                    if (foundWater) break;
                 }
+                if (foundWater) break;
             }
         }
         if (!foundWater) {
@@ -734,13 +732,31 @@ function isLandWalkable(x, y) {
     return true;
 }
 
-// Helper: Memastikan titik berada di air untuk hewan air / ikan
-function isWaterSwimmable(x, y) {
+// Helper: Memastikan titik berada di air untuk hewan air / ikan dengan margin pengaman dari daratan/void
+function isWaterSwimmable(x, y, margin = 10) {
+    if (x < 0 || y < 0 || x >= WORLD_W || y >= WORLD_H) return false;
     if (typeof isPointBlockedByDecoration === 'function' && isPointBlockedByDecoration(x, y, 8)) return false;
-    if (typeof isPointOnWater === 'function') {
-        return isPointOnWater(x, y);
+    if (typeof isPointOnWater !== 'function') return false;
+    if (!isPointOnWater(x, y)) return false;
+    if (typeof isPointOnGrass === 'function' && !isPointOnGrass(x, y)) return false;
+
+    if (margin > 0) {
+        const d = margin;
+        const dDiag = margin * 0.7071;
+        if (!isPointOnWater(x + d, y) || !isPointOnWater(x - d, y) ||
+            !isPointOnWater(x, y + d) || !isPointOnWater(x, y - d) ||
+            !isPointOnWater(x + dDiag, y + dDiag) || !isPointOnWater(x - dDiag, y + dDiag) ||
+            !isPointOnWater(x + dDiag, y - dDiag) || !isPointOnWater(x - dDiag, y - dDiag)) {
+            return false;
+        }
+        if (typeof isPointOnGrass === 'function') {
+            if (!isPointOnGrass(x + d, y) || !isPointOnGrass(x - d, y) ||
+                !isPointOnGrass(x, y + d) || !isPointOnGrass(x, y - d)) {
+                return false;
+            }
+        }
     }
-    return false;
+    return true;
 }
 
 // Helper: Memeriksa apakah jalur garis lurus bebas dari medan air & void (untuk hewan darat)
@@ -756,16 +772,16 @@ function isPathClearOfWater(x1, y1, x2, y2) {
     return true;
 }
 
-// Helper: Memeriksa apakah jalur garis lurus sepenuhnya di air (untuk ikan & hewan air)
+// Helper: Memeriksa apakah jalur garis lurus sepenuhnya di air dan berjarak aman dari daratan (untuk ikan)
 function isPathClearOfLand(x1, y1, x2, y2) {
     if (typeof isPointOnWater !== 'function') return true;
     const dist = Math.hypot(x2 - x1, y2 - y1);
-    const steps = Math.max(3, Math.floor(dist / 12));
+    const steps = Math.max(3, Math.floor(dist / 10));
     for (let i = 1; i <= steps; i++) {
         const t = i / steps;
         const px = x1 + (x2 - x1) * t;
         const py = y1 + (y2 - y1) * t;
-        if (!isPointOnWater(px, py)) return false;
+        if (!isWaterSwimmable(px, py, 6)) return false;
     }
     return true;
 }
@@ -803,7 +819,7 @@ function updateAnimals(dt, now) {
 
         // ==========================================
         // 1. FISH & AQUATIC ANIMALS AI (HEWAN AIR)
-        // Ikan HANYA bisa ada di medan air!
+        // Ikan HANYA bisa ada di medan air yang aman!
         // ==========================================
         if (habitat === 'water' || a.type === 'fish') {
             a.swimPhase = (a.swimPhase || 0) + dt * 5.5;
@@ -821,41 +837,66 @@ function updateAnimals(dt, now) {
                 });
             }
 
-            const inWaterNow = typeof isPointOnWater === 'function' && isPointOnWater(a.x, a.y);
+            const inWaterNow = isWaterSwimmable(a.x, a.y, 6);
             if (!inWaterNow) {
-                // Stranded on land! Scared flopping towards nearest water!
+                // Stranded on land or void! Scared and rescued immediately!
                 a.state = 'scared';
                 a.bubbleText = '.·°՞(っ-ᯅ-ς)՞°·.';
                 a.bubbleTimer = 2.0;
 
-                let foundWater = false;
-                for (let r = 16; r <= 240; r += 20) {
+                // 1. Search locally around fish
+                let safeWater = null;
+                for (let r = 8; r <= 360; r += 12) {
                     for (let ang = 0; ang < Math.PI * 2; ang += Math.PI / 8) {
                         const sx = a.x + Math.cos(ang) * r;
                         const sy = a.y + Math.sin(ang) * r;
-                        if (isWaterSwimmable(sx, sy)) {
-                            a.targetX = sx;
-                            a.targetY = sy;
-                            a.stateTimer = 5.0;
-                            a.facingLeft = sx < a.x;
-                            foundWater = true;
+                        if (isWaterSwimmable(sx, sy, 8)) {
+                            safeWater = { x: sx, y: sy };
                             break;
                         }
                     }
-                    if (foundWater) break;
+                    if (safeWater) break;
                 }
+
+                // 2. If no water nearby (e.g. fish placed far in void), scan island for nearest swimmable water
+                if (!safeWater) {
+                    let bestDistSq = Infinity;
+                    for (let rx = 200; rx <= WORLD_W - 200; rx += 60) {
+                        for (let ry = 200; ry <= WORLD_H - 200; ry += 60) {
+                            if (isWaterSwimmable(rx, ry, 8)) {
+                                const dSq = (rx - a.x) * (rx - a.x) + (ry - a.y) * (ry - a.y);
+                                if (dSq < bestDistSq) {
+                                    bestDistSq = dSq;
+                                    safeWater = { x: rx, y: ry };
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (safeWater) {
+                    a.x = safeWater.x;
+                    a.y = safeWater.y;
+                    a.targetX = safeWater.x;
+                    a.targetY = safeWater.y;
+                    a.stateTimer = 1.0;
+                    if (typeof createWaterSplash === 'function') {
+                        createWaterSplash(a.x, a.y, 5);
+                    }
+                }
+                continue;
             }
 
             a.stateTimer = (a.stateTimer || 0) - dt;
             if (a.stateTimer <= 0 && inWaterNow) {
-                // Pick another spot inside water body
+                // Pick another spot inside water body with safe boundary clearance
                 let foundSpot = false;
-                for (let t = 0; t < 20; t++) {
+                for (let t = 0; t < 25; t++) {
                     const ang = Math.random() * Math.PI * 2;
-                    const dist = 30 + Math.random() * 110;
+                    const dist = 24 + Math.random() * 95;
                     const tx = a.x + Math.cos(ang) * dist;
                     const ty = a.y + Math.sin(ang) * dist * 0.6;
-                    if (isWaterSwimmable(tx, ty) && isPathClearOfLand(a.x, a.y, tx, ty)) {
+                    if (isWaterSwimmable(tx, ty, 10) && isPathClearOfLand(a.x, a.y, tx, ty)) {
                         a.targetX = tx;
                         a.targetY = ty;
                         a.state = 'walking';
@@ -867,29 +908,32 @@ function updateAnimals(dt, now) {
                 }
                 if (!foundSpot) {
                     a.state = 'idle';
-                    a.stateTimer = 1.5 + Math.random() * 2.0;
+                    a.stateTimer = 1.2 + Math.random() * 1.8;
                 }
             }
 
             // Move smoothly in water
-            const dx = a.targetX - a.x;
-            const dy = a.targetY - a.y;
+            const dx = (a.targetX !== undefined ? a.targetX : a.x) - a.x;
+            const dy = (a.targetY !== undefined ? a.targetY : a.y) - a.y;
             const dist = Math.hypot(dx, dy);
 
             if (dist < 4) {
-                a.x = a.targetX;
-                a.y = a.targetY;
+                a.x = a.targetX || a.x;
+                a.y = a.targetY || a.y;
                 a.state = 'idle';
             } else {
                 const speed = 28;
                 const step = Math.min(dist, speed * dt);
                 const nx = a.x + (dx / dist) * step;
                 const ny = a.y + (dy / dist) * step;
-                if (isWaterSwimmable(nx, ny) || !inWaterNow) {
+                // STRICT: Fish can only advance if the new coordinate is safely inside swimmable water!
+                if (isWaterSwimmable(nx, ny, 6)) {
                     a.x = nx;
-                    a.y = ny + Math.sin(now * 0.003 + (a.swimPhase || 0)) * 0.25;
+                    a.y = ny;
                     a.facingLeft = dx < 0;
                 } else {
+                    // Reached boundary, stop and pick another target
+                    a.state = 'idle';
                     a.stateTimer = 0;
                 }
             }

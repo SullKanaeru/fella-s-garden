@@ -262,11 +262,18 @@ function updateCollisionGrids() {
 
     // 2. Water mask to collision grid
     if (waterMaskCanvas) {
+      if (waterMaskCtx) {
+        waterMaskCtx.save();
+        waterMaskCtx.globalCompositeOperation = "destination-in";
+        waterMaskCtx.drawImage(maskCanvas, 0, 0);
+        waterMaskCtx.restore();
+      }
       collCtx.clearRect(0, 0, COLL_W, COLL_H);
       collCtx.drawImage(waterMaskCanvas, 0, 0, COLL_W, COLL_H);
       const wData = collCtx.getImageData(0, 0, COLL_W, COLL_H).data;
       for (let i = 0; i < total; i++) {
-        waterGrid[i] = wData[i * 4 + 3] > 60 ? 1 : 0;
+        // Water is strictly confined within island landmass (never void)
+        waterGrid[i] = wData[i * 4 + 3] > 60 && grassGrid[i] === 1 ? 1 : 0;
       }
     } else {
       waterGrid.fill(0);
@@ -291,15 +298,16 @@ function isPointOnGrass(x, y) {
 window.isPointOnGrass = isPointOnGrass;
 
 /**
- * Checks whether a given (worldX, worldY) point is on water terrain
- * Uses 1-nanosecond in-memory TypedArray lookup without touching the GPU!
+ * Checks whether a given (worldX, worldY) point is on water terrain.
+ * Water strictly exists inside the island boundary and never in the void!
  */
 function isPointOnWater(x, y) {
   if (x < 0 || y < 0 || x >= WORLD_W || y >= WORLD_H) return false;
   const gx = (x / COLL_SCALE) | 0;
   const gy = (y / COLL_SCALE) | 0;
   if (gx < 0 || gy < 0 || gx >= COLL_W || gy >= COLL_H) return false;
-  return waterGrid[gy * COLL_W + gx] === 1;
+  const idx = gy * COLL_W + gx;
+  return waterGrid[idx] === 1 && grassGrid[idx] === 1;
 }
 window.isPointOnWater = isPointOnWater;
 
@@ -321,7 +329,8 @@ function isNearWater(x, y, maxDist = 24) {
       if (dx * dx + dy * dy > rSq) continue;
       const nx = gx + dx;
       if (nx >= 0 && nx < COLL_W) {
-        if (waterGrid[row + nx] === 1) return true;
+        const idx = row + nx;
+        if (waterGrid[idx] === 1 && grassGrid[idx] === 1) return true;
       }
     }
   }
@@ -1876,6 +1885,14 @@ function modifyWaterTerrain(x1, y1, x2, y2, isErasing) {
   waterMaskCtx.fill();
   waterMaskCtx.restore();
 
+  // If painting water, ensure it never bleeds outside the landmass into the void
+  if (!isErasing && maskCanvas) {
+    waterMaskCtx.save();
+    waterMaskCtx.globalCompositeOperation = "destination-in";
+    waterMaskCtx.drawImage(maskCanvas, 0, 0);
+    waterMaskCtx.restore();
+  }
+
   paintCollisionGridStroke(
     waterGrid,
     x1,
@@ -1886,6 +1903,28 @@ function modifyWaterTerrain(x1, y1, x2, y2, isErasing) {
     isErasing ? 0 : 1,
   );
 
+  // Strictly clamp waterGrid to grassGrid so water cannot exist in the void
+  if (!isErasing) {
+    const rCells = Math.ceil(terrainBrushSize / COLL_SCALE) + 1;
+    const cx1 = (x1 / COLL_SCALE) | 0;
+    const cy1 = (y1 / COLL_SCALE) | 0;
+    const cx2 = (x2 / COLL_SCALE) | 0;
+    const cy2 = (y2 / COLL_SCALE) | 0;
+    const minGX = Math.max(0, Math.min(cx1, cx2) - rCells);
+    const maxGX = Math.min(COLL_W - 1, Math.max(cx1, cx2) + rCells);
+    const minGY = Math.max(0, Math.min(cy1, cy2) - rCells);
+    const maxGY = Math.min(COLL_H - 1, Math.max(cy1, cy2) + rCells);
+    for (let gy = minGY; gy <= maxGY; gy++) {
+      const row = gy * COLL_W;
+      for (let gx = minGX; gx <= maxGX; gx++) {
+        const idx = row + gx;
+        if (grassGrid[idx] === 0) {
+          waterGrid[idx] = 0;
+        }
+      }
+    }
+  }
+
   if (!isErasing) {
     const rSq = terrainBrushSize * 0.95 * (terrainBrushSize * 0.95);
     grassDetails = grassDetails.filter((d) => {
@@ -1893,6 +1932,29 @@ function modifyWaterTerrain(x1, y1, x2, y2, isErasing) {
       const dy = d.y - y2;
       return dx * dx + dy * dy > rSq;
     });
+
+    // Flowers must never float on water: immediately sink & splash any flowers under or near water!
+    const flowerClearR = terrainBrushSize + 16;
+    const flowerClearRSq = flowerClearR * flowerClearR;
+    let flowersChanged = false;
+    for (let i = flowers.length - 1; i >= 0; i--) {
+      const f = flowers[i];
+      const dx = f.x - x2;
+      const dy = f.y - y2;
+      if (
+        dx * dx + dy * dy <= flowerClearRSq ||
+        isPointOnWater(f.x, f.y) ||
+        isNearWater(f.x, f.y, 18)
+      ) {
+        flowers.splice(i, 1);
+        triggerFallingFlower(f, true);
+        flowersChanged = true;
+      }
+    }
+    if (flowersChanged) {
+      updateStatusBadges();
+    }
+
     if (Math.random() < 0.25) {
       particles.push({
         type: "droplet",
@@ -2422,6 +2484,12 @@ function createStarterFlowersMatchingReference() {
   ];
 
   starterSpecs.forEach((spec) => {
+    if (
+      isPointOnWater(spec.x, spec.y) ||
+      isNearWater(spec.x, spec.y, 22) ||
+      !isPointOnGrass(spec.x, spec.y)
+    )
+      return;
     const sprite = makeProceduralFlowerSprite(spec.opts);
     const wilted = createWiltedSprite(sprite);
     flowers.push({
@@ -3557,6 +3625,7 @@ function applyTerrainSnapshot(snap) {
   updateCollisionGrids();
   rebuildTerrain3DLayer();
   refreshFlowersGrassStatus();
+  checkLandObjectsSurvival();
   scheduleAutoSave();
 }
 
@@ -3679,16 +3748,18 @@ function triggerFallingLandAnimal(animal, sinkIntoWater) {
 }
 
 function checkLandObjectsSurvival() {
-  // 1. Check Flowers
+  // 1. Check Flowers: Flowers must NEVER exist on water or near water edges!
   for (let i = flowers.length - 1; i >= 0; i--) {
     const f = flowers[i];
     const onWater =
       typeof isPointOnWater === "function" && isPointOnWater(f.x, f.y);
+    const nearWater =
+      typeof isNearWater === "function" && isNearWater(f.x, f.y, 18);
     const onGrass =
       typeof isPointOnGrass === "function" && isPointOnGrass(f.x, f.y);
-    if (onWater || !onGrass) {
+    if (onWater || nearWater || !onGrass) {
       flowers.splice(i, 1);
-      triggerFallingFlower(f, onWater);
+      triggerFallingFlower(f, onWater || nearWater);
     }
   }
   updateStatusBadges();
@@ -3758,21 +3829,43 @@ function checkLandObjectsSurvival() {
           }
         }
       } else if (effectiveHabitat === "water") {
-        const onWater =
-          typeof isPointOnWater === "function" && isPointOnWater(a.x, a.y);
-        if (!onWater) {
+        const canSwim =
+          typeof isWaterSwimmable === "function"
+            ? isWaterSwimmable(a.x, a.y, 6)
+            : (typeof isPointOnWater === "function" && isPointOnWater(a.x, a.y));
+        if (!canSwim) {
           let safeWater = null;
-          if (typeof isPointOnWater === "function") {
-            for (let r = 20; r <= 120; r += 20) {
-              for (let ang = 0; ang < Math.PI * 2; ang += Math.PI / 4) {
-                const sx = a.x + Math.cos(ang) * r;
-                const sy = a.y + Math.sin(ang) * r;
-                if (isPointOnWater(sx, sy)) {
-                  safeWater = { x: sx, y: sy };
-                  break;
+          for (let r = 8; r <= 160; r += 14) {
+            for (let ang = 0; ang < Math.PI * 2; ang += Math.PI / 8) {
+              const sx = a.x + Math.cos(ang) * r;
+              const sy = a.y + Math.sin(ang) * r;
+              const swimmable =
+                typeof isWaterSwimmable === "function"
+                  ? isWaterSwimmable(sx, sy, 8)
+                  : (typeof isPointOnWater === "function" && isPointOnWater(sx, sy));
+              if (swimmable) {
+                safeWater = { x: sx, y: sy };
+                break;
+              }
+            }
+            if (safeWater) break;
+          }
+          if (!safeWater) {
+            let bestDistSq = Infinity;
+            for (let rx = 200; rx <= WORLD_W - 200; rx += 60) {
+              for (let ry = 200; ry <= WORLD_H - 200; ry += 60) {
+                const swimmable =
+                  typeof isWaterSwimmable === "function"
+                    ? isWaterSwimmable(rx, ry, 8)
+                    : (typeof isPointOnWater === "function" && isPointOnWater(rx, ry));
+                if (swimmable) {
+                  const dSq = (rx - a.x) * (rx - a.x) + (ry - a.y) * (ry - a.y);
+                  if (dSq < bestDistSq) {
+                    bestDistSq = dSq;
+                    safeWater = { x: rx, y: ry };
+                  }
                 }
               }
-              if (safeWater) break;
             }
           }
           if (safeWater) {
@@ -4679,11 +4772,15 @@ function initGardenEventListeners() {
         isValid = false;
         reason = "Hewan tidak bisa ditaruh menembus objek dekorasi! 🌿";
       } else if (effectiveHabitat === "water") {
-        if (isWater) {
+        const canSwim =
+          typeof isWaterSwimmable === "function"
+            ? isWaterSwimmable(a.x, a.y, 10)
+            : (isWater && isGrass);
+        if (canSwim) {
           isValid = true;
         } else {
           isValid = false;
-          reason = "Ikan hanya bisa berenang di medan air! 🐟💦";
+          reason = "Ikan hanya bisa berenang di medan air yang aman! 🐟💦";
         }
       } else if (effectiveHabitat === "flying") {
         if (isGrass || isWater || isOnBridge) {
@@ -5251,6 +5348,13 @@ function animateGarden(now) {
     }
     if (typeof checkAmbientMysteryEggSpawn === "function") {
       checkAmbientMysteryEggSpawn(dt);
+    }
+
+    // Periodic safety check: ensures flowers never stay on water and animals are in valid habitats
+    periodicSurvivalTimer = (periodicSurvivalTimer || 0) + dt;
+    if (periodicSurvivalTimer >= 0.75) {
+      periodicSurvivalTimer = 0;
+      checkLandObjectsSurvival();
     }
 
     // 4. Update & Draw All Depth-Sorted Flowers, Decorations & Animal Companions
