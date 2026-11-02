@@ -413,9 +413,46 @@ const DECORATION_CATALOG = [
         type: 'picnic_set',
         name: 'Set Tikar Piknik & Teh',
         icon: '<svg class="w-6 h-6 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 16 8 10 21 12 16 19 3 16"/><rect x="8" y="7" width="6" height="5" rx="1"/><path d="M9 7V5a2 2 0 0 1 4 0v2"/></svg>',
-        habitat: 'land',
+        habitat: 'both',
+        starShopItemId: 'picnic_set',
         width: 74,
         height: 44
+    },
+    {
+        type: 'campfire',
+        name: 'Api Unggun Berpendar',
+        icon: '<svg class="w-6 h-6 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c1 3 4 5 4 9a6 6 0 0 1-12 0c0-4 3-6 4-9z"/><path d="M12 14c-1 0-2 .5-2 1.5a2 2 0 0 0 4 0c0-1-1-1.5-2-1.5z"/><path d="M5 21l14-2M19 21L5 19"/></svg>',
+        habitat: 'both',
+        starShopItemId: 'campfire',
+        width: 56,
+        height: 52
+    },
+    {
+        type: 'sandcastle',
+        name: 'Istana Pasir Pantai',
+        icon: '<svg class="w-6 h-6 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V11l3-2v12M16 21V11l3-2v12M8 21V8l4-3 4 3v13"/><path d="M12 5v-3"/></svg>',
+        habitat: 'both',
+        starShopItemId: 'sandcastle',
+        width: 62,
+        height: 56
+    },
+    {
+        type: 'beach_umbrella',
+        name: 'Payung Pantai Vintage',
+        icon: '<svg class="w-6 h-6 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9z"/><path d="M12 12v9M9 21h6"/></svg>',
+        habitat: 'both',
+        starShopItemId: 'beach_umbrella',
+        width: 66,
+        height: 68
+    },
+    {
+        type: 'wind_chime',
+        name: 'Lonceng Angin Bambu Furin',
+        icon: '<svg class="w-6 h-6 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12M12 3v5M8 8h8M9 8v9M12 8v12M15 8v8M10.5 20h3v4h-3z"/></svg>',
+        habitat: 'both',
+        starShopItemId: 'wind_chime',
+        width: 44,
+        height: 60
     },
     {
         type: 'statue',
@@ -507,8 +544,8 @@ function renderDecorModalCatalog() {
                             : '<svg class="w-3 h-3 text-emerald-600 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/></svg><span>Objek Darat</span>')}
                 </span>
                 ${isLocked ? `
-                    <button onclick="closeDecorModal(); openJournalModal('daily');" class="mt-3 w-full py-1.5 px-3 rounded-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition shadow-xs active:scale-95 inline-flex items-center justify-center gap-1">
-                        <span>⭐ Buka di Toko Bintang</span>
+                    <button onclick="closeDecorModal(); ${item.starShopItemId && ['picnic_set', 'campfire', 'sandcastle', 'beach_umbrella', 'wind_chime'].includes(item.starShopItemId) ? 'openOttoMerchantModal()' : 'openJournalModal(\'daily\')'};" class="mt-3 w-full py-1.5 px-3 rounded-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition shadow-xs active:scale-95 inline-flex items-center justify-center gap-1">
+                        <span>⭐ ${item.starShopItemId && ['picnic_set', 'campfire', 'sandcastle', 'beach_umbrella', 'wind_chime'].includes(item.starShopItemId) ? 'Buka di Toko Otto' : 'Buka di Toko Bintang'}</span>
                     </button>
                 ` : `
                     <button onclick="startPlacingDecoration('${item.type}')" class="mt-3 w-full py-1.5 px-3 rounded-full bg-[#2B5B35] hover:bg-[#1f4627] text-white text-xs font-bold transition shadow-xs active:scale-95">
@@ -720,6 +757,22 @@ function getDecorationCollisionFootprint(d) {
             rx = isEastWest ? 21 : 33;
             ry = isEastWest ? 30 : 17;
             break;
+        case 'campfire':
+            rx = 22;
+            ry = 16;
+            break;
+        case 'sandcastle':
+            rx = 26;
+            ry = 18;
+            break;
+        case 'beach_umbrella':
+            rx = 22;
+            ry = 18;
+            break;
+        case 'wind_chime':
+            rx = 16;
+            ry = 16;
+            break;
         case 'statue':
             rx = 19;
             ry = 12;
@@ -816,13 +869,35 @@ function getBridgeCrossingWaypoints(b, fromX, fromY) {
  * - Semua objek dekorasi selain jembatan TIDAK BISA dilewati hewan.
  * - Untuk jembatan: lantai tengah jembatan bisa dilewati, tetapi pagar samping jembatan tetap solid (tidak bisa ditembus dari samping).
  */
-function isPointBlockedByDecoration(x, y, animalRadius = 9) {
+const WALKABLE_DECOR_TYPES = new Set([
+    'pet_pillow',
+    'stepping_stone',
+    'picnic_set',
+    'flower_arch',
+    'gazebo',
+    'beach_umbrella',
+    'golden_lotus'
+]);
+
+function isDecorOccupiedByAction(decorId, actionName = null) {
+    if (typeof animals === 'undefined' || !Array.isArray(animals)) return false;
+    return animals.some(a =>
+        a.interactingDecorId === decorId &&
+        (!actionName || a.decorAction === actionName)
+    );
+}
+window.isDecorOccupiedByAction = isDecorOccupiedByAction;
+
+function isPointBlockedByDecoration(x, y, animalRadius = 9, ignoreDecorId = null) {
     if (typeof decorations === 'undefined' || decorations.length === 0) return false;
 
     for (let i = 0; i < decorations.length; i++) {
         const d = decorations[i];
-        if (d.type === 'pet_pillow') {
-            // Animals can freely walk onto and sleep on pet pillow!
+        if (ignoreDecorId && d.id === ignoreDecorId) {
+            continue;
+        }
+        if (WALKABLE_DECOR_TYPES.has(d.type)) {
+            // Animals can freely walk onto/under these interactive spots!
             continue;
         }
         if (d.type === 'bridge') {
@@ -864,7 +939,7 @@ function resolveAnimalDecorationCollisions() {
     if (typeof animals === 'undefined' || !Array.isArray(animals)) return;
     for (const a of animals) {
         if (a.type === 'butterfly' || a.habitat === 'flying') continue;
-        if (a.sleepingOnPillowId) continue; // Don't push sleeping pet off its pillow!
+        if (a.sleepingOnPillowId || a.interactingDecorId || a.targetDecorId) continue; // Don't push interacting pet off its decoration!
         if (!isPointBlockedByDecoration(a.x, a.y, 9)) continue;
 
         for (let r = 14; r <= 96; r += 10) {
@@ -2235,20 +2310,32 @@ function drawRealisticBirdbath(ctx, d, now) {
     ctx.ellipse(0, -22, 15, 6.2, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    const ripple = (Math.sin(now * 0.004) + 1) * 0.5;
-    ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 + ripple * 0.4})`;
-    ctx.lineWidth = 1.0;
+    const isActiveBirdbath = isDecorOccupiedByAction(d.id) || (d.interactBounce && d.interactBounce > 0);
+    const rippleSpeed = isActiveBirdbath ? 0.009 : 0.004;
+    const ripple = (Math.sin(now * rippleSpeed) + 1) * 0.5;
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.45 + ripple * 0.45})`;
+    ctx.lineWidth = isActiveBirdbath ? 1.4 : 1.0;
     ctx.beginPath();
-    ctx.ellipse(0, -22, 5 + ripple * 4, 2 + ripple * 1.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, -22, 5 + ripple * (isActiveBirdbath ? 7 : 4), 2 + ripple * (isActiveBirdbath ? 2.5 : 1.5), 0, 0, Math.PI * 2);
     ctx.stroke();
 
-    // 3. Cute Bluebird perched on rim
-    const birdX = 12;
-    const birdY = -27;
+    // 3. Cute Bluebird perched on rim (hops & splashes when active!)
+    const birdHop = isActiveBirdbath ? Math.abs(Math.sin(now * 0.012)) * 3.5 : Math.sin(now * 0.003) * 0.6;
+    const birdSlide = isActiveBirdbath ? Math.sin(now * 0.006) * 4.0 : 0;
+    const birdX = 10 - birdSlide;
+    const birdY = -27 - birdHop;
     ctx.fillStyle = '#2563EB';
     ctx.beginPath();
     ctx.ellipse(birdX, birdY, 4, 3, 0.2, 0, Math.PI * 2);
     ctx.fill();
+    // Flapping wing
+    if (isActiveBirdbath) {
+        const wingFlap = Math.sin(now * 0.03) * 2.5;
+        ctx.fillStyle = '#60A5FA';
+        ctx.beginPath();
+        ctx.ellipse(birdX + 1, birdY - 1 + wingFlap * 0.5, 2.8, 1.5, -0.4, 0, Math.PI * 2);
+        ctx.fill();
+    }
     ctx.fillStyle = '#FB923C';
     ctx.beginPath();
     ctx.arc(birdX - 1.5, birdY + 1.2, 2.2, 0, Math.PI * 2);
@@ -2593,8 +2680,12 @@ function drawRealisticTreeSwing(ctx, d, now) {
         ctx.fill();
     });
 
-    // Hanging ropes with gentle swing
-    const swayAngle = Math.sin(now * 0.0025) * 0.08;
+    // Hanging ropes with smooth pendulum swing (wider when occupied by a swinging pet!)
+    const isSwingingOccupied = isDecorOccupiedByAction(d.id, 'swinging') || (d.interactBounce && d.interactBounce > 0);
+    const targetAmp = isSwingingOccupied ? 0.24 : 0.08;
+    d.swingAmp = (d.swingAmp !== undefined ? d.swingAmp : 0.08) + (targetAmp - (d.swingAmp !== undefined ? d.swingAmp : 0.08)) * 0.08;
+    const swayAngle = Math.sin(now * 0.0032) * d.swingAmp;
+    d.currentSwayAngle = swayAngle;
     ctx.translate(0, -46);
     ctx.rotate(swayAngle);
 
@@ -2773,18 +2864,485 @@ function drawRealisticPetPillow(ctx, d, now) {
     ctx.restore();
 }
 
+function drawRealisticCampfire(ctx, d, now) {
+    ctx.save();
+    // 1. Soft Warm Ground Shadow
+    ctx.fillStyle = 'rgba(25, 15, 5, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(0, 5, 24, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Circular Ring of River Stones
+    const stoneAngles = [0, 0.75, 1.5, 2.25, 3.14, 3.9, 4.7, 5.5];
+    ctx.fillStyle = '#78716C';
+    ctx.strokeStyle = '#44403C';
+    ctx.lineWidth = 1.2;
+    stoneAngles.forEach((ang) => {
+        const sx = Math.cos(ang) * 18;
+        const sy = Math.sin(ang) * 9 + 4;
+        ctx.beginPath();
+        ctx.ellipse(sx, sy, 5.5, 3.5, ang * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    });
+
+    // 3. Wooden Oak Logs in a Teepee Pyre
+    ctx.fillStyle = '#78350F';
+    ctx.strokeStyle = '#451A03';
+    ctx.lineWidth = 1.2;
+    [-1, 1].forEach(dir => {
+        ctx.save();
+        ctx.rotate(dir * 0.38);
+        ctx.beginPath();
+        ctx.roundRect(-4, -10, 8, 20, 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+    });
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(-3.5, -12, 7, 22, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    // 4. Glowing Red Ash Bed
+    const ashPulse = Math.sin(now * 0.006) * 0.15 + 0.85;
+    ctx.fillStyle = `rgba(239, 68, 68, ${0.85 * ashPulse})`;
+    ctx.beginPath();
+    ctx.ellipse(0, 2, 10, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 5. Living Dancing Flames (Pulsing & flickering)
+    const flicker1 = Math.sin(now * 0.012 + (d.x || 0)) * 2;
+    const flicker2 = Math.cos(now * 0.018 + (d.y || 0)) * 2;
+    const flameH = 22 + Math.sin(now * 0.015) * 4;
+
+    // Outer Orange Flame
+    ctx.fillStyle = 'rgba(249, 115, 22, 0.88)';
+    ctx.beginPath();
+    ctx.moveTo(-11, 2);
+    ctx.quadraticCurveTo(-12 + flicker1, -flameH * 0.5, flicker1, -flameH);
+    ctx.quadraticCurveTo(12 + flicker2, -flameH * 0.5, 11, 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // Inner Yellow Flame
+    ctx.fillStyle = 'rgba(253, 224, 71, 0.95)';
+    ctx.beginPath();
+    ctx.moveTo(-6, 2);
+    ctx.quadraticCurveTo(-7 + flicker2, -flameH * 0.6, flicker2, -flameH * 0.8);
+    ctx.quadraticCurveTo(7 + flicker1, -flameH * 0.6, 6, 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // White-hot core
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.ellipse(0, -1, 3.5, 5.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 6. Marshmallow on a Stick
+    ctx.save();
+    ctx.rotate(0.45);
+    ctx.strokeStyle = '#92400E';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(14, 8);
+    ctx.lineTo(-4, -14);
+    ctx.stroke();
+    // Marshmallow
+    ctx.fillStyle = '#FEF3C7';
+    ctx.strokeStyle = '#D97706';
+    ctx.lineWidth = 1.0;
+    ctx.beginPath();
+    ctx.roundRect(-7, -17, 6, 6, 1.5);
+    ctx.fill();
+    ctx.stroke();
+    // Toasted top spot
+    ctx.fillStyle = '#92400E';
+    ctx.fillRect(-6, -16, 2, 2);
+    ctx.restore();
+
+    // 7. Rising Embers & Sparks
+    if (!d.embers) d.embers = [];
+    if (d.embers.length < 5 && Math.random() < 0.25) {
+        d.embers.push({ x: (Math.random() - 0.5) * 12, y: -8, vy: -1.0 - Math.random() * 1.5, alpha: 1.0, size: 1.2 + Math.random() });
+    }
+    for (let i = d.embers.length - 1; i >= 0; i--) {
+        const emb = d.embers[i];
+        emb.y += emb.vy;
+        emb.x += (Math.random() - 0.5) * 0.8;
+        emb.alpha -= 0.025;
+        if (emb.alpha <= 0) {
+            d.embers.splice(i, 1);
+            continue;
+        }
+        ctx.fillStyle = `rgba(253, 186, 116, ${emb.alpha})`;
+        ctx.beginPath();
+        ctx.arc(emb.x, emb.y, emb.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.restore();
+}
+
+function drawRealisticSandcastle(ctx, d, now) {
+    ctx.save();
+    const lvl = d.level || 1;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const borderCol = '#92400E';
+    const doorCol = '#78350F';
+
+    // Helper: draw a tapered castle tower with 3D sand gradient & crenelated battlements
+    const drawSandTower = (cx, baseY, botW, topW, h, merlonCount) => {
+        const topY = baseY - h;
+        const tGrad = ctx.createLinearGradient(cx - botW * 0.5, topY, cx + botW * 0.5, baseY);
+        tGrad.addColorStop(0, '#FEF9C3');
+        tGrad.addColorStop(0.45, '#FDE047');
+        tGrad.addColorStop(1, '#F59E0B');
+
+        ctx.fillStyle = tGrad;
+        ctx.strokeStyle = borderCol;
+        ctx.lineWidth = 1.5;
+
+        // Tapered tower body with curved bottom base
+        ctx.beginPath();
+        ctx.moveTo(cx - botW * 0.5, baseY);
+        ctx.lineTo(cx - topW * 0.5, topY);
+        ctx.lineTo(cx + topW * 0.5, topY);
+        ctx.lineTo(cx + botW * 0.5, baseY);
+        ctx.quadraticCurveTo(cx, baseY + 3.0, cx - botW * 0.5, baseY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Crenelated Battlements (Merlons) along top crown
+        const crownW = topW + 3;
+        const startX = cx - crownW * 0.5;
+        const mW = crownW / (merlonCount * 2 - 1);
+        const mH = 3.8;
+        ctx.fillStyle = '#FDE047';
+        ctx.beginPath();
+        ctx.moveTo(startX, topY + 1.5);
+        for (let i = 0; i < merlonCount; i++) {
+            const mx = startX + i * 2 * mW;
+            ctx.lineTo(mx, topY - mH);
+            ctx.lineTo(mx + mW, topY - mH);
+            ctx.lineTo(mx + mW, topY + 0.5);
+            if (i < merlonCount - 1) {
+                ctx.lineTo(mx + 2 * mW, topY + 0.5);
+            }
+        }
+        ctx.lineTo(startX + crownW, topY + 1.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+    };
+
+    // Helper: draw arched window or doorway
+    const drawArchOpening = (ax, ay, aw, ah) => {
+        ctx.fillStyle = doorCol;
+        ctx.strokeStyle = '#451A03';
+        ctx.lineWidth = 1.0;
+        ctx.beginPath();
+        ctx.moveTo(ax - aw * 0.5, ay);
+        ctx.lineTo(ax - aw * 0.5, ay - ah + aw * 0.5);
+        ctx.arc(ax, ay - ah + aw * 0.5, aw * 0.5, Math.PI, 0, false);
+        ctx.lineTo(ax + aw * 0.5, ay);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+    };
+
+    // Helper: draw waving pennant flag
+    const drawPennantFlag = (fx, fy, poleH, flagW, flagColor) => {
+        ctx.strokeStyle = '#78350F';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(fx, fy);
+        ctx.lineTo(fx, fy - poleH);
+        ctx.stroke();
+
+        const flap = Math.sin(now * 0.008 + fx) * 1.6;
+        ctx.fillStyle = flagColor;
+        ctx.strokeStyle = '#451A03';
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.moveTo(fx, fy - poleH);
+        ctx.quadraticCurveTo(fx + flagW * 0.5, fy - poleH + 1.5 + flap, fx + flagW, fy - poleH + 3.2 + flap * 0.6);
+        ctx.lineTo(fx, fy - poleH + 6.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+    };
+
+    // 1. Soft Sandy Ground Shadow & Sculpted Sand Mound Base
+    const baseRx = lvl === 1 ? 21 : (lvl === 2 ? 26 : 31);
+    const baseRy = lvl === 1 ? 8.5 : (lvl === 2 ? 10 : 11.5);
+    ctx.fillStyle = 'rgba(160, 90, 20, 0.24)';
+    ctx.beginPath();
+    ctx.ellipse(0, 6, baseRx + 3, baseRy + 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const moundGrad = ctx.createLinearGradient(-baseRx, 0, baseRx, 8);
+    moundGrad.addColorStop(0, '#FEF9C3');
+    moundGrad.addColorStop(0.5, '#FDE68A');
+    moundGrad.addColorStop(1, '#F59E0B');
+    ctx.fillStyle = moundGrad;
+    ctx.strokeStyle = borderCol;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.ellipse(0, 4.5, baseRx, baseRy, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    if (lvl === 1) {
+        // Tier 1: Classic Sculpted Bucket Sandcastle Turret with Battlements
+        drawSandTower(0, 4.5, 22, 17, 21, 3);
+
+        // Two cute arched turret windows
+        drawArchOpening(-4.2, -7.5, 3.0, 4.5);
+        drawArchOpening(4.2, -7.5, 3.0, 4.5);
+
+        // Arched front castle doorway
+        drawArchOpening(0, 4.8, 7.0, 8.5);
+
+        // Waving Coral-Red Pennant Flag
+        drawPennantFlag(0, -19.5, 11, 9.5, '#F43F5E');
+    } else if (lvl === 2) {
+        // Tier 2: Twin-Turret Castle with Curtain Wall
+        // Central curtain wall
+        drawSandTower(0, 4.5, 18, 16, 15, 3);
+
+        // Left & Right flanking towers
+        drawSandTower(-13, 4.8, 12, 9.5, 22, 3);
+        drawSandTower(13, 4.8, 12, 9.5, 22, 3);
+
+        // Windows on side towers
+        drawArchOpening(-13, -7, 3.2, 5.0);
+        drawArchOpening(13, -7, 3.2, 5.0);
+
+        // Grand central gatehouse arch
+        drawArchOpening(0, 5.0, 7.5, 9.0);
+
+        // Twin flags on left and right towers
+        drawPennantFlag(-13, -20.5, 10, 8.5, '#38BDF8');
+        drawPennantFlag(13, -20.5, 10, 8.5, '#F43F5E');
+    } else {
+        // Tier 3: Grand Royal Multi-Turret Sand Fortress
+        // Tall central Royal Keep in the back
+        drawSandTower(0, 2.0, 17, 13.5, 31, 3);
+        drawArchOpening(-3.2, -18.5, 2.8, 4.8);
+        drawArchOpening(3.2, -18.5, 2.8, 4.8);
+
+        // Front fortified curtain wall
+        drawSandTower(0, 5.0, 26, 23, 15, 4);
+
+        // Outer Left & Right Bastion Towers
+        drawSandTower(-17, 5.2, 12, 9.5, 23, 3);
+        drawSandTower(17, 5.2, 12, 9.5, 23, 3);
+
+        // Turret windows on outer bastions
+        drawArchOpening(-17, -7, 3.0, 5.0);
+        drawArchOpening(17, -7, 3.0, 5.0);
+
+        // Grand arched fortress gate
+        drawArchOpening(0, 5.5, 8.2, 9.8);
+
+        // Royal Golden-Crimson Banner on central Keep + side pennants
+        drawPennantFlag(0, -32.5, 12, 11, '#F59E0B');
+        drawPennantFlag(-17, -21.5, 8.5, 7.5, '#F43F5E');
+        drawPennantFlag(17, -21.5, 8.5, 7.5, '#38BDF8');
+    }
+
+    // Subtle sand-grain texture speckles & tiny cute starfish accent at base
+    ctx.fillStyle = 'rgba(180, 83, 9, 0.35)';
+    [[-6, -3], [5, -1], [-8, 2], [9, 3], [0, -13]].forEach(([gx, gy]) => {
+        ctx.beginPath();
+        ctx.arc(gx, gy, 0.8, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // Tiny cute 5-point orange starfish resting on the front-left sand mound
+    ctx.save();
+    ctx.translate(-baseRx * 0.58, 5.5);
+    ctx.fillStyle = '#FB923C';
+    ctx.strokeStyle = '#9A3412';
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    for (let p = 0; p < 10; p++) {
+        const r = p % 2 === 0 ? 3.4 : 1.5;
+        const a = (p * Math.PI) / 5 - Math.PI * 0.5;
+        if (p === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+        else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    // Tiny pink scallop shell resting on the front-right sand mound
+    ctx.save();
+    ctx.translate(baseRx * 0.55, 5.8);
+    ctx.fillStyle = '#FDA4AF';
+    ctx.strokeStyle = '#881337';
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.arc(0, 0, 2.8, Math.PI, 0, false);
+    ctx.lineTo(0, 1.8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.restore();
+}
+
+function drawRealisticBeachUmbrella(ctx, d, now) {
+    ctx.save();
+    // 1. Soft Shadow
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.22)';
+    ctx.beginPath();
+    ctx.ellipse(8, 8, 26, 12, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Beach Towel underneath
+    ctx.fillStyle = '#38BDF8';
+    ctx.strokeStyle = '#0284C7';
+    ctx.lineWidth = 1.0;
+    ctx.beginPath();
+    ctx.roundRect(-16, 0, 24, 12, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(-12, 0, 4, 12);
+    ctx.fillRect(-4, 0, 4, 12);
+
+    // 3. Slanted Wooden Pole
+    ctx.strokeStyle = '#92400E';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(0, 6);
+    ctx.lineTo(3, -28);
+    ctx.stroke();
+
+    // 4. Large Striped Umbrella Canopy
+    ctx.save();
+    ctx.translate(3, -28);
+    const wedges = [
+        { c: '#0D9488', x1: -28, x2: -17 },
+        { c: '#FEF08A', x1: -17, x2: -6 },
+        { c: '#F43F5E', x1: -6, x2: 6 },
+        { c: '#FEF08A', x1: 6, x2: 17 },
+        { c: '#0D9488', x1: 17, x2: 28 }
+    ];
+    wedges.forEach(w => {
+        ctx.fillStyle = w.c;
+        ctx.beginPath();
+        ctx.moveTo(0, -4);
+        ctx.lineTo(w.x1, 10);
+        ctx.quadraticCurveTo((w.x1 + w.x2) * 0.5, 12, w.x2, 10);
+        ctx.closePath();
+        ctx.fill();
+    });
+
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+    ctx.lineWidth = 1.0;
+    ctx.beginPath();
+    ctx.moveTo(-28, 10);
+    ctx.lineTo(0, -4);
+    ctx.lineTo(28, 10);
+    ctx.stroke();
+
+    ctx.fillStyle = '#F59E0B';
+    ctx.beginPath();
+    ctx.arc(0, -5, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.restore();
+}
+
+function drawRealisticWindChime(ctx, d, now) {
+    ctx.save();
+    ctx.strokeStyle = '#78350F';
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.moveTo(0, 4);
+    ctx.lineTo(0, -28);
+    ctx.lineTo(12, -28);
+    ctx.stroke();
+
+    const breeze = Math.sin(now * 0.004 + (d.x || 0)) * 0.12;
+    ctx.save();
+    ctx.translate(12, -28);
+    ctx.rotate(breeze);
+
+    const tubes = [
+        { dx: -5, len: 16, c: '#D97706' },
+        { dx: 0,  len: 22, c: '#B45309' },
+        { dx: 5,  len: 18, c: '#D97706' }
+    ];
+    tubes.forEach(tb => {
+        ctx.strokeStyle = '#94A3B8';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(tb.dx, 0);
+        ctx.lineTo(tb.dx, 6);
+        ctx.stroke();
+
+        ctx.fillStyle = tb.c;
+        ctx.strokeStyle = '#78350F';
+        ctx.lineWidth = 1.0;
+        ctx.beginPath();
+        ctx.roundRect(tb.dx - 1.5, 6, 3, tb.len, 1);
+        ctx.fill();
+        ctx.stroke();
+    });
+
+    const tagFlap = Math.sin(now * 0.007) * 0.25;
+    ctx.save();
+    ctx.translate(0, 24);
+    ctx.rotate(tagFlap);
+    ctx.strokeStyle = '#94A3B8';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, 4);
+    ctx.stroke();
+
+    ctx.fillStyle = '#F472B6';
+    ctx.strokeStyle = '#BE185D';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.roundRect(-2.5, 4, 5, 11, 1);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.restore();
+    ctx.restore();
+}
+
 function drawDecorationInstance(ctx, d, now, dt) {
     if (!d) return;
     if (d.birthScale !== undefined && d.birthScale < 1) {
         d.birthScale = Math.min(1, d.birthScale + (dt || 0.016) * 5.0);
     }
+    if (d.interactBounce && d.interactBounce > 0) {
+        d.interactBounce = Math.max(0, d.interactBounce - (dt || 0.016) * 3.0);
+    }
     const propScale = typeof d.scale === 'number' ? d.scale : 1.0;
     const scale = (d.birthScale !== undefined ? d.birthScale : 1) * propScale;
+    const bounceSin = d.interactBounce ? Math.sin(d.interactBounce * Math.PI * 2.5) * d.interactBounce * 0.08 : 0;
     const isSelected = (typeof selectedDecoration !== 'undefined' && selectedDecoration && selectedDecoration.id === d.id);
 
     ctx.save();
     ctx.translate(d.x, d.y);
-    ctx.scale(scale, scale);
+    ctx.scale(scale * (1 - bounceSin * 0.45), scale * (1 + bounceSin));
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -2854,6 +3412,14 @@ function drawDecorationInstance(ctx, d, now, dt) {
         drawRealisticGoldenLotus(ctx, d, now);
     } else if (d.type === 'pet_pillow') {
         drawRealisticPetPillow(ctx, d, now);
+    } else if (d.type === 'campfire') {
+        drawRealisticCampfire(ctx, d, now);
+    } else if (d.type === 'sandcastle') {
+        drawRealisticSandcastle(ctx, d, now);
+    } else if (d.type === 'beach_umbrella') {
+        drawRealisticBeachUmbrella(ctx, d, now);
+    } else if (d.type === 'wind_chime') {
+        drawRealisticWindChime(ctx, d, now);
     } else if (d.type === 'easel' && typeof drawRealisticEasel === 'function') {
         drawRealisticEasel(ctx, d, now);
     } else if (d.isCustomProp || d.type === 'custom_prop') {

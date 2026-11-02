@@ -494,15 +494,18 @@ async function saveCurrentWorld(silent = false) {
     const serializedAnimals = animals.map((a) => ({
       id: a.id,
       type: a.type,
+      customType: a.customType || ((a.id && a.id.startsWith("turtle")) || (a.name && a.name.includes("Kura-kura")) ? "moss_turtle" : null),
       name: a.name,
-      variant: a.variant || "default",
+      variant: a.variant || ((a.id && a.id.startsWith("turtle")) || (a.name && a.name.includes("Kura-kura")) ? "moss_turtle" : "default"),
       habitat:
         a.habitat ||
-        (a.type === "fish"
+        ((a.id && a.id.startsWith("turtle")) || (a.name && a.name.includes("Kura-kura"))
           ? "water"
-          : a.type === "butterfly"
-            ? "flying"
-            : "land"),
+          : a.type === "fish"
+            ? "water"
+            : a.type === "butterfly"
+              ? "flying"
+              : "land"),
       x: Math.round(a.x),
       y: Math.round(a.y),
       width: a.width,
@@ -787,18 +790,28 @@ async function loadWorldById(worldId) {
           customImg = new Image();
           customImg.src = sa.spriteDataUrl;
         }
+        const isMossTurtle =
+          sa.customType === "moss_turtle" ||
+          sa.variant === "moss_turtle" ||
+          sa.type === "turtle" ||
+          (sa.id && sa.id.startsWith("turtle")) ||
+          (sa.name && sa.name.includes("Kura-kura"));
+
         loadedAnimals.push({
           id: sa.id || "anm_" + Math.random().toString(36).slice(2, 6),
-          type: sa.type || "rabbit",
-          name: sa.name || "Sahabat",
-          variant: sa.variant || "default",
+          type: isMossTurtle ? "turtle" : (sa.type || "rabbit"),
+          customType: isMossTurtle ? "moss_turtle" : (sa.customType || null),
+          name: sa.name || (isMossTurtle ? "Kura-kura Mini Lumut" : "Sahabat"),
+          variant: isMossTurtle ? "moss_turtle" : (sa.variant || "default"),
           habitat:
-            sa.habitat ||
-            (sa.type === "fish"
+            isMossTurtle
               ? "water"
-              : sa.type === "butterfly"
-                ? "flying"
-                : "land"),
+              : (sa.habitat ||
+                 (sa.type === "fish"
+                   ? "water"
+                   : sa.type === "butterfly"
+                     ? "flying"
+                     : "land")),
           x: sa.x,
           y: sa.y,
           vx: 0,

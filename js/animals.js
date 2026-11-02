@@ -284,7 +284,7 @@ function updateFollowBanner() {
         const nameEl = document.getElementById('followAnimalNameText');
         const favBtn = document.getElementById('followAnimalFavBtn');
         if (emojiEl) {
-            const emojis = { cat: '🐱', dog: '🐶', rabbit: '🐰', butterfly: '🦋', custom: '✨' };
+            const emojis = { cat: '🐱', dog: '🐶', rabbit: '🐰', butterfly: '🦋', fish: '🐟', turtle: '🐢', custom: ((a.id && a.id.startsWith('turtle')) || (a.name && a.name.includes('Kura-kura')) ? '🐢' : '✨') };
             emojiEl.textContent = emojis[followedAnimal.type] || '🐾';
         }
         if (nameEl) {
@@ -679,12 +679,30 @@ function petAnimal(a) {
     a.state = 'happy';
     a.stateTimer = 3.5;
 
-    // Tampilkan reaksi kaomoji murni tanpa teks kalimat
+    // Track petting count & friendship gift rewards
+    a.petCount = (a.petCount || 0) + 1;
+
+    // Tampilkan reaksi kaomoji murni tanpa teks kalimat di layar kebun
     a.bubbleText = getRandomAnimalKaomoji();
     a.bubbleTimer = 2.8;
 
-    // Suara hewan asli dari assets atau synth
-    playAnimalSoundEffect(a);
+    // Catat juga curhatan hangat hewan ke modal pesan jika belum sering curhat
+    if (Math.random() < 0.65 && typeof recordAnimalMessage === 'function') {
+        const dialogs = [
+            "Rasanya nyaman sekali waktu kamu elus... Makasih ya sudah memperhatikanku!",
+            "Aku suka berada di dekatmu, bikin hatiku tenang dan damai.",
+            "Tadi waktu kamu sentuh kepalaku, rasanya hangat sekali! Sayang kamu selalu~",
+            "Kebun ini makin indah karena ada kamu yang merawatnya dengan tulus."
+        ];
+        recordAnimalMessage(a, dialogs[Math.floor(Math.random() * dialogs.length)], 'bahagia');
+    }
+
+    // Suara purring soothing atau suara hewan
+    if (typeof playPurrSound === 'function' && (a.type === 'cat' || Math.random() < 0.5)) {
+        playPurrSound();
+    } else {
+        playAnimalSoundEffect(a);
+    }
 
     if (typeof incrementStat === 'function') {
         incrementStat('animalsPetted', 1);
@@ -696,7 +714,17 @@ function petAnimal(a) {
         boostAnimalFriendship(a, 7);
     }
 
-    for (let i = 0; i < 5; i++) {
+    // Every 3 pets: Give player +2 ⭐ Stars as a sweet friendship thank you!
+    if (a.petCount % 3 === 0) {
+        if (typeof awardStars === 'function') awardStars(2);
+        if (typeof showGardenNotice === 'function') {
+            const petName = a.customName || a.name || 'Hewan kesayanganmu';
+            showGardenNotice(`💖 ${petName} sangat bahagia bersamamu dan memberimu +2 ⭐ Bintang!`);
+        }
+        if (typeof playChimeSound === 'function') playChimeSound();
+    }
+
+    for (let i = 0; i < 6; i++) {
         particles.push({
             type: 'heart',
             x: a.x + (Math.random() - 0.5) * 24,
@@ -722,8 +750,8 @@ function findAnimalAt(wx, wy) {
 }
 
 // Helper: Memastikan titik berada di daratan rumput kering (atau di atas jembatan) untuk hewan darat
-function isLandWalkable(x, y) {
-    if (typeof isPointBlockedByDecoration === 'function' && isPointBlockedByDecoration(x, y, 9)) return false;
+function isLandWalkable(x, y, ignoreDecorId = null) {
+    if (typeof isPointBlockedByDecoration === 'function' && isPointBlockedByDecoration(x, y, 9, ignoreDecorId)) return false;
     const onBridge = typeof isPointOnBridgeDeck === 'function' && isPointOnBridgeDeck(x, y);
     if (onBridge) return true;
     if (typeof isPointOnGrass === 'function' && !isPointOnGrass(x, y)) return false;
@@ -733,9 +761,9 @@ function isLandWalkable(x, y) {
 }
 
 // Helper: Memastikan titik berada di air untuk hewan air / ikan dengan margin pengaman dari daratan/void/pasir
-function isWaterSwimmable(x, y, margin = 12) {
+function isWaterSwimmable(x, y, margin = 12, ignoreDecorId = null) {
     if (x < 0 || y < 0 || x >= WORLD_W || y >= WORLD_H) return false;
-    if (typeof isPointBlockedByDecoration === 'function' && isPointBlockedByDecoration(x, y, 8)) return false;
+    if (typeof isPointBlockedByDecoration === 'function' && isPointBlockedByDecoration(x, y, 8, ignoreDecorId)) return false;
     if (typeof isPointOnWater !== 'function') return false;
     if (!isPointOnWater(x, y)) return false;
     if (typeof isPointOnGrass === 'function' && !isPointOnGrass(x, y)) return false;
@@ -793,6 +821,821 @@ function isPathClearOfLand(x1, y1, x2, y2) {
     return true;
 }
 
+/********************************************************************
+ * SMART CREATURE-DECOR INTERACTION ENGINE (SMOOTH 60FPS POSES & AI)
+ ********************************************************************/
+
+function isAnimalWaterCreature(a) {
+    if (!a) return false;
+    return (
+        a.habitat === 'water' ||
+        a.type === 'fish' ||
+        a.type === 'turtle' ||
+        a.customType === 'moss_turtle' ||
+        a.variant === 'moss_turtle' ||
+        (a.id && a.id.startsWith('turtle')) ||
+        (a.name && (a.name.includes('Kura-kura') || a.name.includes('kura') || a.name.includes('Ikan')))
+    );
+}
+window.isAnimalWaterCreature = isAnimalWaterCreature;
+
+function isAnimalMossTurtle(a) {
+    if (!a) return false;
+    return (
+        a.type === 'turtle' ||
+        a.customType === 'moss_turtle' ||
+        a.variant === 'moss_turtle' ||
+        (a.id && a.id.startsWith('turtle')) ||
+        (a.name && (a.name.includes('Kura-kura') || a.name.includes('kura')))
+    );
+}
+
+function getDecorOccupantCount(decorId, excludeAnimal = null) {
+    if (!decorId || typeof animals === 'undefined' || !Array.isArray(animals)) return 0;
+    let count = 0;
+    for (const other of animals) {
+        if (!other || other === excludeAnimal) continue;
+        if (
+            other.interactingDecorId === decorId ||
+            other.targetDecorId === decorId ||
+            other.sleepingOnPillowId === decorId ||
+            other.targetPillowId === decorId
+        ) {
+            count++;
+        }
+    }
+    return count;
+}
+window.getDecorOccupantCount = getDecorOccupantCount;
+
+function isDecorationOccupied(decorId, excludeAnimal = null) {
+    return getDecorOccupantCount(decorId, excludeAnimal) >= 1;
+}
+window.isDecorationOccupied = isDecorationOccupied;
+
+function getTotalActiveDecorInteractions(excludeAnimal = null) {
+    if (typeof animals === 'undefined' || !Array.isArray(animals)) return 0;
+    let total = 0;
+    for (const other of animals) {
+        if (!other || other === excludeAnimal) continue;
+        if (other.interactingDecorId || other.targetDecorId) {
+            total++;
+        }
+    }
+    return total;
+}
+
+function isPointNearOtherAnimal(tx, ty, excludeAnimal = null, minDist = 34, includeIdle = false) {
+    if (typeof animals === 'undefined' || !Array.isArray(animals)) return false;
+    for (const other of animals) {
+        if (!other || other === excludeAnimal) continue;
+        if (other.type === 'butterfly' || other.habitat === 'flying') continue;
+        const otherOccupied =
+            Boolean(other.interactingDecorId) ||
+            Boolean(other.targetDecorId) ||
+            Boolean(other.sleepingOnPillowId) ||
+            Boolean(other.targetPillowId) ||
+            other.state === 'decor_interact' ||
+            other.state === 'sleeping';
+        if (includeIdle || otherOccupied) {
+            if (Math.hypot(other.x - tx, other.y - ty) < minDist) return true;
+        }
+        if (
+            (other.targetDecorId || other.targetPillowId || (includeIdle && other.state === 'walking')) &&
+            typeof other.targetX === 'number' &&
+            typeof other.targetY === 'number' &&
+            Math.hypot(other.targetX - tx, other.targetY - ty) < minDist
+        ) {
+            return true;
+        }
+    }
+    return false;
+}
+window.isPointNearOtherAnimal = isPointNearOtherAnimal;
+
+function pickFreeSideAnchor(d, a, offsetX, offsetY) {
+    const preferredSide = (a && typeof a.x === 'number' && a.x < d.x) ? -1 : 1;
+    const candidates = [
+        { x: d.x + preferredSide * offsetX, y: d.y + offsetY },
+        { x: d.x - preferredSide * offsetX, y: d.y + offsetY },
+        { x: d.x, y: d.y + Math.max(14, offsetY + 10) }
+    ];
+    for (const c of candidates) {
+        const walkable = typeof isLandWalkable === 'function' ? isLandWalkable(c.x, c.y, d.id) : true;
+        if (walkable && !isPointNearOtherAnimal(c.x, c.y, a, 30)) {
+            return c;
+        }
+    }
+    return candidates[0];
+}
+
+function getDecorInteractionAnchorAndMeta(d, a) {
+    if (!d || !a) return null;
+    const isWaterAnim = isAnimalWaterCreature(a);
+    const isTurtle = isAnimalMossTurtle(a);
+    const side = (typeof a.x === 'number' && a.x < d.x) ? -1 : 1;
+
+    // 1. Water Creatures (Moss Turtle & Koi Fish) — Maksimal 1 makhluk per dekorasi air
+    if (isWaterAnim) {
+        if (d.type === 'golden_lotus') {
+            if (isTurtle) {
+                return {
+                    valid: true,
+                    targetX: d.x,
+                    targetY: d.y - 2,
+                    action: 'basking_lotus',
+                    duration: 11.0,
+                    bubble: '(っ˘ω˘ς) Berjemur☀️',
+                    maxOccupants: 1
+                };
+            }
+            return {
+                valid: true,
+                targetX: d.x + 22 * side,
+                targetY: d.y,
+                action: 'circling_lotus',
+                duration: 10.0,
+                bubble: '(🐟✨) Teratai Emas~',
+                maxOccupants: 1
+            };
+        }
+        if (d.type === 'bridge') {
+            return {
+                valid: true,
+                targetX: d.x,
+                targetY: d.y + 6,
+                action: 'under_bridge_peek',
+                duration: 7.5,
+                bubble: isTurtle ? '(🐢･ω･) Halo!' : '(🐟･ω･) Halo!',
+                maxOccupants: 1
+            };
+        }
+        if (d.type === 'mushroom') {
+            return {
+                valid: true,
+                targetX: d.x + 16 * side,
+                targetY: d.y + 6,
+                action: 'mushroom_shade',
+                duration: 8.5,
+                bubble: '(๑˘︶˘๑) Teduh🍄',
+                maxOccupants: 1
+            };
+        }
+        return null;
+    }
+
+    // 2. Flying Creatures (Butterfly) handled separately in flying AI
+    if (a.type === 'butterfly' || a.habitat === 'flying') {
+        return null;
+    }
+
+    // 3. All Land Animals & Exclusive Pets — Maksimal 1 makhluk per dekorasi agar tidak pernah menumpuk!
+    switch (d.type) {
+        case 'campfire': {
+            const pt = pickFreeSideAnchor(d, a, 28, 6);
+            return {
+                valid: true,
+                targetX: pt.x,
+                targetY: pt.y,
+                action: 'warming_campfire',
+                duration: 9.5,
+                bubble: '( ˶˘ ³˘˶) Hangat🔥',
+                faceX: d.x,
+                maxOccupants: 1
+            };
+        }
+        case 'pet_house':
+            return {
+                valid: true,
+                targetX: d.x,
+                targetY: d.y + 5,
+                action: 'sheltering_house',
+                duration: 10.0,
+                bubble: '(｡･ω･｡) Teduh🏠',
+                maxOccupants: 1
+            };
+        case 'gazebo':
+            return {
+                valid: true,
+                targetX: d.x,
+                targetY: d.y + 3,
+                action: 'sheltering_gazebo',
+                duration: 10.5,
+                bubble: '(っ˘ω˘ς) Damai✨',
+                maxOccupants: 1
+            };
+        case 'fountain': {
+            const pt = pickFreeSideAnchor(d, a, 30, 8);
+            return {
+                valid: true,
+                targetX: pt.x,
+                targetY: pt.y,
+                action: 'splashing_fountain',
+                duration: 8.5,
+                bubble: 'Uff! Segar! 💦',
+                faceX: d.x,
+                maxOccupants: 1
+            };
+        }
+        case 'birdbath':
+            if (a.type === 'cat' || a.type === 'exclusive') {
+                const pt = pickFreeSideAnchor(d, a, 25, 6);
+                return {
+                    valid: true,
+                    targetX: pt.x,
+                    targetY: pt.y,
+                    action: 'stalking_bird',
+                    duration: 8.5,
+                    bubble: '(ФωФ)! 🐦',
+                    faceX: d.x,
+                    maxOccupants: 1
+                };
+            }
+            {
+                const pt = pickFreeSideAnchor(d, a, 24, 6);
+                return {
+                    valid: true,
+                    targetX: pt.x,
+                    targetY: pt.y,
+                    action: 'watching_birdbath',
+                    duration: 8.0,
+                    bubble: '(•ө•)♡ Burung Lucu!',
+                    faceX: d.x,
+                    maxOccupants: 1
+                };
+            }
+        case 'bench':
+            if (a.type === 'dog') {
+                const pt = pickFreeSideAnchor(d, a, 26, 6);
+                return {
+                    valid: true,
+                    targetX: pt.x,
+                    targetY: pt.y,
+                    action: 'sitting_bench',
+                    duration: 9.0,
+                    bubble: '(❍ᴥ❍ʋ) Setia!',
+                    faceX: d.x,
+                    maxOccupants: 1
+                };
+            }
+            return {
+                valid: true,
+                targetX: d.x,
+                targetY: d.y - 1,
+                action: 'lounging_bench',
+                duration: 10.0,
+                bubble: '(=^･ω･^=) Nyaman~',
+                maxOccupants: 1
+            };
+        case 'tree_swing':
+            return {
+                valid: true,
+                targetX: d.x,
+                targetY: d.y - 2,
+                action: 'swinging',
+                duration: 10.0,
+                bubble: '( ˘ ³˘)♪ Ayun~ 🌸',
+                maxOccupants: 1
+            };
+        case 'wind_chime': {
+            const pt = pickFreeSideAnchor(d, a, 18, 6);
+            return {
+                valid: true,
+                targetX: pt.x,
+                targetY: pt.y,
+                action: 'listening_chime',
+                duration: 8.0,
+                bubble: '(•ㅅ•)? Merdu🎐',
+                faceX: d.x,
+                maxOccupants: 1
+            };
+        }
+        case 'easel':
+            return {
+                valid: true,
+                targetX: d.x,
+                targetY: d.y + 16,
+                action: 'admiring_art',
+                duration: 8.5,
+                bubble: '(🎨˘꒳˘) Indah!',
+                faceX: d.x,
+                maxOccupants: 1
+            };
+        case 'picnic_set':
+            return {
+                valid: true,
+                targetX: d.x,
+                targetY: d.y + 4,
+                action: 'picnic_snack',
+                duration: 9.5,
+                bubble: '(๑´ڡ`๑) Nyam! 🍵',
+                faceX: d.x,
+                maxOccupants: 1
+            };
+        case 'beach_umbrella':
+            return {
+                valid: true,
+                targetX: d.x + 10 * side,
+                targetY: d.y + 5,
+                action: 'lounging_umbrella',
+                duration: 10.0,
+                bubble: '(～￣▽￣)～ Adem🏖️',
+                maxOccupants: 1
+            };
+        case 'lantern':
+        case 'lantern_mushroom': {
+            const pt = pickFreeSideAnchor(d, a, 20, 5);
+            return {
+                valid: true,
+                targetX: pt.x,
+                targetY: pt.y,
+                action: 'lantern_glow',
+                duration: 9.0,
+                bubble: '(✨´꒳`✨) Berpendar~',
+                faceX: d.x,
+                maxOccupants: 1
+            };
+        }
+        case 'flower_arch':
+            return {
+                valid: true,
+                targetX: d.x,
+                targetY: d.y + 3,
+                action: 'arch_strut',
+                duration: 8.0,
+                bubble: '(★ω★) Mekar🌸',
+                maxOccupants: 1
+            };
+        case 'windmill': {
+            const pt = pickFreeSideAnchor(d, a, 24, 10);
+            return {
+                valid: true,
+                targetX: pt.x,
+                targetY: pt.y,
+                action: 'watching_windmill',
+                duration: 8.5,
+                bubble: '(✪ω✪) Berputar🍃',
+                faceX: d.x,
+                maxOccupants: 1
+            };
+        }
+        case 'wishing_well': {
+            const pt = pickFreeSideAnchor(d, a, 22, 5);
+            return {
+                valid: true,
+                targetX: pt.x,
+                targetY: pt.y,
+                action: 'peering_well',
+                duration: 8.5,
+                bubble: '(⊙_⊙)! Dalamnya🫧',
+                faceX: d.x,
+                maxOccupants: 1
+            };
+        }
+        case 'statue': {
+            const pt = pickFreeSideAnchor(d, a, 22, 4);
+            return {
+                valid: true,
+                targetX: pt.x,
+                targetY: pt.y,
+                action: 'booping_statue',
+                duration: 8.5,
+                bubble: '(•ㅅ•) Boop! 🐰',
+                faceX: d.x,
+                maxOccupants: 1
+            };
+        }
+        case 'flower_cart': {
+            const pt = pickFreeSideAnchor(d, a, 28, 6);
+            return {
+                valid: true,
+                targetX: pt.x,
+                targetY: pt.y,
+                action: 'sniffing_cart',
+                duration: 8.5,
+                bubble: '(>o<) Achioo! 🌸',
+                faceX: d.x,
+                maxOccupants: 1
+            };
+        }
+        case 'stepping_stone':
+            return {
+                valid: true,
+                targetX: d.x,
+                targetY: d.y + 2,
+                action: 'hopping_stones',
+                duration: 7.5,
+                bubble: '(ﾉ◕ヮ◕)ﾉ Hop🎵',
+                maxOccupants: 1
+            };
+        case 'mushroom': {
+            const pt = pickFreeSideAnchor(d, a, 18, 5);
+            return {
+                valid: true,
+                targetX: pt.x,
+                targetY: pt.y,
+                action: 'mushroom_shade',
+                duration: 9.0,
+                bubble: '(๑˘︶˘๑) Payung Jamur🍄',
+                faceX: d.x,
+                maxOccupants: 1
+            };
+        }
+        case 'fence':
+        case 'fence_side':
+            if (a.type === 'cat' || a.type === 'exclusive') {
+                return {
+                    valid: true,
+                    targetX: d.x,
+                    targetY: d.y,
+                    action: 'fence_walk',
+                    duration: 8.5,
+                    bubble: '(🐾˘꒳˘) Titian~',
+                    maxOccupants: 1
+                };
+            }
+            return {
+                valid: true,
+                targetX: d.x,
+                targetY: d.y + 12,
+                action: 'peeking_fence',
+                duration: 7.5,
+                bubble: '(•ᴥ•) Intip!',
+                faceX: d.x,
+                maxOccupants: 1
+            };
+        case 'sandcastle': {
+            const pt = pickFreeSideAnchor(d, a, 26, 6);
+            return {
+                valid: true,
+                targetX: pt.x,
+                targetY: pt.y,
+                action: 'admiring_castle',
+                duration: 8.0,
+                bubble: '(✧ω✧) Kastil Pasir🏰',
+                faceX: d.x,
+                maxOccupants: 1
+            };
+        }
+        default:
+            if (d.isCustomProp || d.type === 'custom_prop') {
+                const pt = pickFreeSideAnchor(d, a, 22, 5);
+                return {
+                    valid: true,
+                    targetX: pt.x,
+                    targetY: pt.y,
+                    action: 'admiring_art',
+                    duration: 8.5,
+                    bubble: '(✨•ㅅ•) Bagus!',
+                    faceX: d.x,
+                    maxOccupants: 1
+                };
+            }
+            return null;
+    }
+}
+
+/**
+ * Menghitung transformasi animasi 60fps yang mulus (dx, dy, rot, scaleX, scaleY)
+ * untuk hewan yang sedang berinteraksi dengan dekorasi.
+ */
+function getAnimalDecorTransform(a, now) {
+    if (!a) return null;
+    const f = a.interactFade || 0;
+    if (f <= 0.005 || !a.decorAction) return null;
+
+    // Smooth cubic ease-in-out for zero-pop entry and exit
+    const ease = f * f * (3 - 2 * f);
+    const t = now * 0.001;
+    const action = a.decorAction;
+
+    let dx = 0;
+    let dy = 0;
+    let rot = 0;
+    let sx = 1.0;
+    let sy = 1.0;
+
+    switch (action) {
+        case 'swinging': {
+            // Synchronized pendulum swing with drawRealisticTreeSwing
+            const swayAngle = Math.sin(now * 0.0032) * 0.24;
+            dx = -Math.sin(swayAngle) * 34;
+            dy = -10 - (1 - Math.cos(swayAngle)) * 28;
+            rot = swayAngle * 0.65;
+            break;
+        }
+        case 'lounging_bench': {
+            dy = -11 + Math.sin(t * 3.2) * 0.9;
+            sx = 1.04 + Math.sin(t * 3.2) * 0.025;
+            sy = 0.94 - Math.sin(t * 3.2) * 0.025;
+            break;
+        }
+        case 'sitting_bench': {
+            dy = -Math.abs(Math.sin(t * 4.5)) * 2.5;
+            rot = Math.sin(t * 4.5) * 0.06;
+            break;
+        }
+        case 'fence_walk': {
+            const decList = (typeof decorations !== 'undefined' && Array.isArray(decorations)) ? decorations : [];
+            const d = decList.find(dec => dec.id === a.interactingDecorId);
+            const isVertical = d && (d.type === 'fence_side' || d.rotation === 90 || d.rotation === 270);
+            const walkPhase = t * 2.1;
+            if (isVertical) {
+                dy = -12 + Math.sin(walkPhase) * 14 - Math.abs(Math.sin(t * 7.0)) * 2.2;
+            } else {
+                dx = Math.sin(walkPhase) * 16;
+                dy = -15 - Math.abs(Math.sin(t * 7.0)) * 2.2;
+                a.facingLeft = Math.cos(walkPhase) < 0;
+            }
+            rot = Math.sin(t * 8.0) * 0.07;
+            break;
+        }
+        case 'peeking_fence': {
+            dy = -Math.abs(Math.sin(t * 4.2)) * 5.0;
+            sy = 1.0 + Math.abs(Math.sin(t * 4.2)) * 0.06;
+            break;
+        }
+        case 'stalking_bird': {
+            // Cute low cat crouch + rapid butt wiggle + occasional pounce hop
+            const cycle = (t * 1.8) % (Math.PI * 2);
+            if (cycle < 4.5) {
+                sx = 1.12;
+                sy = 0.82;
+                dx = Math.sin(t * 24) * 1.4;
+                dy = 2.5;
+                rot = Math.sin(t * 20) * 0.05;
+            } else {
+                const hopT = (cycle - 4.5) / (Math.PI * 2 - 4.5);
+                dy = -Math.sin(hopT * Math.PI) * 9.0;
+                sx = 0.95;
+                sy = 1.08;
+            }
+            break;
+        }
+        case 'watching_birdbath':
+        case 'admiring_art':
+        case 'admiring_castle': {
+            rot = Math.sin(t * 3.2) * 0.09;
+            dy = -Math.abs(Math.sin(t * 3.2)) * 2.2;
+            break;
+        }
+        case 'splashing_fountain': {
+            dy = -Math.abs(Math.sin(t * 7.5)) * 6.5;
+            rot = Math.sin(t * 7.5) * 0.11;
+            sx = 1.0 - Math.abs(Math.sin(t * 7.5)) * 0.05;
+            sy = 1.0 + Math.abs(Math.sin(t * 7.5)) * 0.06;
+            break;
+        }
+        case 'warming_campfire':
+        case 'lantern_glow':
+        case 'mushroom_shade': {
+            dx = Math.sin(t * 2.8) * 1.4;
+            dy = Math.sin(t * 5.6) * 0.8;
+            sx = 1.03 + Math.sin(t * 3.5) * 0.025;
+            sy = 0.96 - Math.sin(t * 3.5) * 0.025;
+            break;
+        }
+        case 'sheltering_house': {
+            dy = -2.0 + Math.sin(t * 3.2) * 1.2;
+            rot = Math.sin(t * 2.2) * 0.08;
+            sx = 0.93;
+            sy = 0.93;
+            break;
+        }
+        case 'sheltering_gazebo':
+        case 'lounging_umbrella': {
+            dy = -3.0 + Math.sin(t * 3.0 + (a.x || 0)) * 1.0;
+            sx = 1.03 + Math.sin(t * 3.0) * 0.02;
+            sy = 0.95 - Math.sin(t * 3.0) * 0.02;
+            break;
+        }
+        case 'listening_chime': {
+            rot = Math.sin(t * 4.2) * 0.14;
+            dy = -Math.abs(Math.cos(t * 4.2)) * 2.5;
+            break;
+        }
+        case 'picnic_snack': {
+            dy = -Math.abs(Math.sin(t * 8.0)) * 2.8;
+            sy = 0.95 + Math.abs(Math.sin(t * 8.0)) * 0.08;
+            sx = 1.03 - Math.abs(Math.sin(t * 8.0)) * 0.04;
+            break;
+        }
+        case 'arch_strut': {
+            dx = Math.sin(t * 3.2) * 12;
+            dy = -Math.abs(Math.sin(t * 9.5)) * 5.5;
+            a.facingLeft = Math.cos(t * 3.2) < 0;
+            rot = Math.sin(t * 9.5) * 0.08;
+            break;
+        }
+        case 'watching_windmill': {
+            dy = -Math.abs(Math.sin(t * 5.2)) * 4.5;
+            sy = 1.08 + Math.sin(t * 5.2) * 0.04;
+            sx = 0.94;
+            break;
+        }
+        case 'peering_well': {
+            const wCycle = (t * 2.2) % (Math.PI * 2);
+            if (wCycle < 4.4) {
+                dx = (a.facingLeft ? -1 : 1) * Math.sin(wCycle * 0.7) * 3.5;
+                rot = (a.facingLeft ? -1 : 1) * 0.11;
+            } else {
+                const jT = (wCycle - 4.4) / (Math.PI * 2 - 4.4);
+                dy = -Math.sin(jT * Math.PI) * 8.5;
+            }
+            break;
+        }
+        case 'booping_statue': {
+            const bPhase = Math.abs(Math.sin(t * 4.5));
+            dx = (a.facingLeft ? -1 : 1) * bPhase * 4.8;
+            dy = -bPhase * 2.0;
+            rot = (a.facingLeft ? -1 : 1) * bPhase * 0.11;
+            break;
+        }
+        case 'sniffing_cart': {
+            const sCycle = (t * 2.4) % (Math.PI * 2);
+            if (sCycle < 4.6) {
+                sy = 0.96 + Math.sin(t * 18) * 0.04;
+                dx = (a.facingLeft ? -1 : 1) * 2.2;
+            } else {
+                const snz = (sCycle - 4.6) / (Math.PI * 2 - 4.6);
+                dy = -Math.sin(snz * Math.PI) * 10.0;
+                rot = (a.facingLeft ? 1 : -1) * Math.sin(snz * Math.PI) * 0.16;
+            }
+            break;
+        }
+        case 'hopping_stones': {
+            dx = Math.sin(t * 3.4) * 14;
+            dy = -Math.abs(Math.sin(t * 6.8)) * 7.0;
+            a.facingLeft = Math.cos(t * 3.4) < 0;
+            break;
+        }
+        case 'basking_lotus': {
+            dy = -5.0 + Math.sin(t * 2.8) * 0.9;
+            sx = 1.04 + Math.sin(t * 2.8) * 0.02;
+            sy = 0.97 - Math.sin(t * 2.8) * 0.02;
+            break;
+        }
+        case 'under_bridge_peek': {
+            dy = Math.sin(t * 3.8) * 2.0;
+            rot = Math.sin(t * 3.8) * 0.08;
+            break;
+        }
+        default:
+            break;
+    }
+
+    return {
+        active: true,
+        dx: dx * ease,
+        dy: dy * ease,
+        rot: rot * ease,
+        scaleX: 1.0 + (sx - 1.0) * ease,
+        scaleY: 1.0 + (sy - 1.0) * ease
+    };
+}
+window.getAnimalDecorTransform = getAnimalDecorTransform;
+
+function emitDecorInteractionParticles(a, d, dt, now) {
+    if (!a || !d || typeof particles === 'undefined') return;
+    a.decorParticleTimer = (a.decorParticleTimer || 0) - dt;
+    if (a.decorParticleTimer > 0) return;
+    a.decorParticleTimer = 0.45 + Math.random() * 0.45;
+
+    const act = a.decorAction;
+    if (act === 'swinging' || act === 'arch_strut') {
+        particles.push({
+            type: 'sparkle',
+            x: d.x + (Math.random() - 0.5) * 32,
+            y: d.y - 28 + (Math.random() - 0.5) * 12,
+            vx: (Math.random() - 0.5) * 1.1,
+            vy: 0.7 + Math.random() * 0.8,
+            size: 3.2,
+            color: Math.random() < 0.5 ? '#F472B6' : '#FB7185',
+            alpha: 0.95
+        });
+    } else if (act === 'splashing_fountain' || act === 'peering_well' || act === 'stalking_bird' || act === 'watching_birdbath') {
+        particles.push({
+            type: 'bubble',
+            x: d.x + (Math.random() - 0.5) * 20,
+            y: d.y - 12 + (Math.random() - 0.5) * 8,
+            vx: (Math.random() - 0.5) * 1.4,
+            vy: -1.2 - Math.random() * 1.0,
+            size: 2.5 + Math.random() * 2.0,
+            alpha: 0.85
+        });
+    } else if (act === 'sniffing_cart') {
+        particles.push({
+            type: 'sparkle',
+            x: a.x + (Math.random() - 0.5) * 16,
+            y: a.y - 10,
+            vx: (Math.random() - 0.5) * 1.6,
+            vy: -1.0 - Math.random() * 1.2,
+            size: 3.0,
+            color: '#FACC15',
+            alpha: 0.95
+        });
+    } else if (act === 'listening_chime' || act === 'watching_windmill') {
+        particles.push({
+            type: 'sparkle',
+            x: d.x + (Math.random() - 0.5) * 24,
+            y: d.y - 18 + (Math.random() - 0.5) * 10,
+            vx: 0.8 + Math.random() * 0.8,
+            vy: -0.6 - Math.random() * 0.6,
+            size: 2.8,
+            color: '#34D399',
+            alpha: 0.9
+        });
+    } else if (act === 'basking_lotus' || act === 'circling_lotus' || act === 'lantern_glow' || act === 'mushroom_shade') {
+        particles.push({
+            type: 'sparkle',
+            x: a.x + (Math.random() - 0.5) * 20,
+            y: a.y - 8 + (Math.random() - 0.5) * 10,
+            vx: (Math.random() - 0.5) * 0.8,
+            vy: -0.9 - Math.random() * 0.8,
+            size: 2.8,
+            color: '#FBBF24',
+            alpha: 0.92
+        });
+    } else {
+        particles.push({
+            type: 'heart',
+            x: a.x + (Math.random() - 0.5) * 16,
+            y: a.y - 16,
+            vx: (Math.random() - 0.5) * 0.7,
+            vy: -1.1 - Math.random() * 0.6,
+            size: 9 + Math.random() * 3,
+            alpha: 0.95
+        });
+    }
+}
+
+/**
+ * Mengundang makhluk hidup terdekat yang cocok untuk datang berinteraksi dengan dekorasi `d`.
+ */
+function inviteCreatureToDecoration(d) {
+    if (!d || typeof animals === 'undefined' || !Array.isArray(animals)) return null;
+    d.interactBounce = 1.0;
+
+    if (d.type === 'pet_pillow') {
+        if (typeof handlePillowTap === 'function') handlePillowTap(d);
+        return null;
+    }
+
+    // STRICT LIMIT: Jika dekorasi ini sudah ditempati atau sedang dituju oleh hewan lain,
+    // JANGAN mengundang hewan kedua agar tidak terjadi penumpukan karakter!
+    if (isDecorationOccupied(d.id)) {
+        const currentOccupant = animals.find(a =>
+            a && !a.isBeingDragged && (a.interactingDecorId === d.id || a.targetDecorId === d.id)
+        );
+        if (currentOccupant) {
+            currentOccupant.petAnim = 0.75;
+            if (currentOccupant.state === 'decor_interact') {
+                const meta = currentOccupant.pendingDecorMeta || getDecorInteractionAnchorAndMeta(d, currentOccupant);
+                if (meta && meta.bubble) {
+                    currentOccupant.bubbleText = meta.bubble;
+                    currentOccupant.bubbleTimer = 3.0;
+                }
+            }
+            return currentOccupant;
+        }
+        return null;
+    }
+
+    const candidates = animals.filter(a => {
+        if (!a || a.isBeingDragged || a.state === 'sleeping' || a.state === 'decor_interact') return false;
+        if (a.interactingDecorId || a.targetDecorId || a.targetPillowId || a.sleepingOnPillowId) return false;
+        const meta = getDecorInteractionAnchorAndMeta(d, a);
+        if (!meta || !meta.valid) return false;
+        if (isPointNearOtherAnimal(meta.targetX, meta.targetY, a, 32)) return false;
+        return true;
+    });
+
+    if (candidates.length === 0) return null;
+
+    candidates.sort((a, b) => Math.hypot(a.x - d.x, a.y - d.y) - Math.hypot(b.x - d.x, b.y - d.y));
+    const chosen = candidates[0];
+    const meta = getDecorInteractionAnchorAndMeta(d, chosen);
+    if (!meta || !meta.valid) return null;
+
+    chosen.targetDecorId = d.id;
+    chosen.interactingDecorId = null;
+    chosen.decorAction = null;
+    chosen.targetPillowId = null;
+    chosen.sleepingOnPillowId = null;
+    chosen.pendingDecorMeta = meta;
+    chosen.decorAnchorX = meta.targetX;
+    chosen.decorAnchorY = meta.targetY;
+    chosen.targetX = meta.targetX;
+    chosen.targetY = meta.targetY;
+    chosen.state = 'walking';
+    chosen.stateTimer = 10.0;
+    chosen.facingLeft = meta.targetX < chosen.x;
+    chosen.bubbleText = meta.bubble;
+    chosen.bubbleTimer = 2.6;
+    return chosen;
+}
+window.inviteCreatureToDecoration = inviteCreatureToDecoration;
+
 function updateAnimals(dt, now) {
     if (!now) now = performance.now() * 0.001;
     const cx = WORLD_W * 0.5;
@@ -816,19 +1659,34 @@ function updateAnimals(dt, now) {
         if (a.isBeingDragged) {
             a.sleepingOnPillowId = null;
             a.targetPillowId = null;
+            a.interactingDecorId = null;
+            a.targetDecorId = null;
+            a.decorAction = null;
+            a.interactFade = 0;
             a.state = 'scared';
             a.bubbleText = '(⸝⸝๑﹏๑⸝⸝)';
             a.bubbleTimer = 0.5;
             continue;
         }
 
-        const habitat = a.habitat || (a.type === 'fish' ? 'water' : (a.type === 'butterfly' ? 'flying' : 'land'));
+        // Smooth fade in/out for decoration pose animations (zero snap!)
+        if (a.state === 'decor_interact' && a.interactingDecorId) {
+            a.interactFade = Math.min(1, (a.interactFade || 0) + dt * 3.8);
+        } else {
+            a.interactFade = Math.max(0, (a.interactFade || 0) - dt * 3.8);
+        }
+
+        const activeDecorList = (typeof decorations !== 'undefined' && Array.isArray(decorations))
+            ? decorations
+            : ((typeof window !== 'undefined' && Array.isArray(window.decorations)) ? window.decorations : []);
+
+        const habitat = a.habitat || (isAnimalWaterCreature(a) ? 'water' : (a.type === 'butterfly' ? 'flying' : 'land'));
 
         // ==========================================
         // 1. FISH & AQUATIC ANIMALS AI (HEWAN AIR)
-        // Ikan HANYA bisa ada di medan air yang aman!
+        // Ikan & Kura-kura HANYA bisa ada di medan air yang aman!
         // ==========================================
-        if (habitat === 'water' || a.type === 'fish') {
+        if (habitat === 'water' || isAnimalWaterCreature(a)) {
             a.swimPhase = (a.swimPhase || 0) + dt * 5.5;
 
             // Occasional bubble popping from mouth
@@ -844,9 +1702,12 @@ function updateAnimals(dt, now) {
                 });
             }
 
-            const inWaterNow = isWaterSwimmable(a.x, a.y, 6);
+            const inWaterNow = isWaterSwimmable(a.x, a.y, 4, a.targetDecorId || a.interactingDecorId);
             if (!inWaterNow) {
                 // Stranded on land or void! Scared and rescued immediately!
+                a.interactingDecorId = null;
+                a.targetDecorId = null;
+                a.decorAction = null;
                 a.state = 'scared';
                 a.bubbleText = '.·°՞(っ-ᯅ-ς)՞°·.';
                 a.bubbleTimer = 2.0;
@@ -895,27 +1756,87 @@ function updateAnimals(dt, now) {
             }
 
             a.stateTimer = (a.stateTimer || 0) - dt;
+            if (a.decorCooldown > 0) a.decorCooldown = Math.max(0, a.decorCooldown - dt);
+
+            // Active Water Decor Interaction (Basking on Golden Lotus / Circling Lotus / Under Bridge)
+            if (a.state === 'decor_interact' && a.interactingDecorId) {
+                const dec = activeDecorList.find(d => d.id === a.interactingDecorId);
+                const isDragged = (typeof draggedDecoration !== 'undefined' && draggedDecoration && draggedDecoration.id === a.interactingDecorId);
+                if (!dec || isDragged || a.stateTimer <= 0) {
+                    a.interactingDecorId = null;
+                    a.pendingDecorMeta = null;
+                    a.decorAction = null;
+                    a.decorCooldown = 12 + Math.random() * 8;
+                    a.state = 'idle';
+                    a.stateTimer = 1.8;
+                } else {
+                    emitDecorInteractionParticles(a, dec, dt, now);
+                    if (a.decorAction === 'circling_lotus') {
+                        a.orbitAngle = (a.orbitAngle || 0) + dt * 1.35;
+                        const ox = dec.x + Math.cos(a.orbitAngle) * 24;
+                        const oy = dec.y + Math.sin(a.orbitAngle) * 14;
+                        if (isWaterSwimmable(ox, oy, 4, dec.id)) {
+                            a.x += (ox - a.x) * Math.min(1, dt * 6.0);
+                            a.y += (oy - a.y) * Math.min(1, dt * 6.0);
+                            a.facingLeft = Math.sin(a.orbitAngle) > 0;
+                        }
+                    } else if (a.decorAction === 'basking_lotus') {
+                        a.x += (dec.x - a.x) * Math.min(1, dt * 5.0);
+                        a.y += ((dec.y - 2) - a.y) * Math.min(1, dt * 5.0);
+                    }
+                    continue;
+                }
+            }
+
             if (a.stateTimer <= 0 && inWaterNow) {
-                // Pick another spot inside water body with safe boundary clearance
-                let foundSpot = false;
-                for (let t = 0; t < 25; t++) {
-                    const ang = Math.random() * Math.PI * 2;
-                    const dist = 24 + Math.random() * 95;
-                    const tx = a.x + Math.cos(ang) * dist;
-                    const ty = a.y + Math.sin(ang) * dist * 0.6;
-                    if (isWaterSwimmable(tx, ty, 16) && isPathClearOfLand(a.x, a.y, tx, ty)) {
-                        a.targetX = tx;
-                        a.targetY = ty;
-                        a.state = 'walking';
-                        a.stateTimer = 3.5 + Math.random() * 3.5;
-                        a.facingLeft = tx < a.x;
-                        foundSpot = true;
-                        break;
+                let targetedWaterDecor = false;
+                if (activeDecorList.length > 0 && (a.decorCooldown || 0) <= 0 && getTotalActiveDecorInteractions(a) < 3 && Math.random() < 0.45) {
+                    const waterDecors = activeDecorList.filter(d =>
+                        (d.type === 'golden_lotus' || d.type === 'bridge') &&
+                        !isDecorationOccupied(d.id, a) &&
+                        Math.hypot(d.x - a.x, d.y - a.y) < 220 &&
+                        isWaterSwimmable(d.x, d.y, 4, d.id)
+                    );
+                    if (waterDecors.length > 0) {
+                        const chosenD = waterDecors[Math.floor(Math.random() * waterDecors.length)];
+                        const meta = getDecorInteractionAnchorAndMeta(chosenD, a);
+                        if (meta && meta.valid && !isDecorationOccupied(chosenD.id, a) && !isPointNearOtherAnimal(meta.targetX, meta.targetY, a, 28)) {
+                            a.targetDecorId = chosenD.id;
+                            a.pendingDecorMeta = meta;
+                            a.decorAnchorX = meta.targetX;
+                            a.decorAnchorY = meta.targetY;
+                            a.targetX = meta.targetX;
+                            a.targetY = meta.targetY;
+                            a.state = 'walking';
+                            a.stateTimer = 7.0;
+                            a.facingLeft = meta.targetX < a.x;
+                            targetedWaterDecor = true;
+                        }
                     }
                 }
-                if (!foundSpot) {
-                    a.state = 'idle';
-                    a.stateTimer = 1.2 + Math.random() * 1.8;
+
+                if (!targetedWaterDecor) {
+                    // Pick another spot inside water body with safe boundary clearance & away from other fish/turtles
+                    let foundSpot = false;
+                    for (let t = 0; t < 25; t++) {
+                        const ang = Math.random() * Math.PI * 2;
+                        const dist = 24 + Math.random() * 95;
+                        const tx = a.x + Math.cos(ang) * dist;
+                        const ty = a.y + Math.sin(ang) * dist * 0.6;
+                        if (isWaterSwimmable(tx, ty, 16) && isPathClearOfLand(a.x, a.y, tx, ty) && !isPointNearOtherAnimal(tx, ty, a, 28)) {
+                            a.targetX = tx;
+                            a.targetY = ty;
+                            a.state = 'walking';
+                            a.stateTimer = 3.5 + Math.random() * 3.5;
+                            a.facingLeft = tx < a.x;
+                            foundSpot = true;
+                            break;
+                        }
+                    }
+                    if (!foundSpot) {
+                        a.state = 'idle';
+                        a.stateTimer = 1.2 + Math.random() * 1.8;
+                    }
                 }
             }
 
@@ -924,22 +1845,43 @@ function updateAnimals(dt, now) {
             const dy = (a.targetY !== undefined ? a.targetY : a.y) - a.y;
             const dist = Math.hypot(dx, dy);
 
-            if (dist < 4) {
+            if (dist < 6) {
                 a.x = a.targetX || a.x;
                 a.y = a.targetY || a.y;
-                a.state = 'idle';
+                if (a.targetDecorId) {
+                    const dec = activeDecorList.find(d => d.id === a.targetDecorId);
+                    const meta = dec ? (a.pendingDecorMeta || getDecorInteractionAnchorAndMeta(dec, a)) : null;
+                    if (dec && meta && !isDecorationOccupied(dec.id, a) && !isPointNearOtherAnimal(a.x, a.y, a, 26)) {
+                        a.interactingDecorId = dec.id;
+                        a.targetDecorId = null;
+                        a.decorAction = meta.action;
+                        a.state = 'decor_interact';
+                        a.stateTimer = meta.duration;
+                        a.bubbleText = meta.bubble;
+                        a.bubbleTimer = 3.6;
+                        a.orbitAngle = Math.atan2(a.y - dec.y, a.x - dec.x);
+                        dec.interactBounce = 0.8;
+                    } else {
+                        a.targetDecorId = null;
+                        a.pendingDecorMeta = null;
+                        a.state = 'idle';
+                    }
+                } else {
+                    a.state = 'idle';
+                }
             } else {
                 const speed = 28;
                 const step = Math.min(dist, speed * dt);
                 const nx = a.x + (dx / dist) * step;
                 const ny = a.y + (dy / dist) * step;
                 // STRICT: Fish can only advance if the new coordinate is safely inside swimmable water!
-                if (isWaterSwimmable(nx, ny, 12)) {
+                if (isWaterSwimmable(nx, ny, a.targetDecorId ? 4 : 12, a.targetDecorId)) {
                     a.x = nx;
                     a.y = ny;
                     a.facingLeft = dx < 0;
                 } else {
                     // Reached boundary, stop and pick another target
+                    a.targetDecorId = null;
                     a.state = 'idle';
                     a.stateTimer = 0;
                 }
@@ -957,7 +1899,15 @@ function updateAnimals(dt, now) {
             if (a.state === 'perched') {
                 a.perchTimer -= dt;
                 a.wingSpeed = 5;
-                // Feature 6: Butterfly Pollination sparkles while perched
+                if (a.perchedDecorId) {
+                    const pDec = activeDecorList.find(d => d.id === a.perchedDecorId);
+                    if (pDec) {
+                        // Graceful figure-8 hover around floral/lantern/water decorations
+                        a.x += Math.sin(now * 0.0045 + (a.colorHue || 0)) * 0.25;
+                        a.y += Math.cos(now * 0.0065 + (a.colorHue || 0)) * 0.18;
+                    }
+                }
+                // Feature 6: Butterfly Pollination & Decor sparkles while perched
                 if (Math.random() < 0.16 && typeof particles !== 'undefined') {
                     particles.push({
                         type: 'sparkle',
@@ -966,7 +1916,7 @@ function updateAnimals(dt, now) {
                         vx: (Math.random() - 0.5) * 0.8,
                         vy: -0.6 - Math.random() * 0.8,
                         size: 3.2,
-                        color: '#FACC15',
+                        color: a.perchedDecorId ? '#F472B6' : '#FACC15',
                         alpha: 1.0
                     });
                 }
@@ -977,6 +1927,7 @@ function updateAnimals(dt, now) {
                         spawnDroppedSeedFromPollination(a.x, a.y + 12, a.perchedFlowerId);
                     }
                     a.perchedFlowerId = null;
+                    a.perchedDecorId = null;
                 }
             } else {
                 const tSec = now * 0.001;
@@ -988,18 +1939,38 @@ function updateAnimals(dt, now) {
                 if (a.stateTimer <= 0) {
                     a.stateTimer = 2.5 + Math.random() * 3.0;
 
-                    let targetedFlower = false;
-                    if (flowers.length > 0 && Math.random() < 0.45) {
+                    let targetedSpot = false;
+                    const isNightNow = (typeof isNightMode !== 'undefined' && isNightMode) || (typeof nightTransition !== 'undefined' && nightTransition > 0.5);
+
+                    // Check attractive decorations for butterflies (lanterns at night, floral/fountains by day)
+                    if (activeDecorList.length > 0 && Math.random() < 0.48) {
+                        const flyDecors = activeDecorList.filter(d =>
+                            isNightNow
+                                ? ['lantern', 'lantern_mushroom', 'campfire', 'golden_lotus'].includes(d.type)
+                                : ['flower_arch', 'flower_cart', 'tree_swing', 'fountain', 'birdbath', 'golden_lotus', 'windmill'].includes(d.type)
+                        );
+                        if (flyDecors.length > 0) {
+                            const d = flyDecors[Math.floor(Math.random() * flyDecors.length)];
+                            a.targetX = d.x + (Math.random() - 0.5) * 18;
+                            a.targetY = d.y - 22 + (Math.random() - 0.5) * 10;
+                            a.perchedDecorId = d.id;
+                            a.perchedFlowerId = null;
+                            targetedSpot = true;
+                        }
+                    }
+
+                    if (!targetedSpot && flowers.length > 0 && Math.random() < 0.50) {
                         const candidate = flowers[Math.floor(Math.random() * flowers.length)];
                         if (candidate) {
                             a.targetX = candidate.x + (Math.random() - 0.5) * 8;
                             a.targetY = candidate.y - candidate.height * 0.75;
                             a.perchedFlowerId = candidate.id;
-                            targetedFlower = true;
+                            a.perchedDecorId = null;
+                            targetedSpot = true;
                         }
                     }
 
-                    if (!targetedFlower) {
+                    if (!targetedSpot) {
                         // Wander across land and water (within garden)
                         for (let t = 0; t < 15; t++) {
                             const angle = Math.random() * Math.PI * 2;
@@ -1022,9 +1993,13 @@ function updateAnimals(dt, now) {
                 const dist = Math.hypot(dx, dy);
 
                 if (dist < 6) {
-                    if (a.perchedFlowerId) {
+                    if (a.perchedFlowerId || a.perchedDecorId) {
                         a.state = 'perched';
-                        a.perchTimer = 2.5 + Math.random() * 4.0;
+                        a.perchTimer = 3.0 + Math.random() * 4.0;
+                        if (a.perchedDecorId) {
+                            a.bubbleText = '(🦋✨)';
+                            a.bubbleTimer = 2.2;
+                        }
                     } else {
                         a.stateTimer = 0;
                     }
@@ -1050,7 +2025,7 @@ function updateAnimals(dt, now) {
         }
 
         // ==========================================
-        // 3. CAT, DOG, RABBIT & CUSTOM LAND ANIMALS (HEWAN DARAT)
+        // 3. CAT, DOG, RABBIT, EXCLUSIVE & CUSTOM LAND ANIMALS (HEWAN DARAT)
         // Hewan darat TIDAK BISA melintasi daerah air (kecuali di atas jembatan) atau menembus dekorasi
         // ==========================================
         const onBridgeNow = typeof isPointOnBridgeDeck === 'function' && isPointOnBridgeDeck(a.x, a.y);
@@ -1059,6 +2034,9 @@ function updateAnimals(dt, now) {
 
         if (currentlyOnWater || currentlyOffGrass) {
             // Coba selamatkan hewan ke rumput kering terdekat bila tanahnya baru saja diganti air
+            a.interactingDecorId = null;
+            a.targetDecorId = null;
+            a.decorAction = null;
             let safeSpot = null;
             if (typeof isPointOnGrass === 'function' && typeof isPointOnWater === 'function') {
                 for (let r = 24; r <= 140; r += 20) {
@@ -1122,6 +2100,36 @@ function updateAnimals(dt, now) {
         }
 
         a.stateTimer -= dt;
+        if (a.decorCooldown > 0) a.decorCooldown = Math.max(0, a.decorCooldown - dt);
+
+        // If currently performing a rich decoration interaction:
+        if (a.state === 'decor_interact') {
+            const dec = activeDecorList.find(d => d.id === a.interactingDecorId);
+            const isDecDragged = (typeof draggedDecoration !== 'undefined' && draggedDecoration && draggedDecoration.id === a.interactingDecorId);
+            if (!dec || isDecDragged || a.stateTimer <= 0) {
+                a.interactingDecorId = null;
+                a.pendingDecorMeta = null;
+                a.decorAction = null;
+                a.decorCooldown = 14 + Math.random() * 10;
+                a.state = 'happy';
+                a.stateTimer = 1.8;
+                // Step slightly away from the decoration after finishing interaction
+                const leaveAng = Math.random() * Math.PI * 2;
+                const lx = a.x + Math.cos(leaveAng) * 36;
+                const ly = a.y + Math.sin(leaveAng) * 28;
+                if (isLandWalkable(lx, ly) && !isPointNearOtherAnimal(lx, ly, a, 30)) {
+                    a.targetX = lx;
+                    a.targetY = ly;
+                    a.state = 'walking';
+                    a.stateTimer = 2.8;
+                    a.facingLeft = lx < a.x;
+                }
+            } else {
+                a.tailPhase = (a.tailPhase || 0) + dt * 2.4;
+                emitDecorInteractionParticles(a, dec, dt, now);
+                continue;
+            }
+        }
 
         // Bridge crossing waypoints check
         if (a.stateTimer <= 0 && a.bridgeWaypoints && a.bridgeWaypoints.length > 0) {
@@ -1138,8 +2146,8 @@ function updateAnimals(dt, now) {
             } else {
                 let targetedBridge = false;
                 // If near bridge, chance to cross bridge across river/pond!
-                if (typeof decorations !== 'undefined' && Math.random() < 0.45) {
-                    const bridges = decorations.filter(d => d.type === 'bridge');
+                if (activeDecorList.length > 0 && Math.random() < 0.35) {
+                    const bridges = activeDecorList.filter(d => d.type === 'bridge');
                     for (const b of bridges) {
                         const distToBridge = Math.hypot(a.x - b.x, a.y - b.y);
                         if (distToBridge < 160 && typeof getBridgeCrossingWaypoints === 'function') {
@@ -1160,15 +2168,15 @@ function updateAnimals(dt, now) {
                 }
 
                 let targetedPillow = false;
-                // Sleepiness Logic: Pet seeks pillow ONLY when drowsy (sleepiness >= 75)
+                // Sleepiness Logic: Any land/exclusive pet seeks pillow when drowsy (sleepiness >= 75)
                 const isDrowsy = (a.sleepiness || 0) >= 75;
-                const activeDecorList = (typeof decorations !== 'undefined' && Array.isArray(decorations))
-                    ? decorations
-                    : ((typeof window !== 'undefined' && Array.isArray(window.decorations)) ? window.decorations : []);
                 if (!targetedBridge && isDrowsy && activeDecorList.length > 0) {
-                    const emptyPillows = activeDecorList.filter(d => d.type === 'pet_pillow' && !isPillowOccupied(d.id, a));
+                    const emptyPillows = activeDecorList.filter(d =>
+                        d.type === 'pet_pillow' &&
+                        !isPillowOccupied(d.id, a) &&
+                        !isPointNearOtherAnimal(d.x, d.y - 3, a, 28)
+                    );
                     if (emptyPillows.length > 0) {
-                        // Pick nearest empty pillow
                         emptyPillows.sort((p1, p2) => Math.hypot(p1.x - a.x, p1.y - a.y) - Math.hypot(p2.x - a.x, p2.y - a.y));
                         const pil = emptyPillows[0];
                         a.targetX = pil.x;
@@ -1181,7 +2189,6 @@ function updateAnimals(dt, now) {
                         a.bubbleTimer = 2.0;
                         targetedPillow = true;
                     } else if (a.sleepiness >= 98) {
-                        // Exhausted with no pillow available: take a short quick nap on the grass
                         a.state = 'sleeping';
                         a.stateTimer = 6.0;
                         a.sleepiness = 50;
@@ -1192,7 +2199,75 @@ function updateAnimals(dt, now) {
                     }
                 }
 
-                if (!targetedBridge && !targetedPillow) {
+                // Smart Attraction to ALL Garden Decorations (Strictly 1 occupant per decor + global concurrent limit!)
+                let targetedDecorSpot = false;
+                if (
+                    !targetedBridge &&
+                    !targetedPillow &&
+                    activeDecorList.length > 0 &&
+                    (a.decorCooldown || 0) <= 0 &&
+                    getTotalActiveDecorInteractions(a) < 3 &&
+                    Math.random() < 0.48
+                ) {
+                    const isRainNow = (typeof isRainingShower !== 'undefined' && isRainingShower) || (typeof dynamicWeather !== 'undefined' && dynamicWeather === 'drizzle');
+                    const isNightNow = (typeof isNightMode !== 'undefined' && isNightMode) || (typeof nightTransition !== 'undefined' && nightTransition > 0.5);
+
+                    const scoredCandidates = [];
+                    for (const d of activeDecorList) {
+                        if (d.type === 'pet_pillow' || d.type === 'bridge' || d.type === 'golden_lotus') continue;
+                        if (isDecorationOccupied(d.id, a)) continue;
+
+                        const dist = Math.hypot(d.x - a.x, d.y - a.y);
+                        if (dist > 280) continue;
+
+                        const meta = getDecorInteractionAnchorAndMeta(d, a);
+                        if (!meta || !meta.valid) continue;
+
+                        if (isPointNearOtherAnimal(meta.targetX, meta.targetY, a, 34)) continue;
+                        if (!isLandWalkable(meta.targetX, meta.targetY, d.id)) continue;
+
+                        let score = 200 - dist * 0.5;
+                        // Weather & Time boosts
+                        if (isRainNow && (d.type === 'pet_house' || d.type === 'gazebo' || d.type === 'mushroom')) {
+                            score += 180;
+                        }
+                        if (isNightNow && (d.type === 'campfire' || d.type === 'lantern' || d.type === 'lantern_mushroom')) {
+                            score += 160;
+                        }
+                        if (!isNightNow && !isRainNow && (d.type === 'beach_umbrella' || d.type === 'fountain' || d.type === 'tree_swing' || d.type === 'picnic_set')) {
+                            score += 75;
+                        }
+                        // Species affinity boosts
+                        if (a.type === 'cat' && ['birdbath', 'bench', 'fence', 'fence_side', 'wind_chime', 'lantern'].includes(d.type)) {
+                            score += 90;
+                        } else if (a.type === 'dog' && ['fountain', 'pet_house', 'campfire', 'picnic_set', 'flower_cart', 'wishing_well'].includes(d.type)) {
+                            score += 90;
+                        } else if (a.type === 'rabbit' && ['statue', 'tree_swing', 'stepping_stone', 'mushroom', 'flower_arch', 'windmill'].includes(d.type)) {
+                            score += 95;
+                        } else if (a.type === 'exclusive') {
+                            score += 85;
+                        }
+
+                        scoredCandidates.push({ d, meta, score: score + Math.random() * 60 });
+                    }
+
+                    if (scoredCandidates.length > 0) {
+                        scoredCandidates.sort((c1, c2) => c2.score - c1.score);
+                        const best = scoredCandidates[0];
+                        a.targetDecorId = best.d.id;
+                        a.pendingDecorMeta = best.meta;
+                        a.decorAnchorX = best.meta.targetX;
+                        a.decorAnchorY = best.meta.targetY;
+                        a.targetX = best.meta.targetX;
+                        a.targetY = best.meta.targetY;
+                        a.state = 'walking';
+                        a.stateTimer = 9.0;
+                        a.facingLeft = best.meta.targetX < a.x;
+                        targetedDecorSpot = true;
+                    }
+                }
+
+                if (!targetedBridge && !targetedPillow && !targetedDecorSpot) {
                     const wanderChance = a.type === 'dog' ? 0.8 : (a.type === 'cat' ? 0.6 : 0.7);
                     if (Math.random() < wanderChance) {
                         let foundTarget = false;
@@ -1201,7 +2276,7 @@ function updateAnimals(dt, now) {
                             const dist = 45 + Math.random() * 130;
                             const tx = a.x + Math.cos(ang) * dist;
                             const ty = a.y + Math.sin(ang) * dist * 0.6;
-                            if (isLandWalkable(tx, ty) && isPathClearOfWater(a.x, a.y, tx, ty)) {
+                            if (isLandWalkable(tx, ty) && isPathClearOfWater(a.x, a.y, tx, ty) && !isPointNearOtherAnimal(tx, ty, a, 32, true)) {
                                 a.targetX = tx;
                                 a.targetY = ty;
                                 a.state = 'walking';
@@ -1228,14 +2303,19 @@ function updateAnimals(dt, now) {
             const dy = a.targetY - a.y;
             const dist = Math.hypot(dx, dy);
 
-            if (dist < 6) {
+            if (dist < 7) {
                 a.x = a.targetX;
                 a.y = a.targetY;
                 if (a.targetPillowId) {
-                    const decList = (typeof decorations !== 'undefined' && Array.isArray(decorations)) ? decorations : (typeof window !== 'undefined' && Array.isArray(window.decorations) ? window.decorations : []);
-                    const pil = decList.find(d => d.id === a.targetPillowId);
+                    const pil = activeDecorList.find(d => d.id === a.targetPillowId);
                     const isPillowDragged = (typeof draggedDecoration !== 'undefined' && draggedDecoration && draggedDecoration.id === a.targetPillowId);
-                    if (pil && !isPillowDragged && Math.hypot(a.x - pil.x, a.y - pil.y) < 22) {
+                    if (
+                        pil &&
+                        !isPillowDragged &&
+                        !isPillowOccupied(pil.id, a) &&
+                        !isPointNearOtherAnimal(pil.x, pil.y - 3, a, 26) &&
+                        Math.hypot(a.x - pil.x, a.y - pil.y) < 22
+                    ) {
                         a.x = pil.x;
                         a.y = pil.y - 3;
                         a.state = 'sleeping';
@@ -1248,6 +2328,36 @@ function updateAnimals(dt, now) {
                         continue;
                     } else {
                         a.targetPillowId = null;
+                    }
+                }
+                if (a.targetDecorId) {
+                    const dec = activeDecorList.find(d => d.id === a.targetDecorId);
+                    const isDecDragged = (typeof draggedDecoration !== 'undefined' && draggedDecoration && draggedDecoration.id === a.targetDecorId);
+                    const meta = (dec && !isDecDragged) ? (a.pendingDecorMeta || getDecorInteractionAnchorAndMeta(dec, a)) : null;
+                    if (
+                        dec &&
+                        meta &&
+                        !isDecorationOccupied(dec.id, a) &&
+                        !isPointNearOtherAnimal(meta.targetX, meta.targetY, a, 28) &&
+                        Math.hypot(a.x - dec.x, a.y - dec.y) < 48
+                    ) {
+                        a.x = meta.targetX;
+                        a.y = meta.targetY;
+                        a.interactingDecorId = dec.id;
+                        a.targetDecorId = null;
+                        a.decorAction = meta.action;
+                        a.state = 'decor_interact';
+                        a.stateTimer = meta.duration;
+                        a.bubbleText = meta.bubble;
+                        a.bubbleTimer = Math.min(4.5, meta.duration * 0.65);
+                        if (meta.faceX !== undefined) {
+                            a.facingLeft = meta.faceX < a.x;
+                        }
+                        dec.interactBounce = 0.75;
+                        continue;
+                    } else {
+                        a.targetDecorId = null;
+                        a.pendingDecorMeta = null;
                     }
                 }
                 if (a.bridgeWaypoints && a.bridgeWaypoints.length > 0) {
@@ -1269,7 +2379,9 @@ function updateAnimals(dt, now) {
                 const nextY = a.y + stepY;
 
                 const nextOnBridge = typeof isPointOnBridgeDeck === 'function' && isPointOnBridgeDeck(nextX, nextY);
-                const nextBlockedDecor = typeof isPointBlockedByDecoration === 'function' && isPointBlockedByDecoration(nextX, nextY, 9);
+                const ignoreDecId = a.targetDecorId || a.interactingDecorId || a.targetPillowId || a.sleepingOnPillowId;
+                const currentlyBlockedDecor = typeof isPointBlockedByDecoration === 'function' && isPointBlockedByDecoration(a.x, a.y, 9, ignoreDecId);
+                const nextBlockedDecor = !currentlyBlockedDecor && typeof isPointBlockedByDecoration === 'function' && isPointBlockedByDecoration(nextX, nextY, 9, ignoreDecId);
                 const stepIntoWater = !nextOnBridge && typeof isPointOnWater === 'function' && isPointOnWater(nextX, nextY);
                 const stepNearWater = !nextOnBridge && typeof isNearWater === 'function' && isNearWater(nextX, nextY, 14);
                 const stepOffGrass = !nextOnBridge && typeof isPointOnGrass === 'function' && !isPointOnGrass(nextX, nextY);
@@ -1277,6 +2389,8 @@ function updateAnimals(dt, now) {
                 if (nextBlockedDecor || stepIntoWater || stepNearWater || stepOffGrass) {
                     a.targetX = a.x;
                     a.targetY = a.y;
+                    a.targetDecorId = null;
+                    a.pendingDecorMeta = null;
                     a.bridgeWaypoints = null;
                     a.state = 'idle';
                     a.stateTimer = 1.2 + Math.random() * 2.0;
@@ -1335,6 +2449,214 @@ function updateAnimals(dt, now) {
                     if (typeof isLandWalkable === 'function' && isLandWalkable(hx, hy)) {
                         a.x = hx;
                         a.y = hy;
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. CONTINUOUS ANTI-STACKING SEPARATION PASS (Mencegah penumpukan karakter secara mutlak)
+    resolveAnimalToAnimalOverlap(dt);
+}
+
+/**
+ * Memastikan tidak ada dua makhluk hidup darat/air yang menumpuk pada koordinat yang sama,
+ * baik saat berinteraksi dengan dekorasi, tidur di bantal, maupun berdiri idle.
+ */
+function resolveAnimalToAnimalOverlap(dt) {
+    if (typeof animals === 'undefined' || !Array.isArray(animals) || animals.length === 0) return;
+    const minSep = 42;
+
+    const canStandOnGround = (px, py, isWater) => {
+        if (isWater) {
+            return isWaterSwimmable(px, py, 4);
+        }
+        const onBridge = typeof isPointOnBridgeDeck === 'function' && isPointOnBridgeDeck(px, py);
+        if (onBridge) return true;
+        const onGrass = typeof isPointOnGrass === 'function' ? isPointOnGrass(px, py) : true;
+        const onWater = typeof isPointOnWater === 'function' ? isPointOnWater(px, py) : false;
+        return onGrass && !onWater;
+    };
+
+    const activeDecorList = (typeof decorations !== 'undefined' && Array.isArray(decorations))
+        ? decorations
+        : ((typeof window !== 'undefined' && Array.isArray(window.decorations)) ? window.decorations : []);
+
+    // 0. Dorong hewan darat yang TIDAK sedang berinteraksi dengan dekorasi `d` agar tidak berdiri menumpuk di atas/dalam `d`
+    for (let i = 0; i < animals.length; i++) {
+        const a = animals[i];
+        if (!a || a.isBeingDragged || a.type === 'butterfly' || a.habitat === 'flying' || isAnimalWaterCreature(a)) continue;
+        for (const d of activeDecorList) {
+            if (!d || d.type === 'stepping_stone' || d.type === 'bridge' || d.type === 'golden_lotus') continue;
+            if (
+                a.interactingDecorId === d.id ||
+                a.targetDecorId === d.id ||
+                a.sleepingOnPillowId === d.id ||
+                a.targetPillowId === d.id
+            ) {
+                continue;
+            }
+            let dx = a.x - d.x;
+            let dy = a.y - d.y;
+            let dist = Math.hypot(dx, dy);
+            const clearRadius = 34;
+            if (dist < clearRadius) {
+                if (dist < 0.01) {
+                    dx = 0;
+                    dy = 1;
+                    dist = 1;
+                }
+                const push = Math.min(clearRadius - dist, Math.max((clearRadius - dist) * 0.6, 80 * (dt || 0.016)));
+                const nx = dx / dist;
+                const ny = dy / dist;
+                const px = a.x + nx * push;
+                const py = a.y + ny * push;
+                if (canStandOnGround(px, py, false)) {
+                    a.x = px;
+                    a.y = py;
+                }
+                if (a.state === 'idle' || a.state === 'happy') {
+                    const tx = d.x + nx * 52;
+                    const ty = d.y + ny * 44;
+                    if (canStandOnGround(tx, ty, false)) {
+                        a.targetX = tx;
+                        a.targetY = ty;
+                        a.state = 'walking';
+                        a.stateTimer = 2.5;
+                        a.facingLeft = tx < a.x;
+                    }
+                }
+            }
+        }
+    }
+
+    if (animals.length < 2) return;
+
+    for (let i = 0; i < animals.length; i++) {
+        const a = animals[i];
+        if (!a || a.isBeingDragged || a.type === 'butterfly' || a.habitat === 'flying') continue;
+        const aIsWater = isAnimalWaterCreature(a);
+
+        for (let j = i + 1; j < animals.length; j++) {
+            const b = animals[j];
+            if (!b || b.isBeingDragged || b.type === 'butterfly' || b.habitat === 'flying') continue;
+            const bIsWater = isAnimalWaterCreature(b);
+            if (aIsWater !== bIsWater) continue;
+
+            // 1. Jika dua hewan tidak sengaja menargetkan atau menempati dekorasi yang sama, batalkan hewan kedua!
+            if (a.interactingDecorId && (b.interactingDecorId === a.interactingDecorId || b.targetDecorId === a.interactingDecorId)) {
+                b.interactingDecorId = null;
+                b.targetDecorId = null;
+                b.pendingDecorMeta = null;
+                b.decorAction = null;
+                b.decorCooldown = 10 + Math.random() * 6;
+                b.state = 'idle';
+                b.stateTimer = 0.5;
+            } else if (b.interactingDecorId && a.targetDecorId === b.interactingDecorId) {
+                a.targetDecorId = null;
+                a.pendingDecorMeta = null;
+                a.decorCooldown = 10 + Math.random() * 6;
+                a.state = 'idle';
+                a.stateTimer = 0.5;
+            } else if (a.targetDecorId && b.targetDecorId === a.targetDecorId) {
+                b.targetDecorId = null;
+                b.pendingDecorMeta = null;
+                b.state = 'idle';
+                b.stateTimer = 0.5;
+            }
+
+            // 2. Cek jarak fisik antar dua hewan
+            let dx = b.x - a.x;
+            let dy = b.y - a.y;
+            let dist = Math.hypot(dx, dy);
+
+            if (dist < minSep) {
+                if (dist < 0.01) {
+                    const ang = ((i * 1.7 + j * 2.3 + 0.5) % (Math.PI * 2));
+                    dx = Math.cos(ang);
+                    dy = Math.sin(ang);
+                    dist = 1.0;
+                }
+                const overlap = minSep - dist;
+                const nx = dx / dist;
+                const ny = dy / dist;
+
+                const aAnchored = (a.state === 'decor_interact' && Boolean(a.interactingDecorId)) || Boolean(a.sleepingOnPillowId);
+                const bAnchored = (b.state === 'decor_interact' && Boolean(b.interactingDecorId)) || Boolean(b.sleepingOnPillowId);
+
+                // Jika keduanya sedang anchored pada posisi yang berdekatan (< 34px), lepaskan hewan kedua (`b`) agar berjalan menjauh!
+                if (aAnchored && bAnchored) {
+                    b.interactingDecorId = null;
+                    b.targetDecorId = null;
+                    b.pendingDecorMeta = null;
+                    b.decorAction = null;
+                    b.sleepingOnPillowId = null;
+                    b.targetPillowId = null;
+                    b.decorCooldown = 12;
+                    b.state = 'walking';
+                    b.stateTimer = 3.0;
+                    const pushX = b.x + nx * (overlap + 6);
+                    const pushY = b.y + ny * (overlap + 6);
+                    if (canStandOnGround(pushX, pushY, bIsWater)) {
+                        b.x = pushX;
+                        b.y = pushY;
+                    }
+                    b.targetX = b.x + nx * 44;
+                    b.targetY = b.y + ny * 36;
+                    continue;
+                }
+
+                // Dorong hewan yang tidak sedang ter-anchor (atau dorong keduanya 50/50 bila keduanya bebas)
+                const pushSpeed = Math.min(overlap, Math.max(overlap * 0.55, 75 * (dt || 0.016)));
+                if (aAnchored && !bAnchored) {
+                    const bx = b.x + nx * pushSpeed;
+                    const by = b.y + ny * pushSpeed;
+                    if (canStandOnGround(bx, by, bIsWater)) {
+                        b.x = bx;
+                        b.y = by;
+                    }
+                    if (b.state === 'idle' || b.state === 'happy') {
+                        const tx = b.x + nx * 44;
+                        const ty = b.y + ny * 34;
+                        if (canStandOnGround(tx, ty, bIsWater)) {
+                            b.targetX = tx;
+                            b.targetY = ty;
+                            b.state = 'walking';
+                            b.stateTimer = 2.5;
+                            b.facingLeft = tx < b.x;
+                        }
+                    }
+                } else if (!aAnchored && bAnchored) {
+                    const ax = a.x - nx * pushSpeed;
+                    const ay = a.y - ny * pushSpeed;
+                    if (canStandOnGround(ax, ay, aIsWater)) {
+                        a.x = ax;
+                        a.y = ay;
+                    }
+                    if (a.state === 'idle' || a.state === 'happy') {
+                        const tx = a.x - nx * 44;
+                        const ty = a.y - ny * 34;
+                        if (canStandOnGround(tx, ty, aIsWater)) {
+                            a.targetX = tx;
+                            a.targetY = ty;
+                            a.state = 'walking';
+                            a.stateTimer = 2.5;
+                            a.facingLeft = tx < a.x;
+                        }
+                    }
+                } else {
+                    const half = pushSpeed * 0.5;
+                    const ax = a.x - nx * half;
+                    const ay = a.y - ny * half;
+                    const bx = b.x + nx * half;
+                    const by = b.y + ny * half;
+                    if (canStandOnGround(ax, ay, aIsWater)) {
+                        a.x = ax;
+                        a.y = ay;
+                    }
+                    if (canStandOnGround(bx, by, bIsWater)) {
+                        b.x = bx;
+                        b.y = by;
                     }
                 }
             }
@@ -2485,6 +3807,197 @@ function drawFish(ctx, a, now) {
     ctx.restore();
 }
 
+function drawMossTurtle(ctx, a, now) {
+    const paddle = Math.sin(now * 0.0065 + (a.x || 0) * 0.1) * 0.32;
+    const headNod = Math.sin(now * 0.004 + (a.y || 0) * 0.1) * 1.0;
+    const strokeCol = '#263C0B';
+
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // 1. Water wake ripples when swimming in pond
+    if (!a.isBeingDragged && typeof isPointOnWater === 'function' && isPointOnWater(a.x, a.y)) {
+        const ripplePhase = (now * 0.003 + (a.x * 0.01)) % 1;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${0.36 * (1 - ripplePhase)})`;
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.ellipse(-4, 1, 14 + ripplePhase * 10, 6 + ripplePhase * 4, 0, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+
+    // 2. Far-side flippers (behind body)
+    ctx.fillStyle = '#4D7C0F';
+    ctx.strokeStyle = strokeCol;
+    ctx.lineWidth = 1.6;
+    // Far front flipper
+    ctx.save();
+    ctx.translate(8, -1);
+    ctx.rotate(-paddle * 0.8);
+    ctx.beginPath();
+    ctx.ellipse(3, 1.5, 5.5, 2.6, 0.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    // 3. Cute little tail at back (-x)
+    ctx.fillStyle = '#65A30D';
+    ctx.strokeStyle = strokeCol;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(-12, -3);
+    ctx.lineTo(-17, -1.5 + Math.sin(now * 0.008) * 1.2);
+    ctx.lineTo(-12, -0.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 4. Cute Chibi Turtle Head & Neck (facing +x right)
+    ctx.save();
+    ctx.translate(11, -5.5 + headNod);
+    // Neck + Rounded Head
+    ctx.fillStyle = '#84CC16';
+    ctx.strokeStyle = strokeCol;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.ellipse(2.5, -1.5, 6.2, 5.2, -0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Big adorable dark eye
+    ctx.fillStyle = '#1E1B4B';
+    ctx.beginPath();
+    ctx.arc(4.8, -2.5, 1.85, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Crisp white eye catchlights
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(4.3, -3.1, 0.75, 0, Math.PI * 2);
+    ctx.arc(5.3, -1.9, 0.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rosy pink cheek
+    ctx.fillStyle = 'rgba(251, 113, 133, 0.65)';
+    ctx.beginPath();
+    ctx.ellipse(3.0, -0.2, 1.7, 1.0, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Gentle happy smile
+    ctx.strokeStyle = strokeCol;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(5.8, -0.6, 1.6, 0.2 * Math.PI, 0.75 * Math.PI);
+    ctx.stroke();
+    ctx.restore();
+
+    // 5. Domed Carapace (Shell) in 3/4 Side Profile
+    ctx.save();
+    // Main dome shell
+    const shellGrad = ctx.createLinearGradient(-1, -17, -1, -1);
+    shellGrad.addColorStop(0, '#65A30D');
+    shellGrad.addColorStop(0.6, '#4D7C0F');
+    shellGrad.addColorStop(1, '#3F6212');
+    ctx.fillStyle = shellGrad;
+    ctx.strokeStyle = strokeCol;
+    ctx.lineWidth = 1.9;
+    ctx.beginPath();
+    ctx.moveTo(-13.5, -2.5);
+    ctx.bezierCurveTo(-14, -15.5, 11, -15.5, 11.5, -2.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Scute pattern lines on shell dome
+    ctx.strokeStyle = 'rgba(38, 60, 11, 0.55)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-6, -10.5);
+    ctx.lineTo(-3, -6.5);
+    ctx.lineTo(3, -6.5);
+    ctx.lineTo(5.5, -10.0);
+    ctx.moveTo(-3, -6.5);
+    ctx.lineTo(-4.5, -2.8);
+    ctx.moveTo(3, -6.5);
+    ctx.lineTo(4.5, -2.8);
+    ctx.stroke();
+
+    // Warm cream-yellow Plastron / Rim at base of shell
+    ctx.fillStyle = '#FEF08A';
+    ctx.strokeStyle = strokeCol;
+    ctx.lineWidth = 1.7;
+    ctx.beginPath();
+    ctx.moveTo(-14, -3.0);
+    ctx.quadraticCurveTo(-1, -0.5, 12, -3.0);
+    ctx.quadraticCurveTo(12.5, -1.0, 11, 0.2);
+    ctx.quadraticCurveTo(-1, 2.2, -13, 0.2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 6. Fluffy Green Moss Cushion & Tiny Blooming Flower on Top of Shell
+    ctx.fillStyle = '#84CC16';
+    ctx.strokeStyle = strokeCol;
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.arc(-4.5, -11.8, 3.2, Math.PI * 0.8, Math.PI * 2.1);
+    ctx.arc(-1.0, -13.0, 3.8, Math.PI * 0.9, Math.PI * 2.1);
+    ctx.arc(2.8, -11.6, 3.0, Math.PI * 0.9, Math.PI * 2.2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Little flower stem & leaves on shell crown
+    const sway = Math.sin(now * 0.005) * 0.12;
+    ctx.save();
+    ctx.translate(-1.0, -14.5);
+    ctx.rotate(sway);
+    ctx.strokeStyle = '#365314';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -4.5);
+    ctx.stroke();
+
+    // 5-petal sunny yellow flower
+    ctx.fillStyle = '#FACC15';
+    for (let p = 0; p < 5; p++) {
+        const aAng = (p * Math.PI * 2) / 5;
+        ctx.beginPath();
+        ctx.arc(Math.cos(aAng) * 2.1, -5.2 + Math.sin(aAng) * 2.1, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.fillStyle = '#EA580C';
+    ctx.beginPath();
+    ctx.arc(0, -5.2, 1.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.restore();
+
+    // 7. Near-side Front & Back Flippers (foreground)
+    ctx.fillStyle = '#84CC16';
+    ctx.strokeStyle = strokeCol;
+    ctx.lineWidth = 1.7;
+    // Near front flipper
+    ctx.save();
+    ctx.translate(5.5, 0.2);
+    ctx.rotate(paddle);
+    ctx.beginPath();
+    ctx.ellipse(1.5, 2.2, 5.8, 2.8, 0.45, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    // Near back flipper
+    ctx.save();
+    ctx.translate(-8.5, 0.2);
+    ctx.rotate(-paddle);
+    ctx.beginPath();
+    ctx.ellipse(-1.5, 1.8, 4.8, 2.4, -0.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+}
+
 function drawCustomAnimal(ctx, a, now) {
     ctx.save();
     ctx.translate(a.x, a.y);
@@ -2508,8 +4021,16 @@ function drawCustomAnimal(ctx, a, now) {
 
     if (a.facingLeft) ctx.scale(-1, 1);
 
-    // Render the custom hand-drawn canvas image
-    if (a.customImg && a.customImg.complete) {
+    const isMossTurtle =
+        a.customType === 'moss_turtle' ||
+        a.variant === 'moss_turtle' ||
+        a.type === 'turtle' ||
+        (a.id && a.id.startsWith('turtle')) ||
+        (a.name && (a.name.includes('Kura-kura') || a.name.includes('kura')));
+
+    if (isMossTurtle) {
+        drawMossTurtle(ctx, a, now);
+    } else if (a.customImg && a.customImg.complete) {
         ctx.drawImage(a.customImg, -w / 2, -h, w, h);
     } else if (a.spriteDataUrl) {
         if (!a.customImg) {
@@ -2538,20 +4059,381 @@ function drawCustomAnimal(ctx, a, now) {
     ctx.restore();
 }
 
+// ============================================================================
+// SYSTEM PESAN & CURHATAN SAHABAT HEWAN (HUMANIZED ANIMAL MESSAGES MODAL)
+// ============================================================================
+
+var animalMessageHistory = [];
+window.animalMessageHistory = animalMessageHistory;
+var currentAnimalMessageFilter = 'all';
+
+const HUMANIZED_ANIMAL_DIALOGS = {
+    bahagia: [
+        {
+            text: "Kebun ini sejuk dan tenang sekali hari ini... Aku betah banget ada di sampingmu.",
+            emoji: "🌸✨",
+            bubble: "(˶ᵔ ᵕ ᵔ˶) 💖"
+        },
+        {
+            text: "Bunga-bunga yang kamu rawat mekar harum sekali! Bikin langkah kakiku jadi ringan.",
+            emoji: "🌷🐾",
+            bubble: "(✿◠‿◠) ✨"
+        },
+        {
+            text: "Tadi waktu kamu elus kepalaku, rasanya hangat dan nyaman sekali... Makasih ya, Sahabat!",
+            emoji: "🥰💕",
+            bubble: "( ˶˘ ³˘)♡"
+        },
+        {
+            text: "Melihatmu sibuk berkebun bikin hatiku senang. Rasanya seperti punya rumah yang sesungguhnya.",
+            emoji: "🏡🌼",
+            bubble: "(๑•᎑•๑) ✨"
+        },
+        {
+            text: "Aku baru saja menemukan sudut rumput yang empuk banget untuk santai. Hari ini damai sekali!",
+            emoji: "🍃☀️",
+            bubble: "(っ˘ω˘ς) 🌿"
+        }
+    ],
+    request: [
+        {
+            text: "Hmm, kalau ada tanaman bunga berwarna cerah di dekat kolam, pasti pemandangannya makin cantik ya?",
+            emoji: "🌺💭",
+            bubble: "(•ㅅ•)? 🌸"
+        },
+        {
+            text: "Boleh elus kepalaku sebentar lagi? Sentuhanmu selalu bikin aku tenang dan bersemangat.",
+            emoji: "🐾🥺",
+            bubble: "𐔌՞ ܸ.ˬ.ܸ՞𐦯"
+        },
+        {
+            text: "Cuaca hari ini pas banget untuk jalan-jalan santai. Jangan lupa istirahat dan minum air ya!",
+            emoji: "🍵💧",
+            bubble: "(๑´ڡ`๑) 🍵"
+        },
+        {
+            text: "Rasanya seru kalau kita pasang lonceng angin atau tempat duduk kayu di dekat sini...",
+            emoji: "🎐🪵",
+            bubble: "(✧ω✧) 🎐"
+        },
+        {
+            text: "Aku ingin mencium wangi bunga baru yang sedang kamu gambar. Pasti hasilnya bagus sekali!",
+            emoji: "🎨🌸",
+            bubble: "(🎨˘꒳˘) ✨"
+        }
+    ],
+    sedih: [
+        {
+            text: "Tadi waktu kamu pergi sebentar, aku sempat celingukan mencarimu... Jangan pergi terlalu lama ya.",
+            emoji: "🥺🍂",
+            bubble: "(⸝⸝๑﹏๑⸝⸝)"
+        },
+        {
+            text: "Kakiku sedikit lelah melompat ke sana kemari... Boleh aku duduk diam di dekatmu?",
+            emoji: "🐾🌧️",
+            bubble: ".·°՞(っ-ᯅ-ς)՞°·."
+        },
+        {
+            text: "Suara angin kencang tadi sempat bikin aku kaget. Tapi kalau ada kamu di dekatku, aku merasa aman.",
+            emoji: "🍃⛈️",
+            bubble: "(⊙_⊙;) !"
+        },
+        {
+            text: "Kadang aku merasa kecil di pulau yang luas ini, tapi melihat senyummu bikin rasa takutku hilang.",
+            emoji: "🌱💧",
+            bubble: "(っ-ᯅ-ς) 💖"
+        }
+    ],
+    mengantuk: [
+        {
+            text: "Hooaam... Semilir angin kebun ini bikin mataku berat sekali. Bantal tidur empuk memanggil-manggilku...",
+            emoji: "💤☁️",
+            bubble: "(∪｡∪) ｡｡zZ"
+        },
+        {
+            text: "Hangatnya sinar matahari bikin aku ingin meringkuk tidur sebentar di bawah naungan daun...",
+            emoji: "☀️😴",
+            bubble: "(๑˘︶˘๑) 💤"
+        },
+        {
+            text: "Kelopak mataku sudah menyipit nih. Kalau aku ketiduran, tolong jangan bangunkan aku ya~",
+            emoji: "🛏️✨",
+            bubble: "(=^･ω･^=) zZ"
+        }
+    ]
+};
+
+/**
+ * Membersihkan teks kalimat latin dari speech bubble di layar,
+ * sehingga yang muncul di atas kepala hewan murni HANYA kaomoji & emoji cute.
+ */
+function sanitizeEmojiBubble(raw) {
+    if (!raw) return '';
+    let s = String(raw).trim();
+    // Hapus kata-kata berhuruf latin (2 huruf atau lebih), menyisakan kaomoji, simbol, dan emoji
+    s = s.replace(/[a-zA-Z]{2,}/g, '').trim();
+    // Rapikan spasi dan tanda baca lepas yang tersisa dari pemotongan kata
+    s = s.replace(/\s+/g, ' ').trim();
+    s = s.replace(/\s+[!?,~;:]+/g, '').replace(/^[!?,~;:]+\s+/g, '').trim();
+    return s || '🐾✨';
+}
+
+/**
+ * Menambahkan pesan teks humanis ke dalam riwayat pesan hewan,
+ * dan memperbarui notifikasi tombol pesan.
+ */
+function recordAnimalMessage(animal, text, category = 'bahagia', customEmoji = null) {
+    if (!animal || !text) return;
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    let emoji = customEmoji || '🐾';
+    if (!customEmoji) {
+        if (animal.type === 'cat') emoji = '🐱';
+        else if (animal.type === 'dog') emoji = '🐶';
+        else if (animal.type === 'rabbit') emoji = '🐰';
+        else if (animal.type === 'turtle') emoji = '🐢';
+        else if (animal.type === 'butterfly') emoji = '🦋';
+        else if (animal.type === 'fish') emoji = '🐟';
+        else if (animal.type === 'exclusive') emoji = '✨';
+    }
+
+    const messageObj = {
+        id: 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        animalId: animal.id,
+        animalName: animal.name || 'Sahabat Kecil',
+        animalType: animal.type,
+        emoji: emoji,
+        category: category,
+        text: text,
+        time: timeStr,
+        timestamp: Date.now()
+    };
+
+    // Simpan hingga 60 pesan terakhir
+    animalMessageHistory.unshift(messageObj);
+    if (animalMessageHistory.length > 60) {
+        animalMessageHistory.pop();
+    }
+
+    updateAnimalMessageNotification(true);
+
+    const modal = document.getElementById('animalMessagesModal');
+    if (modal && !modal.classList.contains('hidden')) {
+        renderAnimalMessages();
+    }
+}
+window.recordAnimalMessage = recordAnimalMessage;
+
+/**
+ * Menghasilkan pesan curhatan segar dari hewan-hewan aktif di kebun
+ */
+function generateFreshAnimalThoughts(targetAnimalId = null) {
+    if (typeof animals === 'undefined' || !Array.isArray(animals) || animals.length === 0) return;
+    const pool = targetAnimalId ? animals.filter(a => a.id === targetAnimalId) : animals;
+    if (pool.length === 0) return;
+
+    const categories = ['bahagia', 'request', 'sedih', 'mengantuk'];
+    const chosenAnimal = pool[Math.floor(Math.random() * pool.length)];
+
+    let category = 'bahagia';
+    if ((chosenAnimal.sleepiness || 0) >= 65 || chosenAnimal.state === 'sleeping') {
+        category = 'mengantuk';
+    } else if (chosenAnimal.state === 'scared' || Math.random() < 0.22) {
+        category = 'sedih';
+    } else if (Math.random() < 0.38) {
+        category = 'request';
+    }
+
+    const dialogList = HUMANIZED_ANIMAL_DIALOGS[category] || HUMANIZED_ANIMAL_DIALOGS.bahagia;
+    const template = dialogList[Math.floor(Math.random() * dialogList.length)];
+
+    recordAnimalMessage(chosenAnimal, template.text, category, template.emoji);
+    return template;
+}
+window.generateFreshAnimalThoughts = generateFreshAnimalThoughts;
+
+function updateAnimalMessageNotification(hasNew = false) {
+    const dot = document.getElementById('animalMessageBadgeDot');
+    if (dot) {
+        if (hasNew) {
+            dot.classList.remove('hidden');
+        } else {
+            dot.classList.add('hidden');
+        }
+    }
+}
+
+function openAnimalMessagesModal(filterAnimalId = null) {
+    const modal = document.getElementById('animalMessagesModal');
+    if (!modal) return;
+
+    // Jika belum ada pesan sama sekali, otomatis buat beberapa pesan curhat awal dari hewan kebun
+    if (animalMessageHistory.length === 0 && typeof animals !== 'undefined' && animals.length > 0) {
+        const count = Math.min(animals.length, 3);
+        for (let i = 0; i < count; i++) {
+            const a = animals[i];
+            const cats = ['bahagia', 'request', 'sedih', 'mengantuk'];
+            const cat = cats[i % cats.length];
+            const dList = HUMANIZED_ANIMAL_DIALOGS[cat];
+            const tmpl = dList[i % dList.length];
+            recordAnimalMessage(a, tmpl.text, cat, tmpl.emoji);
+        }
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    updateAnimalMessageNotification(false);
+
+    if (filterAnimalId) {
+        currentAnimalMessageFilter = 'animal_' + filterAnimalId;
+    } else {
+        currentAnimalMessageFilter = 'all';
+    }
+    renderAnimalMessages();
+}
+window.openAnimalMessagesModal = openAnimalMessagesModal;
+
+function closeAnimalMessagesModal() {
+    const modal = document.getElementById('animalMessagesModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+window.closeAnimalMessagesModal = closeAnimalMessagesModal;
+
+function filterAnimalMessages(cat) {
+    currentAnimalMessageFilter = cat;
+    const btns = document.querySelectorAll('.msg-filter-btn');
+    btns.forEach(b => {
+        b.className = 'msg-filter-btn px-3 py-1 rounded-full text-xs font-hand font-bold bg-white hover:bg-emerald-50 text-[#2B5B35] border border-[#d2e0cb] transition active:scale-95 shadow-xs';
+    });
+    const mapBtn = {
+        all: 'msgFilterAll',
+        bahagia: 'msgFilterHappy',
+        request: 'msgFilterRequest',
+        sedih: 'msgFilterSad',
+        mengantuk: 'msgFilterSleepy'
+    };
+    const activeId = mapBtn[cat];
+    if (activeId) {
+        const ab = document.getElementById(activeId);
+        if (ab) {
+            ab.className = 'msg-filter-btn px-3 py-1 rounded-full text-xs font-hand font-bold bg-[#2B5B35] text-white transition active:scale-95 shadow-xs';
+        }
+    }
+    renderAnimalMessages();
+}
+window.filterAnimalMessages = filterAnimalMessages;
+
+function renderAnimalMessages() {
+    const container = document.getElementById('animalMessagesContainer');
+    const counter = document.getElementById('animalMessagesCounterPill');
+    if (!container) return;
+
+    let filtered = animalMessageHistory;
+    if (currentAnimalMessageFilter && currentAnimalMessageFilter.startsWith('animal_')) {
+        const aId = currentAnimalMessageFilter.replace('animal_', '');
+        filtered = animalMessageHistory.filter(m => m.animalId === aId);
+    } else if (currentAnimalMessageFilter && currentAnimalMessageFilter !== 'all') {
+        filtered = animalMessageHistory.filter(m => m.category === currentAnimalMessageFilter);
+    }
+
+    if (counter) {
+        counter.textContent = `${filtered.length} pesan`;
+    }
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="py-12 px-4 text-center flex flex-col items-center justify-center">
+                <div class="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 text-3xl flex items-center justify-center mb-3 shadow-inner">
+                    💌
+                </div>
+                <h4 class="font-hand font-bold text-base text-[#2B5B35]">Belum ada pesan dalam kategori ini</h4>
+                <p class="text-xs text-gray-500 max-w-sm mt-1 leading-relaxed">
+                    Ajak hewan bermain, elus mereka di kebun, atau klik tombol <b>Perbarui Curhatan</b> di bawah untuk mendengar suara hati mereka!
+                </p>
+            </div>
+        `;
+        return;
+    }
+
+    const categoryBadge = {
+        bahagia: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">🌸 Bahagia</span>',
+        request: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">✨ Permintaan</span>',
+        sedih: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">💧 Sendu</span>',
+        mengantuk: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">💤 Mengantuk</span>'
+    };
+
+    container.innerHTML = filtered.map(m => {
+        return `
+            <div class="bg-white rounded-2xl p-3.5 sm:p-4 border border-[#e2d9c5] shadow-sm hover:shadow-md transition flex items-start gap-3 relative group">
+                <div class="w-10 h-10 rounded-2xl bg-[#FAF7EE] border border-[#dce6d5] flex items-center justify-center text-xl shrink-0 shadow-2xs">
+                    ${m.emoji || '🐾'}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <span class="font-hand font-bold text-sm text-[#2B5B35] truncate">${m.animalName}</span>
+                            ${categoryBadge[m.category] || categoryBadge.bahagia}
+                        </div>
+                        <span class="text-[10px] text-gray-400 font-mono shrink-0">${m.time}</span>
+                    </div>
+                    <p class="text-xs text-[#3a5a40] leading-relaxed font-sans pr-2">
+                        "${m.text}"
+                    </p>
+                    <div class="mt-2.5 flex items-center gap-2">
+                        <button
+                            onclick="if(window.focusAnimal){window.focusAnimal('${m.animalId}'); window.closeAnimalMessagesModal();}"
+                            class="px-2.5 py-1 rounded-full text-[11px] font-hand font-bold bg-[#FAF7EE] hover:bg-emerald-50 text-[#2B5B35] border border-[#c5d9b7] transition active:scale-95 flex items-center gap-1"
+                            title="Arahkan kamera ke hewan ini di kebun"
+                        >
+                            <span>🔍 Temui Hewan</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+window.renderAnimalMessages = renderAnimalMessages;
+
 function drawAnimalBubble(ctx, a) {
     if (!a.bubbleText || a.bubbleTimer <= 0) return;
     if (a.state === 'sleeping') return; // Do not draw speech bubble during sleep! Peaceful Zzz particles only.
+
+    // PISAHKAN TEKS KALIMAT: Di layar kebun, gelembung HANYA menampilkan ekspresi kaomoji & emoji murni!
+    const displayBubble = sanitizeEmojiBubble(a.bubbleText);
+    if (!displayBubble) return;
+
+    // Anti-overlap untuk gelembung: cegah gelembung bertumpuk bila ada hewan lain berdekatan yang juga sedang menampilkan bubble
+    let verticalShift = 0;
+    if (typeof animals !== 'undefined' && Array.isArray(animals)) {
+        for (const other of animals) {
+            if (!other || other === a || other.id === a.id) break; // Hanya cek hewan yang sudah dirender sebelumnya
+            if (!other.bubbleText || other.bubbleTimer <= 0 || other.state === 'sleeping') continue;
+            const dx = Math.abs(other.x - a.x);
+            const dy = Math.abs(other.y - a.y);
+            if (dx < 26 && dy < 24) {
+                return; // Terlalu dekat, sembunyikan duplikat agar bersih
+            }
+            if (dx < 95 && dy < 34) {
+                verticalShift += 30;
+            }
+        }
+    }
 
     ctx.save();
     const alpha = Math.min(1, a.bubbleTimer * 2.5);
     ctx.globalAlpha = alpha;
 
     const bx = a.x;
-    const by = a.y - 48;
+    const by = a.y - 48 - verticalShift;
 
     // Font stack khusus agar karakter kaomoji Unicode (seperti 𐔌, ՞, 𐦯, ᯅ, ᎑) dirender dengan presisi tinggi
     ctx.font = 'bold 14px "Segoe UI Emoji", "Segoe UI Symbol", "Apple Color Emoji", "Patrick Hand", sans-serif';
-    const metrics = ctx.measureText(a.bubbleText);
+    const metrics = ctx.measureText(displayBubble);
     const padX = 14;
     const padY = 6;
     const bw = Math.max(52, metrics.width + padX * 2);
@@ -2582,7 +4464,7 @@ function drawAnimalBubble(ctx, a) {
     ctx.fillStyle = '#2B5B35';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(a.bubbleText, bx, by);
+    ctx.fillText(displayBubble, bx, by);
 
     ctx.restore();
 }
@@ -2596,7 +4478,7 @@ function drawAnimalNameTag(ctx, a) {
     const nx = a.x;
     const ny = (a.bubbleText && a.bubbleTimer > 0) ? a.y - 74 : a.y - 42;
 
-    const emojis = { cat: '🐱', dog: '🐶', rabbit: '🐰', butterfly: '🦋', custom: '✨' };
+    const emojis = { cat: '🐱', dog: '🐶', rabbit: '🐰', butterfly: '🦋', fish: '🐟', turtle: '🐢', custom: ((a.id && a.id.startsWith('turtle')) || (a.name && a.name.includes('Kura-kura')) ? '🐢' : '✨') };
     const emoji = emojis[a.type] || '🐾';
     const label = `${emoji} ${a.name}`;
 

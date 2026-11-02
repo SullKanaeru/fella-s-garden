@@ -1066,6 +1066,205 @@ function adaptAudioAtmosphere(isNight, weather, season) {
   }
 }
 
+/********************************************************************
+ * COZY GAMEPLAY SYNTH SOUNDS (Fishing, Petting, Beach, Campfire)
+ ********************************************************************/
+function playFishingCastSound() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    // Whoosh cast
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(600, now);
+    osc.frequency.exponentialRampToValueAtTime(180, now + 0.22);
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.18, now + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.25);
+
+    // Water plop at landing
+    setTimeout(() => {
+      try {
+        const c = getAudioCtx();
+        if (!c) return;
+        const t = c.currentTime;
+        const plop = c.createOscillator();
+        const pGain = c.createGain();
+        plop.type = "sine";
+        plop.frequency.setValueAtTime(260, t);
+        plop.frequency.exponentialRampToValueAtTime(620, t + 0.08);
+        pGain.gain.setValueAtTime(0.001, t);
+        pGain.gain.linearRampToValueAtTime(0.25, t + 0.02);
+        pGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+        plop.connect(pGain);
+        pGain.connect(c.destination);
+        plop.start(t);
+        plop.stop(t + 0.18);
+      } catch (err) {}
+    }, 200);
+  } catch (e) {}
+}
+
+function playFishingBiteSound() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    // Dual high-pitch alert bloop!
+    [480, 880].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      const startT = now + i * 0.07;
+      osc.frequency.setValueAtTime(freq * 0.8, startT);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.3, startT + 0.06);
+      gain.gain.setValueAtTime(0.001, startT);
+      gain.gain.linearRampToValueAtTime(0.3, startT + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startT + 0.12);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startT);
+      osc.stop(startT + 0.14);
+    });
+  } catch (e) {}
+}
+
+function playFishingReelSound() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    // Quick reel clicking clicks
+    for (let i = 0; i < 4; i++) {
+      const clickTime = now + i * 0.04;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(1200 + i * 150, clickTime);
+      gain.gain.setValueAtTime(0.12, clickTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, clickTime + 0.03);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(clickTime);
+      osc.stop(clickTime + 0.035);
+    }
+    // Water splash & victory chord
+    setTimeout(() => {
+      try {
+        const c = getAudioCtx();
+        if (!c) return;
+        const t = c.currentTime;
+        [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+          const osc = c.createOscillator();
+          const gain = c.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(freq, t + idx * 0.06);
+          gain.gain.setValueAtTime(0.001, t + idx * 0.06);
+          gain.gain.linearRampToValueAtTime(0.2, t + idx * 0.06 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + idx * 0.06 + 0.4);
+          osc.connect(gain);
+          gain.connect(c.destination);
+          osc.start(t + idx * 0.06);
+          osc.stop(t + idx * 0.06 + 0.42);
+        });
+      } catch (err) {}
+    }, 180);
+  } catch (e) {}
+}
+
+function playPurrSound() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    // Rhythmic warm low purr
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(75, now);
+
+    lfo.type = "sine";
+    lfo.frequency.setValueAtTime(22, now); // 22Hz purr motor
+    lfoGain.gain.setValueAtTime(0.12, now);
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(gain.gain);
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.22, now + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    lfo.start(now);
+    osc.stop(now + 0.95);
+    lfo.stop(now + 0.95);
+  } catch (e) {}
+}
+
+function playCampfireCrackle() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    for (let i = 0; i < 3; i++) {
+      const snapTime = now + Math.random() * 0.25;
+      const bufferSize = Math.floor(ctx.sampleRate * 0.035);
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let j = 0; j < bufferSize; j++) {
+        data[j] = (Math.random() * 2 - 1) * Math.exp(-j / (bufferSize * 0.25));
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = "bandpass";
+      filter.frequency.setValueAtTime(1500 + Math.random() * 1800, snapTime);
+      filter.Q.setValueAtTime(3.0, snapTime);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.15 + Math.random() * 0.1, snapTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, snapTime + 0.04);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      noise.start(snapTime);
+      noise.stop(snapTime + 0.05);
+    }
+  } catch (e) {}
+}
+
+function playCrabClickSound() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    [1400, 1800].forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      const t = now + idx * 0.04;
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.18, t);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.025);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.03);
+    });
+  } catch (e) {}
+}
+
 // Global function bindings on window
 window.initAudio = initAudio;
 window.playCatMeowSound = playCatMeowSound;
@@ -1084,6 +1283,12 @@ window.stopRainSound = stopRainSound;
 window.playErrorSound = playErrorSound;
 window.playChimeSound = playChimeSound;
 window.playThunderSound = playThunderSound;
+window.playFishingCastSound = playFishingCastSound;
+window.playFishingBiteSound = playFishingBiteSound;
+window.playFishingReelSound = playFishingReelSound;
+window.playPurrSound = playPurrSound;
+window.playCampfireCrackle = playCampfireCrackle;
+window.playCrabClickSound = playCrabClickSound;
 window.adaptAudioAtmosphere = adaptAudioAtmosphere;
 window.initBgmPlayer = initBgmPlayer;
 window.loadBgmTrack = loadBgmTrack;

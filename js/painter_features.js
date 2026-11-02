@@ -566,8 +566,11 @@
                 else requesterIcon = '🐱';
 
                 chosen.hasArtCommission = true;
-                chosen.bubbleText = '🎨 Aku punya pesanan lukisan!';
+                chosen.bubbleText = '🎨 (•ㅅ•)? ✨';
                 chosen.bubbleTimer = 5.5;
+                if (typeof recordAnimalMessage === 'function') {
+                    recordAnimalMessage(chosen, `Hai Sahabat! Aku punya ide dan ingin memesan lukisan bunga bertema "${tmpl.title || 'bunga cantik'}". Boleh tolong gambarkan di studio?`, 'request', '🎨');
+                }
             }
         }
 
@@ -614,9 +617,12 @@
                     targetAnimal.state = 'walk';
                     targetAnimal.stateTimer = 4.0;
                     targetAnimal.friendship = Math.min(100, (targetAnimal.friendship || 20) + 25);
-                    targetAnimal.bubbleText = `Wah indah sekali!! Makasih! +${starsEarned}⭐ 💕🎨`;
+                    targetAnimal.bubbleText = `(˶ᵔ ᵕ ᵔ˶) ⭐ +${starsEarned} 🌸`;
                     targetAnimal.bubbleTimer = 6.0;
                     targetAnimal.carryingFlowerTimer = 12.0;
+                    if (typeof recordAnimalMessage === 'function') {
+                        recordAnimalMessage(targetAnimal, `Wahh, lukisan pesanan ini indah sekali!! Kamu berbakat banget. Bunga ini bakal jadi kenang-kenangan favoritku! (+${starsEarned} Bintang)`, 'bahagia', '🌸');
+                    }
                 }
             }
 
@@ -1064,6 +1070,12 @@
             'Karya seni kebun terbaik! 🌟',
             'Aku suka goresan kuasnya~ 🐾'
         ];
+        const commentEmojis = [
+            '(🎨˘꒳˘) ✨',
+            '( ˶˘ ³˘˶) 💕',
+            '(★ω★) 🌟',
+            '(˶ᵔ ᵕ ᵔ˶) 🐾'
+        ];
         admirers.forEach((a, i) => {
             const angle = (i - 1) * 0.65;
             a.targetX = easel.x + Math.sin(angle) * 44;
@@ -1072,8 +1084,11 @@
             a.stateTimer = 4.5;
             setTimeout(() => {
                 a.facingLeft = a.x > easel.x;
-                a.bubbleText = comments[i % comments.length];
+                a.bubbleText = commentEmojis[i % commentEmojis.length];
                 a.bubbleTimer = 5.0;
+                if (typeof recordAnimalMessage === 'function') {
+                    recordAnimalMessage(a, comments[i % comments.length], 'bahagia', '🎨');
+                }
             }, 1800 + i * 600);
         });
     }

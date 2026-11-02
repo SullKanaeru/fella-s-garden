@@ -840,12 +840,33 @@ function triggerAnimalWeatherReactions(newWeather) {
     };
 
     const pool = dialogs[newWeather] || dialogs.clear;
-    const count = Math.min(animals.length, Math.floor(Math.random() * 2) + 2);
-    const shuffled = [...animals].sort(() => 0.5 - Math.random());
-    for (let i = 0; i < count; i++) {
-        const a = shuffled[i];
-        a.bubbleText = pool[Math.floor(Math.random() * pool.length)];
-        a.bubbleTimer = 4.5;
+    const eligible = animals.filter(a => a && a.state !== 'sleeping' && a.state !== 'decor_interact' && !a.interactingDecorId && !(a.bubbleTimer > 0));
+    if (eligible.length > 0) {
+        const a = eligible[Math.floor(Math.random() * eligible.length)];
+        const fullMessage = pool[Math.floor(Math.random() * pool.length)];
+
+        // Teks kalimat humanis dicatat ke modal Pesan Hewan
+        if (typeof recordAnimalMessage === 'function') {
+            let cat = 'bahagia';
+            if (newWeather === 'thunderstorm') cat = 'sedih';
+            else if (newWeather === 'heatwave') cat = 'request';
+            else if (newWeather === 'breeze') cat = 'mengantuk';
+            recordAnimalMessage(a, fullMessage, cat);
+        }
+
+        // Di layar kebun, gelembung murni hanya menampilkan emoji/kaomoji reaksi
+        const weatherReactionEmojis = {
+            thunderstorm: '(⊙_⊙;) ⚡',
+            drizzle: '💧 (๑•᎑•๑)',
+            rainbow: '🌈 (★ω★)',
+            sakura_storm: '🌸 ( ˘ ³˘)♪',
+            blizzard: '❄️ (⸝⸝๑﹏๑⸝⸝)',
+            heatwave: '☀️ (っ˘ω˘ς)',
+            clear: '☀️ (˶ᵔ ᵕ ᵔ˶)',
+            breeze: '🍃 (∪｡∪) zZ'
+        };
+        a.bubbleText = weatherReactionEmojis[newWeather] || '☀️ (˶ᵔ ᵕ ᵔ˶)';
+        a.bubbleTimer = 3.8;
     }
 }
 

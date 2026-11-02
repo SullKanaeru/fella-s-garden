@@ -179,6 +179,28 @@
           </svg>
           <span class="font-bold text-[11px] sm:text-xs">Hujan</span>
         </button>
+        <button
+          id="topOttoMerchantBtn"
+          onclick="openOttoMerchantModal()"
+          class="inline-flex items-center gap-1 sm:gap-1.5 text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border border-amber-300 transition active:scale-95 shadow-xs shrink-0 cursor-pointer"
+          title="Toko Pengelana Otto: Barter bintang dengan pernak-pernik langka!"
+        >
+          <span class="text-xs">🦦</span>
+          <span class="font-bold text-[11px] sm:text-xs">Toko Otto</span>
+        </button>
+        <button
+          id="topAnimalMessagesBtn"
+          onclick="openAnimalMessagesModal()"
+          class="relative inline-flex items-center gap-1 sm:gap-1.5 text-xs bg-emerald-50 hover:bg-emerald-100 text-[#2B5B35] px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border border-[#7DB852]/60 transition active:scale-95 shadow-xs shrink-0 cursor-pointer"
+          title="Buka Pesan & Curhatan Hewan-hewan Kebun"
+        >
+          <span class="text-xs">💬</span>
+          <span class="font-bold text-[11px] sm:text-xs">Pesan Hewan</span>
+          <span
+            id="animalMessageBadgeDot"
+            class="hidden w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white animate-pulse"
+          ></span>
+        </button>
       </div>
 
       <!-- Subtle Status Pill -->
@@ -2318,6 +2340,124 @@
       </div>
     </div>
 
+    <!-- ANIMAL MESSAGES MODAL (Kotak Surat & Curhatan Hewan) -->
+    <div
+      id="animalMessagesModal"
+      class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/50 backdrop-blur-sm pointer-events-auto transition-opacity duration-200"
+    >
+      <div
+        class="relative w-full max-w-xl bg-[#FDFBF2] border-2 sm:border-[3px] border-[#3a5a40] rounded-3xl shadow-2xl flex flex-col max-h-[88vh] overflow-hidden"
+      >
+        <!-- Modal Header -->
+        <div
+          class="px-5 py-3.5 bg-[#fbf5e6] border-b border-[#e2d5bc] flex items-center justify-between"
+        >
+          <div class="flex items-center gap-2.5">
+            <div
+              class="w-9 h-9 rounded-xl bg-emerald-700/15 text-[#2B5B35] flex items-center justify-center text-lg shadow-2xs"
+            >
+              💬
+            </div>
+            <div>
+              <h2
+                class="font-hand font-bold text-lg sm:text-xl text-[#2B5B35] leading-tight flex items-center gap-2"
+              >
+                <span>Curhatan Sahabat Hewan</span>
+                <span
+                  id="animalMessagesCounterPill"
+                  class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 font-sans font-bold"
+                  >0 pesan</span
+                >
+              </h2>
+              <p class="text-[11px] text-[#477431]">
+                Dengarkan apa yang sedang dirasakan dan dipikirkan oleh hewan-hewan di kebunmu.
+              </p>
+            </div>
+          </div>
+          <button
+            onclick="closeAnimalMessagesModal()"
+            class="w-8 h-8 rounded-full bg-white hover:bg-gray-100 text-gray-500 hover:text-gray-800 flex items-center justify-center border border-[#e2d5bc] transition shadow-xs active:scale-95"
+            title="Tutup Kotak Pesan"
+          >
+            <svg
+              class="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Filter Tab Buttons -->
+        <div class="px-5 py-2.5 bg-[#FAF7EE] border-b border-[#e2d5bc] flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <button
+            id="msgFilterAll"
+            onclick="filterAnimalMessages('all')"
+            class="msg-filter-btn px-3 py-1 rounded-full text-xs font-hand font-bold bg-[#2B5B35] text-white transition active:scale-95 shadow-xs"
+          >
+            Semua Pesan
+          </button>
+          <button
+            id="msgFilterHappy"
+            onclick="filterAnimalMessages('bahagia')"
+            class="msg-filter-btn px-3 py-1 rounded-full text-xs font-hand font-bold bg-white hover:bg-emerald-50 text-[#2B5B35] border border-[#d2e0cb] transition active:scale-95 shadow-xs"
+          >
+            🌸 Bahagia
+          </button>
+          <button
+            id="msgFilterRequest"
+            onclick="filterAnimalMessages('request')"
+            class="msg-filter-btn px-3 py-1 rounded-full text-xs font-hand font-bold bg-white hover:bg-amber-50 text-amber-900 border border-amber-200 transition active:scale-95 shadow-xs"
+          >
+            ✨ Permintaan
+          </button>
+          <button
+            id="msgFilterSad"
+            onclick="filterAnimalMessages('sedih')"
+            class="msg-filter-btn px-3 py-1 rounded-full text-xs font-hand font-bold bg-white hover:bg-sky-50 text-sky-900 border border-sky-200 transition active:scale-95 shadow-xs"
+          >
+            💧 Sendu & Manja
+          </button>
+          <button
+            id="msgFilterSleepy"
+            onclick="filterAnimalMessages('mengantuk')"
+            class="msg-filter-btn px-3 py-1 rounded-full text-xs font-hand font-bold bg-white hover:bg-purple-50 text-purple-900 border border-purple-200 transition active:scale-95 shadow-xs"
+          >
+            💤 Mengantuk
+          </button>
+        </div>
+
+        <!-- Messages List Container -->
+        <div
+          id="animalMessagesContainer"
+          class="p-4 sm:p-5 overflow-y-auto space-y-3 flex-1 no-scrollbar bg-[#FAF7EE]/60 min-h-[260px] max-h-[58vh]"
+        >
+          <!-- Populated dynamically via renderAnimalMessages() -->
+        </div>
+
+        <!-- Modal Footer -->
+        <div
+          class="px-5 py-3 bg-[#fbf5e6] border-t border-[#e2d5bc] flex items-center justify-between text-xs text-gray-500 font-hand"
+        >
+          <span class="flex items-center gap-1.5">
+            <span>💡</span>
+            <span>Hewan akan bercerita lebih banyak seiring kamu merawat kebun dan mengelus mereka.</span>
+          </span>
+          <button
+            onclick="generateFreshAnimalThoughts(); renderAnimalMessages();"
+            class="px-3 py-1 rounded-full bg-white hover:bg-emerald-50 border border-[#7DB852]/60 text-[#2B5B35] font-bold transition active:scale-95 shadow-xs flex items-center gap-1 shrink-0"
+            title="Dengarkan pikiran terbaru dari hewan di kebun"
+          >
+            <span>🔄 Perbarui Curhatan</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ANIMAL COMPANIONS POPUP MODAL (Sahabat Hewan Kebun) -->
     <div
       id="animalModal"
@@ -4417,6 +4557,13 @@
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
+        <button
+          onclick="openAnimalMessagesModal(followedAnimal ? followedAnimal.id : null)"
+          class="px-2 py-0.5 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-bold font-hand flex items-center gap-1 transition active:scale-95"
+          title="Lihat pesan dari sahabat ini"
+        >
+          <span>💬 Curhat</span>
+        </button>
       </div>
 
       <!-- Floating Contextual Brush Size Popover (Appears above dock when Land, Grass, or Erase is active) -->
@@ -4769,6 +4916,16 @@
             id="thirstyAlertDot"
             class="hidden absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-sky-500 rounded-full animate-ping"
           ></span>
+        </button>
+
+        <!-- Tool: Pancingan Santai (Fishing) -->
+        <button
+          id="tool-fishing"
+          onclick="setWorldTool('fishing')"
+          class="tool-btn w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center relative cursor-pointer transition active:scale-95"
+          title="Pancingan Santai: Lempar kail ke kolam air untuk memancing ikan koi, kura-kura, atau botol pesan!"
+        >
+          <span class="text-sm sm:text-base select-none">🎣</span>
         </button>
 
         <!-- TOOL DROPDOWN: PENGHAPUS (Hapus Medan Hijau, Hapus Medan Air, Hapus Rumput) -->
@@ -5819,6 +5976,104 @@
         </svg>
         <span class="hidden sm:inline">Tampilkan UI</span>
       </button>
+    </div>
+
+    <!-- 1. FISHING CATCH REWARD MODAL (#fishingCatchModal) -->
+    <div
+      id="fishingCatchModal"
+      class="hidden fixed inset-0 z-[80] bg-black/55 backdrop-blur-sm items-center justify-center p-3 sm:p-4 pointer-events-auto select-none"
+      onclick="closeFishingCatchModal()"
+    >
+      <div
+        class="relative w-full max-w-sm bg-[#FDFBF2] border-2 sm:border-[3px] border-[#2B5B35] rounded-3xl p-5 shadow-2xl flex flex-col items-center text-center"
+        onclick="event.stopPropagation()"
+      >
+        <span class="text-4xl sm:text-5xl my-2" id="fishingCatchIcon">🐟</span>
+        <div id="fishingCatchBadge" class="px-3 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 font-bold text-xs mb-2">
+          Tangkapan Istimewa! 🎣
+        </div>
+        <h3 id="fishingCatchTitle" class="font-hand font-bold text-lg sm:text-xl text-[#2B5B35] mb-1">
+          Ikan Koi Emas Ogon
+        </h3>
+        <p id="fishingCatchDesc" class="text-xs sm:text-sm text-[#3a5a40] mb-3 font-medium px-2 leading-relaxed">
+          Ikan koi emas yang berkilau di bawah air! Sekarang berenang bebas di kolam kebunmu.
+        </p>
+        <div id="fishingBottleNoteWrapper" class="hidden w-full mb-3 p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-950 font-hand leading-relaxed italic">
+          <p id="fishingBottleNoteText">"Setiap hari adalah tunas baru. Bernapaslah perlahan dan nikmati momen damai ini."</p>
+        </div>
+        <div class="flex items-center gap-2 w-full mt-1">
+          <button
+            type="button"
+            onclick="closeFishingCatchModal()"
+            class="flex-1 py-2.5 rounded-2xl bg-[#2B5B35] hover:bg-[#1f4627] text-white font-bold text-xs sm:text-sm transition active:scale-95 shadow-md cursor-pointer"
+          >
+            Lepas ke Kolam & Lanjut 🌊
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. WANDERING MERCHANT OTTO MODAL (#ottoMerchantModal) -->
+    <div
+      id="ottoMerchantModal"
+      class="hidden fixed inset-0 z-[80] bg-black/55 backdrop-blur-sm items-center justify-center p-3 sm:p-5 pointer-events-auto select-none"
+      onclick="closeOttoMerchantModal()"
+    >
+      <div
+        class="relative w-full max-w-lg bg-[#FDFBF2] border-2 sm:border-[3px] border-amber-800 rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+        onclick="event.stopPropagation()"
+      >
+        <!-- Modal Header -->
+        <div class="px-4 sm:px-5 py-3 bg-[#FEF3C7] border-b border-amber-200 flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-200 border border-amber-400 flex items-center justify-center text-xl sm:text-2xl shadow-xs">
+              🦦
+            </div>
+            <div>
+              <h3 class="font-hand font-bold text-base sm:text-lg text-amber-950 leading-tight flex items-center gap-2">
+                <span>Toko Pengelana Otto</span>
+                <span class="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-sans font-bold">Kapal Berlabuh</span>
+              </h3>
+              <p class="text-[10px] sm:text-xs text-amber-800">Barter koin bintang dengan dekorasi & perlengkapan eksklusif!</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onclick="closeOttoMerchantModal()"
+            class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/80 hover:bg-white border border-amber-300 text-amber-900 flex items-center justify-center transition cursor-pointer text-sm font-bold"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- Otto Greeting & Balance Banner -->
+        <div class="p-3 sm:p-4 bg-amber-50/60 border-b border-amber-100 flex items-center justify-between gap-3 shrink-0">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-xl">💬</span>
+            <p id="ottoDialogueText" class="text-xs text-amber-900 font-hand font-medium leading-relaxed truncate">
+              "Halo sahabat! Ombak hari ini membawaku ke pulaumu yang damai."
+            </p>
+          </div>
+          <div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-amber-300 text-amber-800 font-bold text-xs shrink-0 shadow-2xs">
+            <span>⭐ Saldo:</span>
+            <span id="ottoStarBalance">0</span>
+          </div>
+        </div>
+
+        <!-- Items Grid Container -->
+        <div class="p-3 sm:p-4 overflow-y-auto space-y-3 flex-1 min-h-0">
+          <div id="ottoShopGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-3 bg-[#FEF3C7]/60 border-t border-amber-200 text-center shrink-0">
+          <p class="text-[10px] text-amber-800">
+            Kumpulkan bintang dengan menyiram tanaman, membelai hewan, memancing, atau sesi fokus! ⭐
+          </p>
+        </div>
+      </div>
     </div>
 
     <!-- GARDEN DECORATIONS MODAL (#decorModal) -->

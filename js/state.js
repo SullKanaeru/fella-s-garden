@@ -21,6 +21,8 @@ var dragStartScreenX = 0;
 var dragStartScreenY = 0;
 var dragStartPanX = 0;
 var dragStartPanY = 0;
+var pendingHandDecorTap = null;
+var handDecorDownPos = null;
 var isSpacePressed = false;
 
 // Multi-touch tracking for pinch-to-zoom & smooth touch pan

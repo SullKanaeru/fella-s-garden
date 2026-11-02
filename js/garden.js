@@ -1597,42 +1597,7 @@ function renderTerrainChunk(dx, dy, dw, dh) {
     }
   }
 
-  // Composite Sand / Beach Terrain on the meadow
-  if (typeof sandMaskCanvas !== "undefined" && sandMaskCanvas) {
-    const sdc = dirtySandCtx;
-    if (sdc) {
-      sdc.save();
-      sdc.beginPath();
-      sdc.rect(0, 0, sw, sh);
-      sdc.clip();
-
-      sdc.clearRect(0, 0, sw, sh);
-      sdc.globalCompositeOperation = "source-over";
-      sdc.drawImage(sandMaskCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
-      sdc.globalCompositeOperation = "source-in";
-
-      // Warm golden beach gradient
-      const sGrad = sdc.createLinearGradient(
-        0,
-        WORLD_H * 0.2 - sy,
-        0,
-        WORLD_H * 0.8 - sy,
-      );
-      sGrad.addColorStop(0, "#FFF7E6");
-      sGrad.addColorStop(0.5, "#FCE49C");
-      sGrad.addColorStop(1, "#E8B868");
-      sdc.fillStyle = sGrad;
-      sdc.fillRect(0, 0, sw, sh);
-      sdc.restore();
-
-      sCtx.save();
-      sCtx.globalCompositeOperation = "source-atop";
-      sCtx.drawImage(dirtySandCanvas, 0, 0, sw, sh, 0, 0, sw, sh);
-      sCtx.restore();
-    }
-  }
-
-  // Composite Water Bodies on the meadow
+  // Composite Water Bodies & Bright Beach Sand on the meadow
   if (waterMaskCanvas) {
     wCtx.save();
     wCtx.beginPath();
@@ -1662,7 +1627,47 @@ function renderTerrainChunk(dx, dy, dw, dh) {
     sCtx.drawImage(waterMaskCanvas, sx, sy, sw, sh, 0, 3.5, sw, sh);
     sCtx.fillStyle = "rgba(38, 62, 28, 0.45)";
     sCtx.fillRect(0, 0, sw, sh);
+    sCtx.restore();
+  }
 
+  // Composite Sand / Beach Terrain AFTER grass shading so sand stays bright & sunny!
+  if (typeof sandMaskCanvas !== "undefined" && sandMaskCanvas) {
+    const sdc = dirtySandCtx;
+    if (sdc) {
+      sdc.save();
+      sdc.beginPath();
+      sdc.rect(0, 0, sw, sh);
+      sdc.clip();
+
+      sdc.clearRect(0, 0, sw, sh);
+      sdc.globalCompositeOperation = "source-over";
+      sdc.drawImage(sandMaskCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+      sdc.globalCompositeOperation = "source-in";
+
+      // Bright, warm, sunny golden-cream beach gradient
+      const sGrad = sdc.createLinearGradient(
+        0,
+        WORLD_H * 0.2 - sy,
+        0,
+        WORLD_H * 0.8 - sy,
+      );
+      sGrad.addColorStop(0, "#FFF9D2");
+      sGrad.addColorStop(0.5, "#FFE885");
+      sGrad.addColorStop(1, "#FCD34D");
+      sdc.fillStyle = sGrad;
+      sdc.fillRect(0, 0, sw, sh);
+      sdc.restore();
+
+      sCtx.save();
+      sCtx.globalCompositeOperation = "source-atop";
+      sCtx.drawImage(dirtySandCanvas, 0, 0, sw, sh, 0, 0, sw, sh);
+      sCtx.restore();
+    }
+  }
+
+  if (waterMaskCanvas) {
+    sCtx.save();
+    sCtx.globalCompositeOperation = "source-atop";
     sCtx.drawImage(dirtyWaterCanvas, 0, 0, sw, sh, 0, 0, sw, sh);
     sCtx.restore();
   }
@@ -1681,7 +1686,7 @@ function renderTerrainChunk(dx, dy, dw, dh) {
         d.y > dy + dh + 24
       )
         continue;
-      if (isPointOnWater(d.x, d.y) || isPointOnSand(d.x, d.y)) continue;
+      if (isPointOnWater(d.x, d.y) || isPointOnSand(d.x, d.y) || isNearSand(d.x, d.y, 12)) continue;
       drawGrassTuft(terrainLayerCtx, d.x, d.y, d.size, d.blades, d.color);
     }
   }
@@ -1752,6 +1757,14 @@ function rebuildTerrain3DLayer() {
   ) {
     terrainLayerCanvas.width = WORLD_W;
     terrainLayerCanvas.height = WORLD_H;
+  }
+
+  if (typeof sandMaskCtx !== "undefined" && sandMaskCtx && typeof sandMaskCanvas !== "undefined" && sandMaskCanvas) {
+    sandMaskCtx.save();
+    sandMaskCtx.globalCompositeOperation = "source-in";
+    sandMaskCtx.fillStyle = "#FFE885";
+    sandMaskCtx.fillRect(0, 0, WORLD_W, WORLD_H);
+    sandMaskCtx.restore();
   }
 
   const bb = getIslandBoundingBox();
@@ -1868,18 +1881,21 @@ function drawBeachDetail(targetCtx, sd) {
     }
     targetCtx.fill();
   } else {
-    targetCtx.fillStyle = "rgba(160, 120, 75, 0.4)";
+    targetCtx.fillStyle = "rgba(180, 130, 70, 0.28)";
     targetCtx.beginPath();
     targetCtx.ellipse(0, s * 0.25, s * 0.9, s * 0.55, 0, 0, Math.PI * 2);
     targetCtx.fill();
 
-    const pebbleColor = sd.color || "#CBD5E1";
+    const pebbleColor = (!sd.color || sd.color === "#CBD5E1") ? "#FEF3C7" : sd.color;
     targetCtx.fillStyle = pebbleColor;
+    targetCtx.strokeStyle = "rgba(217, 119, 6, 0.28)";
+    targetCtx.lineWidth = 0.8;
     targetCtx.beginPath();
     targetCtx.ellipse(0, 0, s * 0.85, s * 0.6, 0, 0, Math.PI * 2);
     targetCtx.fill();
+    targetCtx.stroke();
 
-    targetCtx.fillStyle = "rgba(255, 255, 255, 0.65)";
+    targetCtx.fillStyle = "rgba(255, 255, 255, 0.75)";
     targetCtx.beginPath();
     targetCtx.ellipse(-s * 0.22, -s * 0.2, s * 0.35, s * 0.18, -0.3, 0, Math.PI * 2);
     targetCtx.fill();
@@ -2183,8 +2199,8 @@ function modifySandTerrain(x1, y1, x2, y2, isErasing) {
     // 1. Paint onto sandMaskCanvas
     sandMaskCtx.save();
     sandMaskCtx.globalCompositeOperation = "source-over";
-    sandMaskCtx.strokeStyle = "#FFFFFF";
-    sandMaskCtx.fillStyle = "#FFFFFF";
+    sandMaskCtx.strokeStyle = "#FFE885";
+    sandMaskCtx.fillStyle = "#FFE885";
     sandMaskCtx.lineCap = "round";
     sandMaskCtx.lineJoin = "round";
     sandMaskCtx.lineWidth = terrainBrushSize * 2;
@@ -2312,8 +2328,9 @@ function modifySandTerrain(x1, y1, x2, y2, isErasing) {
               color = starColors[Math.floor(Math.random() * starColors.length)];
               size = 6 + Math.random() * 4;
             } else {
-              color = "#CBD5E1";
-              size = 4 + Math.random() * 3;
+              const warmPebbleColors = ["#FEF3C7", "#FDE68A", "#FFFBEB"];
+              color = warmPebbleColors[Math.floor(Math.random() * warmPebbleColors.length)];
+              size = 4 + Math.random() * 2.5;
             }
             sandDetails.push({
               x: bx,
@@ -3097,6 +3114,8 @@ function setWorldTool(toolName) {
     showGardenNotice(
       "Sentuh & geser bunga atau dekorasi untuk memindahkan posisinya!",
     );
+  } else if (toolName === "fishing") {
+    showGardenNotice("Mode Pancingan Santai: Klik atau sentuh kolam air untuk melempar kail! 🎣💧");
   }
 }
 
@@ -3191,7 +3210,7 @@ function selectEraserSubTool(toolName) {
 
 function updateToolbarUI() {
   // Standalone buttons
-  const buttons = ["hand", "move", "water"];
+  const buttons = ["hand", "move", "water", "fishing"];
   buttons.forEach((t) => {
     const el = document.getElementById("tool-" + t);
     if (el) {
@@ -3345,7 +3364,7 @@ function updateToolbarUI() {
   const hoveredFlower =
     currentTool === "move" ? findFlowerAt(currentWorldX, currentWorldY) : null;
   const hoveredDecor =
-    currentTool === "move" && typeof findDecorationAt === "function"
+    (currentTool === "move" || currentTool === "hand") && typeof findDecorationAt === "function"
       ? findDecorationAt(currentWorldX, currentWorldY)
       : null;
 
@@ -3355,7 +3374,8 @@ function updateToolbarUI() {
     worldCanvas.style.cursor =
       hoveredFlower || hoveredDecor || hoveredAnimal ? "move" : "grab";
   } else if (currentTool === "hand") {
-    worldCanvas.style.cursor = hoveredAnimal ? "pointer" : "grab";
+    const isInteractiveDecor = !!hoveredDecor;
+    worldCanvas.style.cursor = (hoveredAnimal || isInteractiveDecor) ? "pointer" : "grab";
   } else if (currentTool === "water") {
     worldCanvas.style.cursor = "pointer";
   } else if (currentTool === "plant" || currentTool === "place-decor") {
@@ -4356,7 +4376,7 @@ function checkLandObjectsSurvival() {
       const a = animals[i];
       const effectiveHabitat =
         a.habitat ||
-        (a.type === "fish"
+        (a.type === "fish" || a.type === "turtle" || (a.id && a.id.startsWith("turtle"))
           ? "water"
           : a.type === "butterfly"
             ? "flying"
@@ -4589,6 +4609,8 @@ function placePendingDecorationAt(x, y) {
     typeof isPointOnGrass === "function" ? isPointOnGrass(x, y) : true;
   const onWater =
     typeof isPointOnWater === "function" ? isPointOnWater(x, y) : false;
+  const onSand =
+    typeof isPointOnSand === "function" ? isPointOnSand(x, y) : false;
   const nearWater =
     typeof isNearWater === "function" ? isNearWater(x, y, 16) : false;
   const blocked =
@@ -4604,11 +4626,28 @@ function placePendingDecorationAt(x, y) {
     return;
   }
 
-  if (spec.habitat !== "both" && (!onGrass || onWater || nearWater)) {
+  let isValidPlacement = false;
+  let reasonPlacement = "";
+  if (spec.habitat === "water") {
+    isValidPlacement = onWater;
+    reasonPlacement = "Dekorasi air hanya bisa ditaruh di kolam air! 💧";
+  } else if (spec.habitat === "both") {
+    if (spec.type === "bridge") {
+      isValidPlacement = onGrass || onWater;
+      reasonPlacement = "Jembatan bisa ditaruh di atas rumput atau kolam air!";
+    } else {
+      isValidPlacement = (onGrass || onSand) && !onWater;
+      reasonPlacement = "Dekorasi ini bisa ditaruh di atas tanah rumput atau pasir pantai! 🌿🏖️";
+    }
+  } else {
+    // land
+    isValidPlacement = onGrass && !onWater && !nearWater;
+    reasonPlacement = "Dekorasi darat hanya bisa ditaruh di atas tanah rumput! 🌿";
+  }
+
+  if (!isValidPlacement) {
     if (typeof showGardenNotice === "function") {
-      showGardenNotice(
-        "Dekorasi darat hanya bisa ditaruh di atas tanah rumput! 🌿",
-      );
+      showGardenNotice(reasonPlacement);
     }
     if (typeof playErrorSound === "function") playErrorSound();
     return;
@@ -4678,8 +4717,15 @@ function handlePillowTap(pillow) {
     return;
   }
   if (typeof animals !== "undefined" && Array.isArray(animals)) {
+    const isWaterCreature = (a) =>
+      a.habitat === "water" ||
+      a.type === "fish" ||
+      a.type === "turtle" ||
+      a.customType === "moss_turtle" ||
+      (a.name && (a.name.includes("Kura-kura") || a.name.includes("kura") || a.name.includes("Ikan")));
+
     const eligible = animals.filter(
-      (a) => a.state !== "sleeping" && a.habitat !== "water" && a.type !== "fish"
+      (a) => a.state !== "sleeping" && !isWaterCreature(a)
     );
     if (eligible.length > 0) {
       // Prioritaskan yang paling ngantuk, lalu jarak terdekat
@@ -4705,6 +4751,187 @@ function handlePillowTap(pillow) {
   }
 }
 window.handlePillowTap = handlePillowTap;
+
+function isCrabDecorOccupied(decorId, excludeCrab) {
+  if (!decorId || typeof beachCrabs === "undefined" || !Array.isArray(beachCrabs)) return false;
+  return beachCrabs.some(
+    (c) =>
+      c &&
+      c !== excludeCrab &&
+      c.state !== "burrowed" &&
+      c.targetDecorId === decorId &&
+      (c.state === "approaching_decor" || c.state === "guarding_castle" || c.state === "resting_umbrella")
+  );
+}
+
+function inviteBeachCrabToDecor(decor) {
+  if (!decor || typeof beachCrabs === "undefined" || !Array.isArray(beachCrabs)) return null;
+  if (isCrabDecorOccupied(decor.id)) {
+    return beachCrabs.find((c) => c && c.targetDecorId === decor.id) || null;
+  }
+  const candidates = beachCrabs.filter(
+    (c) =>
+      c.state !== "burrowed" &&
+      c.state !== "guarding_castle" &&
+      c.state !== "resting_umbrella" &&
+      Math.hypot(c.x - decor.x, c.y - decor.y) < 260
+  );
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => Math.hypot(a.x - decor.x, a.y - decor.y) - Math.hypot(b.x - decor.x, b.y - decor.y));
+  const crab = candidates[0];
+  crab.targetDecorId = decor.id;
+  crab.targetDecorType = decor.type;
+  crab.state = "approaching_decor";
+  crab.burrowTimer = 8.0;
+  return crab;
+}
+window.inviteBeachCrabToDecor = inviteBeachCrabToDecor;
+
+function triggerDecorationTapInteraction(decor) {
+  if (!decor) return;
+  decor.interactBounce = 1.0;
+
+  if (decor.type === "easel" && typeof openEaselModal === "function") {
+    openEaselModal(decor);
+    if (typeof inviteCreatureToDecoration === "function") {
+      inviteCreatureToDecoration(decor, true);
+    }
+    return;
+  }
+  if (decor.type === "pet_pillow") {
+    if (typeof handlePillowTap === "function") handlePillowTap(decor);
+    return;
+  }
+  if (decor.type === "sandcastle") {
+    decor.level = ((decor.level || 1) % 3) + 1;
+    if (typeof playChimeSound === "function") playChimeSound();
+    const tierNames = ["Gundukan Pasir Mungil", "Kastil Kembar Menara", "Benteng Kerajaan Megah Pasir"];
+    const invitedCrab = inviteBeachCrabToDecor(decor);
+    if (typeof showGardenNotice === "function") {
+      showGardenNotice(
+        invitedCrab
+          ? `🏖️ ${tierNames[decor.level - 1]}! Kepiting pantai bergegas menjaga bentengmu! 🦀✨`
+          : `🏖️ Istana pasir ditingkatkan ke: ${tierNames[decor.level - 1]}! ✨`
+      );
+    }
+    for (let p = 0; p < 8; p++) {
+      particles.push({
+        type: "sparkle",
+        x: decor.x + (Math.random() - 0.5) * 20,
+        y: decor.y - 12 + (Math.random() - 0.5) * 16,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: -1 - Math.random() * 1.5,
+        size: 2.5 + Math.random() * 2,
+        color: "#F59E0B",
+        alpha: 1.0,
+      });
+    }
+    if (typeof scheduleAutoSave === "function") scheduleAutoSave();
+    return;
+  }
+  if (decor.type === "campfire") {
+    if (typeof playCampfireCrackle === "function") playCampfireCrackle();
+    const invited = typeof inviteCreatureToDecoration === "function" ? inviteCreatureToDecoration(decor, true) : null;
+    if (typeof showGardenNotice === "function") {
+      showGardenNotice(
+        invited
+          ? `🔥 Api unggun menyala hangat! ${invited.name || "Sahabat kecil"} mendekat untuk menghangatkan diri~`
+          : "🔥 Api unggun menyala hangat dengan suara kresek kayu ASMR..."
+      );
+    }
+    for (let p = 0; p < 6; p++) {
+      particles.push({
+        type: "sparkle",
+        x: decor.x + (Math.random() - 0.5) * 16,
+        y: decor.y - 8 + (Math.random() - 0.5) * 12,
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: -2 - Math.random() * 2,
+        size: 3,
+        color: "#EF4444",
+        alpha: 1.0,
+      });
+    }
+    return;
+  }
+  if (decor.type === "wind_chime") {
+    if (typeof playChimeSound === "function") playChimeSound();
+    const invited = typeof inviteCreatureToDecoration === "function" ? inviteCreatureToDecoration(decor, true) : null;
+    if (typeof showGardenNotice === "function") {
+      showGardenNotice(
+        invited
+          ? `🎐 Lonceng angin berdenting merdu! ${invited.name || "Hewan"} menoleh mendengarkan~`
+          : "🎐 Lonceng angin berdenting merdu ditiup angin sejuk..."
+      );
+    }
+    for (let p = 0; p < 5; p++) {
+      particles.push({
+        type: "sparkle",
+        x: decor.x + (Math.random() - 0.5) * 14,
+        y: decor.y - 18 + (Math.random() - 0.5) * 12,
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: -1 - Math.random(),
+        size: 2.5,
+        color: "#34D399",
+        alpha: 1.0,
+      });
+    }
+    return;
+  }
+  if (decor.type === "wishing_well") {
+    if (typeof playWaterSplashSound === "function") playWaterSplashSound();
+    else if (typeof playWaterDropSound === "function") playWaterDropSound();
+    const invited = typeof inviteCreatureToDecoration === "function" ? inviteCreatureToDecoration(decor, true) : null;
+    if (typeof showGardenNotice === "function") {
+      showGardenNotice(
+        invited
+          ? `🪙 Koin dilempar ke sumur harapan! ${invited.name || "Hewan"} mengintip penasaran~ ✨`
+          : "🪙 Koin dilempar ke sumur harapan... Semoga keinginanmu terkabul! ✨"
+      );
+    }
+    for (let p = 0; p < 6; p++) {
+      particles.push({
+        type: "sparkle",
+        x: decor.x + (Math.random() - 0.5) * 12,
+        y: decor.y - 6 + (Math.random() - 0.5) * 10,
+        vx: (Math.random() - 0.5) * 1.0,
+        vy: -1.5 - Math.random() * 1.2,
+        size: 2.5,
+        color: "#FBBF24",
+        alpha: 1.0,
+      });
+    }
+    return;
+  }
+
+  // Interaksi universal untuk seluruh dekorasi lainnya (mengundang makhluk hidup terdekat + efek visual & suara)
+  if (["fountain", "birdbath", "golden_lotus", "bridge"].includes(decor.type)) {
+    if (typeof playWaterSplashSound === "function") playWaterSplashSound();
+    else if (typeof playWaterDropSound === "function") playWaterDropSound();
+  } else {
+    if (typeof playChimeSound === "function") playChimeSound();
+  }
+
+  for (let p = 0; p < 5; p++) {
+    particles.push({
+      type: "sparkle",
+      x: decor.x + (Math.random() - 0.5) * 20,
+      y: decor.y - 10 + (Math.random() - 0.5) * 14,
+      vx: (Math.random() - 0.5) * 1.1,
+      vy: -1.1 - Math.random() * 1.1,
+      size: 2.3 + Math.random() * 1.2,
+      color: ["fountain", "birdbath", "golden_lotus"].includes(decor.type) ? "#38BDF8" : "#FBBF24",
+      alpha: 0.95,
+    });
+  }
+
+  if (decor.type === "beach_umbrella") {
+    inviteBeachCrabToDecor(decor);
+  }
+  if (typeof inviteCreatureToDecoration === "function") {
+    inviteCreatureToDecoration(decor);
+  }
+}
+window.triggerDecorationTapInteraction = triggerDecorationTapInteraction;
 
 function initGardenEventListeners() {
   if (gardenListenersInitialized) return;
@@ -4806,6 +5033,25 @@ function initGardenEventListeners() {
       return;
     }
 
+    if (currentTool === "fishing") {
+      if (activeFishingBobber) {
+        if (activeFishingBobber.state === "bite") {
+          reelInCatch();
+        } else {
+          showGardenNotice("Kail ditarik terlalu cepat, ikan belum menyambar! 🎣💧");
+          activeFishingBobber = null;
+        }
+      } else {
+        if (typeof isPointOnWater === "function" && isPointOnWater(worldPos.x, worldPos.y)) {
+          castFishingLine(worldPos.x, worldPos.y);
+        } else {
+          showGardenNotice("Arahkan kail ke area kolam air atau danau untuk memancing! 💧🎣");
+          if (typeof playErrorSound === "function") playErrorSound();
+        }
+      }
+      return;
+    }
+
     if (currentTool === "plant") {
       const onGrass =
         typeof isPointOnGrass === "function" &&
@@ -4855,6 +5101,12 @@ function initGardenEventListeners() {
     }
 
     if (currentTool === "hand") {
+      if (typeof checkHitBeachCrab === "function" && checkHitBeachCrab(worldPos.x, worldPos.y)) {
+        return;
+      }
+      if (typeof checkHitBeachShell === "function" && checkHitBeachShell(worldPos.x, worldPos.y)) {
+        return;
+      }
       if (Array.isArray(droppedSeeds) && droppedSeeds.length > 0) {
         const hitSeed = droppedSeeds.find(
           (s) => Math.hypot(s.x - worldPos.x, s.y - worldPos.y) < 28,
@@ -4899,7 +5151,14 @@ function initGardenEventListeners() {
 
       selectedDecoration = null;
       if (typeof window !== "undefined") window.selectedDecoration = null;
-      // In Hand (Geser Layar) mode: NEVER drag flowers or decorations! Always pan canvas!
+      // In Hand (Geser Layar) mode: Track potential decoration tap, while keeping canvas panning smooth
+      const hitDecor =
+        typeof findDecorationAt === "function"
+          ? findDecorationAt(worldPos.x, worldPos.y)
+          : null;
+      pendingHandDecorTap = hitDecor;
+      handDecorDownPos = { x: e.clientX, y: e.clientY };
+
       isDraggingCanvas = true;
       dragStartScreenX = e.clientX;
       dragStartScreenY = e.clientY;
@@ -4907,6 +5166,12 @@ function initGardenEventListeners() {
       dragStartPanY = panY;
       worldCanvas.style.cursor = "grabbing";
     } else if (currentTool === "move") {
+      if (typeof checkHitBeachCrab === "function" && checkHitBeachCrab(worldPos.x, worldPos.y)) {
+        return;
+      }
+      if (typeof checkHitBeachShell === "function" && checkHitBeachShell(worldPos.x, worldPos.y)) {
+        return;
+      }
       if (Array.isArray(droppedSeeds) && droppedSeeds.length > 0) {
         const hitSeed = droppedSeeds.find(
           (s) => Math.hypot(s.x - worldPos.x, s.y - worldPos.y) < 28,
@@ -5177,7 +5442,12 @@ function initGardenEventListeners() {
         worldCanvas.style.cursor =
           hoveredFlower || hoveredDecor || hoveredAnimal ? "move" : "grab";
       } else if (currentTool === "hand") {
-        worldCanvas.style.cursor = hoveredAnimal ? "pointer" : "grab";
+        const hoveredDecor =
+          typeof findDecorationAt === "function"
+            ? findDecorationAt(worldPos.x, worldPos.y)
+            : null;
+        const isInteractiveDecor = !!hoveredDecor;
+        worldCanvas.style.cursor = (hoveredAnimal || isInteractiveDecor) ? "pointer" : "grab";
       }
       return;
     }
@@ -5205,14 +5475,27 @@ function initGardenEventListeners() {
       draggedDecoration.y = worldPos.y + draggedDecorationOffset.y;
       worldCanvas.style.cursor = "grabbing";
 
-      // Jika bantal dipindah / digeser, hewan yang tidur di atasnya langsung bangun!
-      if (draggedDecoration.type === "pet_pillow") {
-        const dMoved = Math.hypot(
-          draggedDecoration.x - draggedDecorationOrigX,
-          draggedDecoration.y - draggedDecorationOrigY
-        );
-        if (dMoved > 4 && typeof wakePetFromPillow === "function") {
+      const dMoved = Math.hypot(
+        draggedDecoration.x - draggedDecorationOrigX,
+        draggedDecoration.y - draggedDecorationOrigY
+      );
+      if (dMoved > 4) {
+        // Jika bantal dipindah / digeser, hewan yang tidur di atasnya langsung bangun!
+        if (draggedDecoration.type === "pet_pillow" && typeof wakePetFromPillow === "function") {
           wakePetFromPillow(draggedDecoration.id, "moved");
+        }
+        // Jika dekorasi lain digeser, lepaskan hewan yang sedang berinteraksi dengannya secara mulus
+        if (typeof animals !== "undefined" && Array.isArray(animals)) {
+          animals.forEach((a) => {
+            if (a.interactingDecorId === draggedDecoration.id || a.targetDecorId === draggedDecoration.id) {
+              a.interactingDecorId = null;
+              a.targetDecorId = null;
+              if (a.state === "decor_interact" || a.state === "interacting_decor") {
+                a.state = "idle";
+                a.stateTimer = 1.5;
+              }
+            }
+          });
         }
       }
     } else if (currentTool === "water") {
@@ -5303,6 +5586,18 @@ function initGardenEventListeners() {
       isPinching = false;
     }
 
+    if (pendingHandDecorTap && handDecorDownPos && e) {
+      const movedDist = Math.hypot(
+        e.clientX - handDecorDownPos.x,
+        e.clientY - handDecorDownPos.y
+      );
+      if (movedDist < 8) {
+        triggerDecorationTapInteraction(pendingHandDecorTap);
+      }
+      pendingHandDecorTap = null;
+      handDecorDownPos = null;
+    }
+
     try {
       if (e && e.pointerId !== undefined && worldCanvas) {
         worldCanvas.releasePointerCapture(e.pointerId);
@@ -5354,7 +5649,7 @@ function initGardenEventListeners() {
         typeof isPointOnGrass === "function" ? isPointOnGrass(a.x, a.y) : false;
       const effectiveHabitat =
         a.habitat ||
-        (a.type === "fish"
+        (a.type === "fish" || a.type === "turtle" || (a.id && a.id.startsWith("turtle"))
           ? "water"
           : a.type === "butterfly"
             ? "flying"
@@ -5512,32 +5807,36 @@ function initGardenEventListeners() {
       const onWater =
         typeof isPointOnWater === "function" &&
         isPointOnWater(draggedDecoration.x, draggedDecoration.y);
-      const valid =
-        draggedDecoration.habitat === "both"
-          ? onGrass || onWater
-          : draggedDecoration.habitat === "water"
-            ? onWater
-            : onGrass && !onWater;
+      const onSand =
+        typeof isPointOnSand === "function" &&
+        isPointOnSand(draggedDecoration.x, draggedDecoration.y);
+
+      let valid = false;
+      if (draggedDecoration.habitat === "both") {
+        if (draggedDecoration.type === "bridge") {
+          valid = onGrass || onWater;
+        } else {
+          valid = (onGrass || onSand) && !onWater;
+        }
+      } else if (draggedDecoration.habitat === "water") {
+        valid = onWater;
+      } else {
+        valid = onGrass && !onWater;
+      }
+
       if (!valid) {
         draggedDecoration.x = draggedDecorationOrigX;
         draggedDecoration.y = draggedDecorationOrigY;
         const reasonMsg = draggedDecoration.habitat === "water"
           ? "Objek air hanya bisa ditaruh di atas kolam air! 💧"
-          : "Dekorasi darat hanya bisa ditaruh di atas tanah rumput! (Jembatan bisa di atas air) 🌿";
+          : (draggedDecoration.habitat === "both"
+              ? "Dekorasi ini bisa ditaruh di atas tanah rumput atau pasir pantai! 🌿🏖️"
+              : "Dekorasi darat hanya bisa ditaruh di atas tanah rumput! 🌿");
         showGardenNotice(reasonMsg);
         if (typeof playErrorSound === "function") playErrorSound();
       } else {
-        if (
-          movedDist < 6 &&
-          draggedDecoration.type === "easel" &&
-          typeof openEaselModal === "function"
-        ) {
-          openEaselModal(draggedDecoration);
-        } else if (
-          movedDist < 6 &&
-          draggedDecoration.type === "pet_pillow"
-        ) {
-          handlePillowTap(draggedDecoration);
+        if (movedDist < 6) {
+          triggerDecorationTapInteraction(draggedDecoration);
         } else {
           if (typeof playPlantSound === "function") playPlantSound();
         }
@@ -5927,6 +6226,11 @@ function animateGarden(now) {
       ctx.globalCompositeOperation = "source-atop";
       ctx.fillStyle = `rgba(12, 24, 38, ${nightTransition * 0.42})`;
       ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+      // Keep beach sand warm & bright under moonlight instead of turning dark/muddy
+      if (typeof sandMaskCanvas !== "undefined" && sandMaskCanvas) {
+        ctx.globalAlpha = nightTransition * 0.36;
+        ctx.drawImage(sandMaskCanvas, 0, 0);
+      }
       ctx.restore();
     }
 
@@ -5983,8 +6287,13 @@ function animateGarden(now) {
         : []),
       ...animals.map((a) => ({
         type: "animal",
-        // When sleeping on a pillow, sort AFTER the pillow so the pet renders ON TOP of the cushion:
-        y: a.sleepingOnPillowId ? a.y + 20 : a.y,
+        // Saat tidur di bantal atau berinteraksi di atas dekorasi (bangku, ayunan, teratai emas, pagar), render di atas dekorasi:
+        y:
+          a.sleepingOnPillowId ||
+          a.interactingDecorId ||
+          (a.interactFade && a.interactFade > 0.05)
+            ? a.y + 26
+            : a.y,
         obj: a,
       })),
       ...(mysteryEgg
@@ -6048,12 +6357,40 @@ function animateGarden(now) {
         drawFlowerInstance(ctx, f, now);
       } else {
         const a = r.obj;
+        const tf =
+          typeof getAnimalDecorTransform === "function"
+            ? getAnimalDecorTransform(a, now)
+            : null;
+        const origX = a.x;
+        const origY = a.y;
+        if (tf) {
+          ctx.save();
+          a.x = origX + (tf.dx || 0);
+          a.y = origY + (tf.dy || 0);
+          if (tf.rot || tf.scaleX !== 1 || tf.scaleY !== 1) {
+            ctx.translate(a.x, a.y);
+            if (tf.rot) ctx.rotate(tf.rot);
+            if (tf.scaleX !== 1 || tf.scaleY !== 1) {
+              ctx.scale(tf.scaleX || 1, tf.scaleY || 1);
+            }
+            ctx.translate(-a.x, -a.y);
+          }
+        }
         if (a.type === "cat") drawCat(ctx, a, now);
         else if (a.type === "dog") drawDog(ctx, a, now);
         else if (a.type === "rabbit") drawRabbit(ctx, a, now);
         else if (a.type === "butterfly") drawButterfly(ctx, a, now);
         else if (a.type === "fish") drawFish(ctx, a, now);
-        else if (a.type === "custom") drawCustomAnimal(ctx, a, now);
+        else if (
+          a.type === "custom" ||
+          a.type === "turtle" ||
+          a.customType === "moss_turtle" ||
+          a.variant === "moss_turtle" ||
+          (a.id && a.id.startsWith("turtle")) ||
+          (a.name && (a.name.includes("Kura-kura") || a.name.includes("kura")))
+        ) {
+          drawCustomAnimal(ctx, a, now);
+        }
         else if (
           (a.type === "exclusive" ||
             (typeof isExclusivePetType === "function" &&
@@ -6067,6 +6404,11 @@ function animateGarden(now) {
         }
         drawAnimalBubble(ctx, a);
         drawAnimalNameTag(ctx, a);
+        if (tf) {
+          a.x = origX;
+          a.y = origY;
+          ctx.restore();
+        }
       }
     }
 
@@ -6090,6 +6432,36 @@ function animateGarden(now) {
     // 6b. Update & Draw Professor Hoot (Owl Art Critic) if visiting an Easel
     if (typeof updateAndDrawOwlCritic === "function") {
       updateAndDrawOwlCritic(ctx, dt, now);
+    }
+
+    // 6c. Update & Draw Beach Life: Crabs & Sparkling Shells
+    if (typeof updateAndDrawBeachShells === "function") {
+      updateAndDrawBeachShells(ctx, dt, now);
+    }
+    if (typeof updateAndDrawBeachCrabs === "function") {
+      updateAndDrawBeachCrabs(ctx, dt, now);
+    }
+
+    // 6d. Update & Draw Cozy Fishing: Bobber, Ripples, Shadow & Bite Alert
+    if (typeof updateAndDrawFishing === "function") {
+      updateAndDrawFishing(ctx, dt, now);
+    }
+
+    // 6e. Campfire Warm Radial Night Glow
+    if (nightTransition > 0.05 && typeof decorations !== "undefined") {
+      decorations.filter((d) => d.type === "campfire").forEach((cf) => {
+        ctx.save();
+        const flicker = Math.sin(now * 0.008 + cf.x) * 6;
+        const grad = ctx.createRadialGradient(cf.x, cf.y + 4, 8, cf.x, cf.y + 4, 85 + flicker);
+        grad.addColorStop(0, `rgba(251, 146, 60, ${0.32 * nightTransition})`);
+        grad.addColorStop(0.5, `rgba(249, 115, 22, ${0.12 * nightTransition})`);
+        grad.addColorStop(1, "rgba(249, 115, 22, 0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cf.x, cf.y + 4, 90 + flicker, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
     }
 
     // 7. Draw Tool Cursor Preview on Canvas (in World Coordinates)
@@ -7336,3 +7708,1136 @@ window.scrollSidebar = scrollSidebar;
 window.updateSidebarScrollIndicators = updateSidebarScrollIndicators;
 window.updateAndDrawScreenBlizzard = updateAndDrawScreenBlizzard;
 window.confirmResetGarden = confirmResetGarden;
+
+/********************************************************************
+ * 9. COZY FISHING & POND ECOSYSTEM SUBSYSTEM
+ ********************************************************************/
+let activeFishingBobber = null;
+
+function castFishingLine(x, y) {
+  const isFast = window.hasGoldBait && window.hasGoldBait > 0;
+  if (isFast) {
+    window.hasGoldBait--;
+    if (typeof showGardenNotice === "function") {
+      showGardenNotice(`✨ Umpan Emas dipakai! Ikan menyambar lebih cepat! (Sisa: ${window.hasGoldBait})`);
+    }
+  } else {
+    if (typeof showGardenNotice === "function") {
+      showGardenNotice("Kail dilempar! Tunggu hingga ada riak dan tanda [!] lalu sentuh untuk menarik... 🎣💧");
+    }
+  }
+
+  activeFishingBobber = {
+    x: x,
+    y: y,
+    state: "floating",
+    timer: isFast ? 1.0 + Math.random() * 0.8 : 2.5 + Math.random() * 2.2,
+    biteTimer: 0,
+    fishShadow: {
+      ang: Math.random() * Math.PI * 2,
+      dist: 45,
+      scale: 0.9 + Math.random() * 0.3
+    }
+  };
+
+  if (typeof playFishingCastSound === "function") playFishingCastSound();
+}
+
+function updateAndDrawFishing(ctx, dt, now) {
+  if (!activeFishingBobber) return;
+  const b = activeFishingBobber;
+
+  // Timers and state transition
+  if (b.state === "floating") {
+    b.timer -= dt;
+    if (b.fishShadow) {
+      b.fishShadow.dist = Math.max(10, b.fishShadow.dist - dt * 14);
+    }
+    if (b.timer <= 0) {
+      b.state = "nibble";
+      b.timer = 1.0 + Math.random() * 1.2;
+    }
+  } else if (b.state === "nibble") {
+    b.timer -= dt;
+    if (b.timer <= 0) {
+      b.state = "bite";
+      b.biteTimer = 3.2;
+      if (typeof playFishingBiteSound === "function") playFishingBiteSound();
+    }
+  } else if (b.state === "bite") {
+    b.biteTimer -= dt;
+    if (b.biteTimer <= 0) {
+      activeFishingBobber = null;
+      if (typeof showGardenNotice === "function") {
+        showGardenNotice("Ikan melepaskan kail dan berenang kabur! Coba lempar lagi 🎣💧");
+      }
+      return;
+    }
+  }
+
+  // Draw approaching fish shadow
+  if (b.fishShadow && b.state !== "bite") {
+    const sx = b.x + Math.cos(b.fishShadow.ang) * b.fishShadow.dist;
+    const sy = b.y + Math.sin(b.fishShadow.ang) * (b.fishShadow.dist * 0.45);
+    ctx.save();
+    ctx.fillStyle = "rgba(15, 23, 42, 0.28)";
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, 8 * b.fishShadow.scale, 3.2 * b.fishShadow.scale, b.fishShadow.ang + Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Draw concentric ripples on water surface
+  ctx.save();
+  const ripPulse = (now * 0.003) % 1;
+  ctx.strokeStyle = `rgba(255, 255, 255, ${0.45 * (1 - ripPulse)})`;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.ellipse(b.x, b.y, 14 + ripPulse * 16, 6 + ripPulse * 7, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  if (b.state === "bite") {
+    const splashPulse = (now * 0.01) % 1;
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.85 * (1 - splashPulse)})`;
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.ellipse(b.x, b.y, 8 + splashPulse * 22, 4 + splashPulse * 11, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Draw bobber
+  ctx.save();
+  const bobDip = b.state === "bite" ? Math.sin(now * 0.035) * 5 + 3 : Math.sin(now * 0.005) * 2;
+  ctx.translate(b.x, b.y + bobDip);
+
+  // Bobber shadow
+  ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+  ctx.beginPath();
+  ctx.ellipse(0, 4, 7, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Antenna
+  ctx.strokeStyle = "#1E293B";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, -14);
+  ctx.stroke();
+  ctx.fillStyle = "#EF4444";
+  ctx.beginPath();
+  ctx.arc(0, -14, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bobber body
+  ctx.fillStyle = "#FFFFFF";
+  ctx.beginPath();
+  ctx.arc(0, 0, 6, 0, Math.PI);
+  ctx.fill();
+  ctx.fillStyle = "#EF4444";
+  ctx.beginPath();
+  ctx.arc(0, 0, 6, Math.PI, 0);
+  ctx.fill();
+  ctx.strokeStyle = "#991B1B";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Bite Alert Bubble [ ! ]
+  if (b.state === "bite") {
+    const hop = Math.abs(Math.sin(now * 0.015)) * 6;
+    ctx.translate(0, -28 - hop);
+    ctx.fillStyle = "#EF4444";
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(-12, -12, 24, 22, 6);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "bold 15px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("!", 0, 0);
+  }
+  ctx.restore();
+}
+
+function openFishingCatchModal(data) {
+  const modal = document.getElementById("fishingCatchModal");
+  if (!modal) return;
+  const iconEl = document.getElementById("fishingCatchIcon");
+  const badgeEl = document.getElementById("fishingCatchBadge");
+  const titleEl = document.getElementById("fishingCatchTitle");
+  const descEl = document.getElementById("fishingCatchDesc");
+  const noteWrap = document.getElementById("fishingBottleNoteWrapper");
+  const noteText = document.getElementById("fishingBottleNoteText");
+
+  if (iconEl) iconEl.textContent = data.icon || "🐟";
+  if (badgeEl) badgeEl.textContent = data.badge || "Tangkapan Istimewa! 🎣";
+  if (titleEl) titleEl.textContent = data.title || "Tangkapan Baru";
+  if (descEl) descEl.textContent = data.desc || "";
+
+  if (data.bottleNote && noteWrap && noteText) {
+    noteText.textContent = `"${data.bottleNote}"`;
+    noteWrap.classList.remove("hidden");
+  } else if (noteWrap) {
+    noteWrap.classList.add("hidden");
+  }
+
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+}
+
+function closeFishingCatchModal() {
+  const modal = document.getElementById("fishingCatchModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
+
+function reelInCatch() {
+  if (!activeFishingBobber) return;
+  const roll = Math.random();
+  const bobberPos = { x: activeFishingBobber.x, y: activeFishingBobber.y };
+  activeFishingBobber = null;
+
+  if (roll < 0.45) {
+    // Koi fish
+    const fishVariants = [
+      { name: "Ikan Koi Emas Ogon", sub: "Ikan koi keemasan pembawa berkah kelimpahan!", variant: "golden_dragon" },
+      { name: "Ikan Koi Kohaku", sub: "Ikan koi putih dengan corak jingga kemerahan yang elok.", variant: "koi" },
+      { name: "Ikan Koi Showa", sub: "Ikan koi bercorak klasik tiga warna yang anggun.", variant: "koi" }
+    ];
+    const chosen = fishVariants[Math.floor(Math.random() * fishVariants.length)];
+    if (typeof animals !== "undefined" && Array.isArray(animals)) {
+      animals.push({
+        id: "fish_" + Date.now() + "_" + Math.random().toString(36).slice(2, 5),
+        type: "fish",
+        habitat: "water",
+        variant: chosen.variant,
+        name: chosen.name,
+        x: bobberPos.x,
+        y: bobberPos.y,
+        targetX: bobberPos.x + (Math.random() - 0.5) * 40,
+        targetY: bobberPos.y + (Math.random() - 0.5) * 20,
+        speed: 24,
+        swimPhase: Math.random() * Math.PI,
+        facingLeft: Math.random() < 0.5
+      });
+    }
+    if (typeof awardStars === "function") awardStars(3);
+    openFishingCatchModal({
+      icon: "🎏",
+      badge: "Ikan Baru Terpancing! (+3 ⭐)",
+      title: chosen.name,
+      desc: `${chosen.sub} Ikan ini sekarang berenang dengan riang di kolam pulaumu!`
+    });
+  } else if (roll < 0.75) {
+    // Mini moss turtle
+    if (typeof animals !== "undefined" && Array.isArray(animals)) {
+      animals.push({
+        id: "turtle_" + Date.now() + "_" + Math.random().toString(36).slice(2, 5),
+        type: "turtle",
+        customType: "moss_turtle",
+        variant: "moss_turtle",
+        habitat: "water",
+        name: "Kura-kura Mini Lumut",
+        x: bobberPos.x,
+        y: bobberPos.y,
+        targetX: bobberPos.x + (Math.random() - 0.5) * 30,
+        targetY: bobberPos.y + (Math.random() - 0.5) * 20,
+        speed: 12,
+        state: "idle",
+        stateTimer: 4.0,
+        facingLeft: Math.random() < 0.5
+      });
+    }
+    if (typeof awardStars === "function") awardStars(3);
+    openFishingCatchModal({
+      icon: "🐢",
+      badge: "Sahabat Baru Terpancing! (+3 ⭐)",
+      title: "Kura-kura Mini Lumut",
+      desc: "Kura-kura mungil dengan cangkang berlumut dan bunga kuning kecil. Suka berenang santai dan berjemur di tepian kolam!"
+    });
+  } else {
+    // Secret message bottle
+    const notes = [
+      "Setiap tunas butuh waktu untuk mekar. Begitu pula langkah-langkah kecilmu hari ini.",
+      "Tarik napas perlahan, hembuskan beban. Kamu sudah berusaha dengan sangat baik.",
+      "Kebun yang indah bersemi dari kesabaran dan kelembutan hatimu.",
+      "Di balik riak air yang tenang, ada kehidupan yang selalu bertumbuh.",
+      "Hargai jeda istirahatmu. Dari ketenangan lahir inspirasi yang paling jernih."
+    ];
+    const quote = notes[Math.floor(Math.random() * notes.length)];
+    if (typeof awardStars === "function") awardStars(5);
+    openFishingCatchModal({
+      icon: "📜",
+      badge: "Pesan Rahasia Samudra! (+5 ⭐)",
+      title: "Botol Pesan Kuno",
+      desc: "Sebuah botol kaca bening terdampar di kailmu, berisi gulungan kertas hangat:",
+      bottleNote: quote
+    });
+  }
+
+  if (typeof playFishingReelSound === "function") playFishingReelSound();
+  if (typeof scheduleAutoSave === "function") scheduleAutoSave();
+}
+
+/********************************************************************
+ * 10. BEACH LIFE: PROCEDURAL CRABS & SPARKLING SHELLS
+ ********************************************************************/
+let beachCrabs = [];
+let beachShells = [];
+
+function findRandomSandPoint() {
+  if (typeof sandGrid === "undefined" || typeof COLL_W === "undefined" || !sandGrid) return null;
+  const validIndices = [];
+  const len = sandGrid.length;
+  for (let i = 0; i < len; i += 4) {
+    if (sandGrid[i] === 1 && grassGrid[i] === 1 && waterGrid[i] === 0) {
+      validIndices.push(i);
+    }
+  }
+  if (validIndices.length === 0) return null;
+  const idx = validIndices[Math.floor(Math.random() * validIndices.length)];
+  const gy = Math.floor(idx / COLL_W);
+  const gx = idx % COLL_W;
+  return {
+    x: gx * COLL_SCALE + Math.random() * COLL_SCALE,
+    y: gy * COLL_SCALE + Math.random() * COLL_SCALE
+  };
+}
+
+function updateAndDrawBeachCrabs(ctx, dt, now) {
+  if (beachCrabs.length === 0) {
+    for (let i = 0; i < 4; i++) {
+      beachCrabs.push({
+        id: "crab_" + i,
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        state: "burrowed",
+        burrowTimer: 0.5 + Math.random() * 2.5,
+        facing: 1,
+        legAnim: 0
+      });
+    }
+  }
+
+  beachCrabs.forEach((c) => {
+    if (c.state === "burrowed") {
+      c.burrowTimer -= dt;
+      if (c.burrowTimer <= 0) {
+        let pt = null;
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const cand = findRandomSandPoint();
+          if (!cand) break;
+          const tooClose = beachCrabs.some(
+            (other) => other !== c && other.state !== "burrowed" && Math.hypot(other.x - cand.x, other.y - cand.y) < 30
+          );
+          if (!tooClose) {
+            pt = cand;
+            break;
+          }
+          if (!pt) pt = cand;
+        }
+        if (pt) {
+          c.x = pt.x;
+          c.y = pt.y;
+          c.state = "idle";
+          c.burrowTimer = 2.0 + Math.random() * 3.5;
+        } else {
+          c.burrowTimer = 4.0;
+        }
+      }
+      return;
+    }
+
+    if (c.state === "idle") {
+      c.burrowTimer -= dt;
+      if (c.burrowTimer <= 0) {
+        // Cek apakah ada Istana Pasir (sandcastle) atau Payung Pantai (beach_umbrella) yang belum ditempati kepiting lain
+        let nearCastle = null;
+        if (typeof decorations !== "undefined" && Array.isArray(decorations) && Math.random() < 0.5) {
+          nearCastle = decorations.find(
+            (d) =>
+              (d.type === "sandcastle" || d.type === "beach_umbrella") &&
+              !isCrabDecorOccupied(d.id, c) &&
+              Math.hypot(d.x - c.x, d.y - c.y) < 160
+          );
+        }
+        if (nearCastle) {
+          c.targetDecorId = nearCastle.id;
+          c.targetDecorType = nearCastle.type;
+          c.state = "approaching_decor";
+          c.burrowTimer = 7.0;
+        } else {
+          const ang = Math.random() * Math.PI * 2;
+          c.vx = Math.cos(ang) * 16;
+          c.vy = Math.sin(ang) * 9;
+          c.facing = c.vx < 0 ? -1 : 1;
+          c.state = "scuttle";
+          c.burrowTimer = 1.4 + Math.random() * 2.0;
+        }
+      }
+    } else if (c.state === "approaching_decor") {
+      const targetD =
+        typeof decorations !== "undefined"
+          ? decorations.find((d) => d.id === c.targetDecorId)
+          : null;
+      if (!targetD || isCrabDecorOccupied(targetD.id, c)) {
+        c.targetDecorId = null;
+        c.state = "idle";
+        c.burrowTimer = 1.5;
+      } else {
+        const goalX = targetD.x + (targetD.type === "sandcastle" ? 20 : -22);
+        const goalY = targetD.y + (targetD.type === "sandcastle" ? 8 : 6);
+        const dx = goalX - c.x;
+        const dy = goalY - c.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist <= 6) {
+          c.x = goalX;
+          c.y = goalY;
+          c.state = targetD.type === "sandcastle" ? "guarding_castle" : "resting_umbrella";
+          c.burrowTimer = 6.5 + Math.random() * 3.5;
+          c.bubbleText =
+            targetD.type === "sandcastle" ? "(🦀✧ω✧) 🏰" : "(🦀˘ω˘) ⛱️";
+          c.bubbleTimer = 4.5;
+          if (typeof recordAnimalMessage === 'function') {
+            const crabThought = targetD.type === "sandcastle"
+              ? "Siap sedia! Aku kepiting pantai yang gagah berani, siap menjaga istana pasir megahmu dari ombak!"
+              : "Wah, payung pantai ini teduh sekali. Pasir di bawahnya sejuk, enak untuk bersantai sejenak.";
+            recordAnimalMessage({ id: c.id, name: "Kepiting Pantai", type: "crab" }, crabThought, "bahagia", "🦀");
+          }
+        } else {
+          const spd = 28;
+          c.x += (dx / dist) * spd * dt;
+          c.y += (dy / dist) * spd * dt;
+          c.facing = dx < 0 ? -1 : 1;
+          c.legAnim = (c.legAnim || 0) + dt * 20;
+        }
+        c.burrowTimer -= dt;
+        if (c.burrowTimer <= 0) {
+          c.targetDecorId = null;
+          c.state = "idle";
+          c.burrowTimer = 2.0;
+        }
+      }
+    } else if (c.state === "guarding_castle" || c.state === "resting_umbrella") {
+      c.burrowTimer -= dt;
+      if (c.bubbleTimer > 0) c.bubbleTimer = Math.max(0, c.bubbleTimer - dt);
+      if (c.state === "guarding_castle") {
+        c.legAnim = (c.legAnim || 0) + dt * 8;
+        if (Math.random() < dt * 1.4 && typeof particles !== "undefined") {
+          particles.push({
+            type: "sparkle",
+            x: c.x + (Math.random() - 0.5) * 14,
+            y: c.y - 8,
+            vx: (Math.random() - 0.5) * 0.4,
+            vy: -0.5 - Math.random() * 0.4,
+            size: 1.8,
+            color: "#FBBF24",
+            alpha: 0.9,
+          });
+        }
+      }
+      if (c.burrowTimer <= 0) {
+        c.state = "idle";
+        c.targetDecorId = null;
+        c.burrowTimer = 2.5 + Math.random() * 2.5;
+      }
+    } else if (c.state === "scuttle") {
+      c.burrowTimer -= dt;
+      const nx = c.x + c.vx * dt;
+      const ny = c.y + c.vy * dt;
+      if (typeof isPointOnSand === "function" && isPointOnSand(nx, ny)) {
+        c.x = nx;
+        c.y = ny;
+        c.legAnim += dt * 16;
+      } else {
+        c.state = "idle";
+        c.burrowTimer = 1.0;
+      }
+      if (c.burrowTimer <= 0) {
+        c.state = "idle";
+        c.burrowTimer = 2.0 + Math.random() * 3.0;
+      }
+    }
+  });
+
+  // Anti-stacking separation pass antar kepiting pantai agar tidak bertumpuk di pasir
+  for (let i = 0; i < beachCrabs.length; i++) {
+    const c1 = beachCrabs[i];
+    if (!c1 || c1.state === "burrowed") continue;
+    for (let j = i + 1; j < beachCrabs.length; j++) {
+      const c2 = beachCrabs[j];
+      if (!c2 || c2.state === "burrowed") continue;
+      let dx = c2.x - c1.x;
+      let dy = c2.y - c1.y;
+      let dist = Math.hypot(dx, dy);
+      if (dist < 28) {
+        if (dist < 0.01) {
+          dx = 1;
+          dy = 0;
+          dist = 1;
+        }
+        const push = (28 - dist) * 0.5;
+        const nx = (dx / dist) * push;
+        const ny = (dy / dist) * push;
+        if (typeof isPointOnSand === "function") {
+          if (isPointOnSand(c1.x - nx, c1.y - ny)) {
+            c1.x -= nx;
+            c1.y -= ny;
+          }
+          if (isPointOnSand(c2.x + nx, c2.y + ny)) {
+            c2.x += nx;
+            c2.y += ny;
+          }
+        }
+      }
+    }
+  }
+
+  beachCrabs.forEach((c) => {
+    if (c.state === "burrowed") return;
+
+    // Draw cute chibi beach crab
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    const hop =
+      c.state === "scuttle" || c.state === "approaching_decor"
+        ? Math.abs(Math.sin((c.legAnim || 0) * 1.5)) * 1.5
+        : c.state === "guarding_castle"
+        ? Math.abs(Math.sin(now * 0.008 + c.x)) * 2.8
+        : Math.sin(now * 0.004 + c.x) * 0.5;
+    ctx.translate(0, -hop);
+    if (c.facing < 0) ctx.scale(-1, 1);
+
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    // 1. Soft Warm Sand Shadow
+    ctx.fillStyle = "rgba(160, 95, 25, 0.24)";
+    ctx.beginPath();
+    ctx.ellipse(0, 4.5 + hop, 12, 4.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Three Pairs of Curved Scuttling Crab Legs
+    const legPhase = c.legAnim || 0;
+    [-1, 1].forEach((dir) => {
+      for (let i = 0; i < 3; i++) {
+        const wave = c.state === "scuttle" ? Math.sin(legPhase + i * 1.6 + (dir < 0 ? Math.PI : 0)) * 2.2 : 0;
+        const startX = dir * (5.5 + i * 1.0);
+        const startY = -1.5 + i * 1.8;
+        const midX = dir * (10.5 + i * 1.2);
+        const midY = -3.0 + i * 2.0 + wave * 0.6;
+        const tipX = dir * (13.0 + i * 0.8);
+        const tipY = 2.2 + i * 1.4 + wave;
+
+        // Dark outline
+        ctx.strokeStyle = "#431407";
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.quadraticCurveTo(midX, midY, tipX, tipY);
+        ctx.stroke();
+
+        // Bright orange leg fill
+        ctx.strokeStyle = "#EA580C";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.quadraticCurveTo(midX, midY, tipX, tipY);
+        ctx.stroke();
+      }
+    });
+
+    // 3. Raised Arms & Crescent V-Shaped Pincer Claws
+    const clawSnap = Math.sin(now * 0.007 + c.x) * 0.18;
+    [-1, 1].forEach((dir, idx) => {
+      ctx.save();
+      ctx.translate(dir * 6.5, -3.5);
+      ctx.rotate(dir * (0.35 + (idx === 0 ? clawSnap : -clawSnap)));
+
+      // Arm stem
+      ctx.strokeStyle = "#431407";
+      ctx.lineWidth = 3.4;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(dir * 2.5, -4.5);
+      ctx.stroke();
+      ctx.strokeStyle = "#EA580C";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(dir * 2.5, -4.5);
+      ctx.stroke();
+
+      // Pincer Claw with open V-notch
+      ctx.translate(dir * 3.0, -7.2);
+      ctx.rotate(dir * -0.2);
+      ctx.fillStyle = "#FF6B4A";
+      ctx.strokeStyle = "#431407";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      // Draw rounded pincer with V-cut opening at top
+      const openAngle = 0.55 + Math.abs(Math.sin(now * 0.008 + idx)) * 0.25;
+      ctx.arc(0, 0, 4.2, -Math.PI * 0.5 + openAngle, Math.PI * 1.5 - openAngle, false);
+      ctx.lineTo(0, -0.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    // 4. Plump Rounded Crab Carapace (Shell Body)
+    ctx.fillStyle = "#FF5A36";
+    ctx.strokeStyle = "#431407";
+    ctx.lineWidth = 1.7;
+    ctx.beginPath();
+    ctx.ellipse(0, -0.5, 9.2, 6.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Warm cream underbelly segment
+    ctx.fillStyle = "#FFEDD5";
+    ctx.beginPath();
+    ctx.ellipse(0, 3.2, 6.2, 2.2, 0, 0, Math.PI);
+    ctx.fill();
+
+    // Glossy shell highlight
+    ctx.fillStyle = "rgba(255, 255, 255, 0.38)";
+    ctx.beginPath();
+    ctx.ellipse(-3.2, -3.2, 3.2, 1.5, -0.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 5. Cute Eye Stalks & Expressive Beady Eyes
+    [-3.3, 3.3].forEach((ex) => {
+      // Stalk stem
+      ctx.strokeStyle = "#431407";
+      ctx.lineWidth = 2.8;
+      ctx.beginPath();
+      ctx.moveTo(ex * 0.85, -5.2);
+      ctx.lineTo(ex, -7.8);
+      ctx.stroke();
+      ctx.strokeStyle = "#FF5A36";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(ex * 0.85, -5.2);
+      ctx.lineTo(ex, -7.8);
+      ctx.stroke();
+
+      // Outer white eye rim
+      ctx.fillStyle = "#FFFFFF";
+      ctx.strokeStyle = "#431407";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(ex, -8.2, 2.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Dark pupil
+      ctx.fillStyle = "#1E1B4B";
+      ctx.beginPath();
+      ctx.arc(ex, -8.2, 1.35, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Crisp white specular catchlight
+      ctx.fillStyle = "#FFFFFF";
+      ctx.beginPath();
+      ctx.arc(ex - 0.45, -8.65, 0.55, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Rosy cheeks & tiny happy smile
+    ctx.fillStyle = "rgba(253, 164, 175, 0.75)";
+    ctx.beginPath();
+    ctx.ellipse(-5.2, -1.2, 1.6, 1.0, 0, 0, Math.PI * 2);
+    ctx.ellipse(5.2, -1.2, 1.6, 1.0, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = "#431407";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(0, -1.5, 1.6, 0.15 * Math.PI, 0.85 * Math.PI);
+    ctx.stroke();
+
+    ctx.restore();
+
+    // Gelembung ekspresi kepiting pantai saat menjaga kastil pasir atau berteduh di payung pantai
+    if (c.bubbleTimer > 0 && c.bubbleText) {
+      ctx.save();
+      ctx.font = "700 9.5px 'Quicksand', sans-serif";
+      const tw = ctx.measureText(c.bubbleText).width;
+      const pw = tw + 12;
+      const ph = 18;
+      const bx = c.x - pw / 2;
+      const by = c.y - 28 - Math.sin(now * 0.006) * 2;
+      ctx.fillStyle = "rgba(255, 255, 255, 0.94)";
+      ctx.strokeStyle = "#EA580C";
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, pw, ph, 9);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#9A3412";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(c.bubbleText, c.x, by + ph / 2 + 0.5);
+      ctx.restore();
+    }
+  });
+}
+
+function checkHitBeachCrab(wx, wy) {
+  if (!beachCrabs || beachCrabs.length === 0) return false;
+  const hit = beachCrabs.find((c) => c.state !== "burrowed" && Math.hypot(c.x - wx, c.y - wy) < 22);
+  if (hit) {
+    hit.state = "burrowed";
+    hit.burrowTimer = 14.0;
+    if (typeof playCrabClickSound === "function") playCrabClickSound();
+    if (typeof awardStars === "function") awardStars(1);
+    if (typeof showGardenNotice === "function") {
+      showGardenNotice("🦀 Kepiting pasir bersembunyi ke dalam pasir pantai! (+1 ⭐)");
+    }
+    for (let p = 0; p < 8; p++) {
+      particles.push({
+        type: "sparkle",
+        x: hit.x + (Math.random() - 0.5) * 12,
+        y: hit.y + (Math.random() - 0.5) * 8,
+        vx: (Math.random() - 0.5) * 1.8,
+        vy: -1.0 - Math.random() * 1.5,
+        size: 2.2,
+        color: "#FDE68A",
+        alpha: 1.0
+      });
+    }
+    return true;
+  }
+  return false;
+}
+
+function updateAndDrawBeachShells(ctx, dt, now) {
+  if (beachShells.length === 0) {
+    const types = ["scallop", "conch", "pearl"];
+    for (let i = 0; i < 5; i++) {
+      beachShells.push({
+        id: "shell_" + i,
+        type: types[i % types.length],
+        x: 0,
+        y: 0,
+        active: false,
+        respawnTimer: 0.2 + i * 0.8
+      });
+    }
+  }
+
+  beachShells.forEach((s) => {
+    if (!s.active) {
+      s.respawnTimer -= dt;
+      if (s.respawnTimer <= 0) {
+        const pt = findRandomSandPoint();
+        if (pt) {
+          s.x = pt.x;
+          s.y = pt.y;
+          s.active = true;
+        } else {
+          s.respawnTimer = 4.0;
+        }
+      }
+      return;
+    }
+
+    // Draw detailed illustrated seashell
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    // Soft warm sand shadow
+    ctx.fillStyle = "rgba(160, 95, 25, 0.24)";
+    ctx.beginPath();
+    ctx.ellipse(0, 3.2, 8.5, 3.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (s.type === "scallop") {
+      // 1. Rose-Coral Fluted Fan Scallop Shell (Kerang Kipas)
+      ctx.fillStyle = "#FDA4AF";
+      ctx.strokeStyle = "#881337";
+      ctx.lineWidth = 1.4;
+
+      // Bottom hinge ears (auricles)
+      ctx.beginPath();
+      ctx.roundRect(-4.5, 1.2, 9.0, 2.6, 1.2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Fan body with scalloped wavy rim
+      const scGrad = ctx.createLinearGradient(0, -7, 0, 3);
+      scGrad.addColorStop(0, "#FFE4E6");
+      scGrad.addColorStop(0.55, "#FDA4AF");
+      scGrad.addColorStop(1, "#FB7185");
+      ctx.fillStyle = scGrad;
+      ctx.beginPath();
+      ctx.moveTo(-2.5, 2.8);
+      ctx.lineTo(-7.2, -1.5);
+      // 5 scalloped lobes across top arc
+      ctx.quadraticCurveTo(-5.8, -6.2, -3.5, -5.2);
+      ctx.quadraticCurveTo(-1.8, -7.4, 0, -6.0);
+      ctx.quadraticCurveTo(1.8, -7.4, 3.5, -5.2);
+      ctx.quadraticCurveTo(5.8, -6.2, 7.2, -1.5);
+      ctx.lineTo(2.5, 2.8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Radiating fan ribs
+      ctx.strokeStyle = "rgba(136, 19, 55, 0.45)";
+      ctx.lineWidth = 0.9;
+      [-3.4, -1.7, 0, 1.7, 3.4].forEach((rx) => {
+        ctx.beginPath();
+        ctx.moveTo(rx * 0.25, 2.2);
+        ctx.lineTo(rx * 1.4, -4.5 + Math.abs(rx) * 0.35);
+        ctx.stroke();
+      });
+    } else if (s.type === "conch") {
+      // 2. Golden Spiral Conch Shell (Keong Laut Spiral)
+      ctx.save();
+      ctx.rotate(-0.3);
+      const cGrad = ctx.createLinearGradient(-5, -6, 5, 4);
+      cGrad.addColorStop(0, "#FEF9C3");
+      cGrad.addColorStop(0.5, "#FDE047");
+      cGrad.addColorStop(1, "#F59E0B");
+
+      ctx.fillStyle = cGrad;
+      ctx.strokeStyle = "#78350F";
+      ctx.lineWidth = 1.4;
+
+      // Upper spire tip
+      ctx.beginPath();
+      ctx.moveTo(-2.2, -3.5);
+      ctx.lineTo(0, -8.5);
+      ctx.lineTo(2.2, -3.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Middle spiral whorl
+      ctx.beginPath();
+      ctx.ellipse(0, -3.2, 4.4, 2.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Main plump lower body whorl
+      ctx.beginPath();
+      ctx.ellipse(0, 0.6, 6.2, 3.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Rosy inner aperture lip at bottom-right
+      ctx.fillStyle = "#FDA4AF";
+      ctx.strokeStyle = "#78350F";
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.ellipse(1.8, 1.5, 3.2, 1.9, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      // 3. Open Pearl Clam / Oyster Shell (Kerang Mutiara Terbuka)
+      // Upper open valve
+      ctx.fillStyle = "#E0E7FF";
+      ctx.strokeStyle = "#3730A3";
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.ellipse(0, -2.8, 6.8, 4.2, 0, Math.PI, 0, false);
+      ctx.lineTo(4.5, 0.5);
+      ctx.lineTo(-4.5, 0.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Upper valve subtle ribs
+      ctx.strokeStyle = "rgba(55, 48, 163, 0.3)";
+      ctx.lineWidth = 0.8;
+      [-3, 0, 3].forEach((rx) => {
+        ctx.beginPath();
+        ctx.moveTo(rx * 0.4, -0.5);
+        ctx.lineTo(rx * 1.3, -5.5);
+        ctx.stroke();
+      });
+
+      // Lower cupped nacre valve
+      ctx.fillStyle = "#FCE7F3";
+      ctx.strokeStyle = "#3730A3";
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.ellipse(0, 1.2, 6.6, 3.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Glowing Pearl in center
+      ctx.fillStyle = "#FFFFFF";
+      ctx.strokeStyle = "#94A3B8";
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.arc(0, 0.2, 3.0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Pearl inner sheen & specular dot
+      ctx.fillStyle = "rgba(254, 240, 138, 0.55)";
+      ctx.beginPath();
+      ctx.arc(0.6, 0.8, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#FFFFFF";
+      ctx.beginPath();
+      ctx.arc(-1.0, -0.8, 1.0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 4-point star sparkle glint
+    const glint = Math.sin(now * 0.005 + s.x * 0.7) * 0.5 + 0.5;
+    if (glint > 0.65) {
+      const gAlpha = (glint - 0.65) / 0.35;
+      const gx = 5.5;
+      const gy = -5.5;
+      const rOut = 3.2 * gAlpha;
+      const rIn = 0.9 * gAlpha;
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.95 * gAlpha})`;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const r = i % 2 === 0 ? rOut : rIn;
+        const a = (i * Math.PI) / 4;
+        if (i === 0) ctx.moveTo(gx + Math.cos(a) * r, gy + Math.sin(a) * r);
+        else ctx.lineTo(gx + Math.cos(a) * r, gy + Math.sin(a) * r);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.restore();
+  });
+}
+
+function checkHitBeachShell(wx, wy) {
+  if (!beachShells || beachShells.length === 0) return false;
+  const hit = beachShells.find((s) => s.active && Math.hypot(s.x - wx, s.y - wy) < 20);
+  if (hit) {
+    hit.active = false;
+    hit.respawnTimer = 22.0 + Math.random() * 10.0;
+    if (typeof playChimeSound === "function") playChimeSound();
+    if (typeof awardStars === "function") awardStars(2);
+    if (typeof showGardenNotice === "function") {
+      showGardenNotice("🐚 Menemukan kerang pantai yang cantik! (+2 ⭐ Bintang)");
+    }
+    for (let p = 0; p < 8; p++) {
+      particles.push({
+        type: "sparkle",
+        x: hit.x + (Math.random() - 0.5) * 14,
+        y: hit.y + (Math.random() - 0.5) * 10,
+        vx: (Math.random() - 0.5) * 2.0,
+        vy: -1.2 - Math.random() * 1.5,
+        size: 2.8,
+        color: "#F472B6",
+        alpha: 1.0
+      });
+    }
+    return true;
+  }
+  return false;
+}
+
+/********************************************************************
+ * 11. WANDERING MERCHANT OTTO SUBSYSTEM
+ ********************************************************************/
+const OTTO_SHOP_ITEMS = [
+  {
+    id: "picnic_set",
+    type: "decor",
+    name: "Tikar Piknik & Teh",
+    icon: "🧺",
+    price: 15,
+    desc: "Tikar hangat tempat hewan berkumpul santai menikmati teh hangat dan bekal.",
+    unlockedKey: "picnic_set"
+  },
+  {
+    id: "campfire",
+    type: "decor",
+    name: "Api Unggun Berpendar",
+    icon: "🔥",
+    price: 20,
+    desc: "Api unggun menenangkan dengan suara kresek kayu ASMR dan pendaran malam.",
+    unlockedKey: "campfire"
+  },
+  {
+    id: "sandcastle",
+    type: "decor",
+    name: "Istana Pasir Pantai",
+    icon: "🏖️",
+    price: 15,
+    desc: "Istana pasir pesisir yang bisa ditingkatkan hingga tingkat 3 saat disentuh!",
+    unlockedKey: "sandcastle"
+  },
+  {
+    id: "beach_umbrella",
+    type: "decor",
+    name: "Payung Pantai Vintage",
+    icon: "⛱️",
+    price: 15,
+    desc: "Payung teduh garis-garis vintage lengkap dengan handuk pantai yang nyaman.",
+    unlockedKey: "beach_umbrella"
+  },
+  {
+    id: "wind_chime",
+    type: "decor",
+    name: "Lonceng Angin Furin",
+    icon: "🎐",
+    price: 15,
+    desc: "Lonceng bambu yang bergemerincing lembut diterpa hembusan angin sepoi.",
+    unlockedKey: "wind_chime"
+  },
+  {
+    id: "gold_bait",
+    type: "consumable",
+    name: "Umpan Pancing Emas (3x)",
+    icon: "✨🎣",
+    price: 10,
+    desc: "Umpan berkilau yang membuat ikan koi dan kura-kura langsung menyambar seketika!",
+    unlockedKey: null
+  }
+];
+
+const OTTO_QUOTES = [
+  "Halo sahabat! Ombak hari ini membawaku ke pulaumu yang damai dan asri.",
+  "Berang-berang suka berkebun, apalagi jika ada teman yang sehangat dirimu!",
+  "Bintang-bintang yang kau kumpulkan dari merawat kebun sangat berharga bagiku.",
+  "Cobalah melempar kail di kolam, siapa tahu kau menemukan botol pesan kuno!",
+  "Angin laut malam ini sangat sejuk. Api unggun di tepi pantai pasti terasa nyaman."
+];
+
+function renderOttoShopGrid() {
+  const grid = document.getElementById("ottoShopGrid");
+  if (!grid) return;
+  const currentStars = (typeof dailyLoginState !== "undefined" && dailyLoginState && typeof dailyLoginState.stars === "number") ? dailyLoginState.stars : 0;
+  const unlocked = (typeof dailyLoginState !== "undefined" && dailyLoginState && Array.isArray(dailyLoginState.unlockedStarItems)) ? dailyLoginState.unlockedStarItems : [];
+
+  grid.innerHTML = OTTO_SHOP_ITEMS.map((item) => {
+    const isOwned = item.unlockedKey && unlocked.includes(item.unlockedKey);
+    const canAfford = currentStars >= item.price;
+    return `
+      <div class="bg-white rounded-2xl border-2 ${isOwned ? 'border-amber-200 bg-amber-50/40' : 'border-amber-100 hover:border-amber-400'} p-3 flex flex-col justify-between transition shadow-xs">
+        <div class="flex items-start gap-2.5">
+          <div class="w-11 h-11 rounded-2xl bg-amber-100 border border-amber-300 flex items-center justify-center text-2xl shrink-0 shadow-2xs">
+            ${item.icon}
+          </div>
+          <div class="min-w-0 flex-1">
+            <h4 class="font-hand font-bold text-sm text-amber-950 truncate">${item.name}</h4>
+            <p class="text-[11px] text-amber-800 line-clamp-2 leading-relaxed mt-0.5">${item.desc}</p>
+          </div>
+        </div>
+        <div class="mt-3 pt-2.5 border-t border-amber-100/80 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-1 text-xs font-bold text-amber-800">
+            <span>⭐</span>
+            <span>${item.price} Bintang</span>
+          </div>
+          ${isOwned ? `
+            <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+              Dimiliki ✅
+            </span>
+          ` : `
+            <button
+              type="button"
+              onclick="buyOttoShopItem('${item.id}')"
+              class="px-3 py-1 rounded-full text-xs font-bold transition shadow-xs active:scale-95 cursor-pointer ${canAfford ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}"
+            >
+              Barter
+            </button>
+          `}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function buyOttoShopItem(itemId) {
+  const item = OTTO_SHOP_ITEMS.find((it) => it.id === itemId);
+  if (!item) return;
+  const currentStars = (typeof dailyLoginState !== "undefined" && dailyLoginState && typeof dailyLoginState.stars === "number") ? dailyLoginState.stars : 0;
+  if (currentStars < item.price) {
+    if (typeof showGardenNotice === "function") {
+      showGardenNotice("Bintangmu belum mencukupi! Rawat kebun atau belai hewanmu untuk mendapatkan bintang ⭐");
+    }
+    if (typeof playErrorSound === "function") playErrorSound();
+    return;
+  }
+
+  // Deduct stars
+  dailyLoginState.stars -= item.price;
+  if (typeof updateStarCurrencyDisplay === "function") updateStarCurrencyDisplay();
+
+  if (item.id === "gold_bait") {
+    window.hasGoldBait = (window.hasGoldBait || 0) + 3;
+    if (typeof showGardenNotice === "function") {
+      showGardenNotice(`✨ Berhasil membeli 3x Umpan Pancing Emas! Total: ${window.hasGoldBait} umpan.`);
+    }
+  } else {
+    dailyLoginState.unlockedStarItems = dailyLoginState.unlockedStarItems || [];
+    if (!dailyLoginState.unlockedStarItems.includes(item.unlockedKey)) {
+      dailyLoginState.unlockedStarItems.push(item.unlockedKey);
+    }
+    if (typeof showGardenNotice === "function") {
+      showGardenNotice(`🎉 Berhasil barter ${item.name}! Kini tersedia di menu Dekorasi Pesisir.`);
+    }
+  }
+
+  if (typeof playChimeSound === "function") playChimeSound();
+  if (typeof saveDailyLoginState === "function") saveDailyLoginState();
+  if (typeof scheduleAutoSave === "function") scheduleAutoSave();
+
+  // Update UI
+  const balEl = document.getElementById("ottoStarBalance");
+  if (balEl) balEl.textContent = dailyLoginState.stars;
+  renderOttoShopGrid();
+}
+
+function openOttoMerchantModal() {
+  const modal = document.getElementById("ottoMerchantModal");
+  if (!modal) return;
+  const diaEl = document.getElementById("ottoDialogueText");
+  if (diaEl) {
+    const q = OTTO_QUOTES[Math.floor(Math.random() * OTTO_QUOTES.length)];
+    diaEl.textContent = `"${q}"`;
+  }
+  const balEl = document.getElementById("ottoStarBalance");
+  if (balEl) {
+    balEl.textContent = (typeof dailyLoginState !== "undefined" && dailyLoginState && typeof dailyLoginState.stars === "number") ? dailyLoginState.stars : 0;
+  }
+  renderOttoShopGrid();
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+  if (typeof playChimeSound === "function") playChimeSound();
+}
+
+function closeOttoMerchantModal() {
+  const modal = document.getElementById("ottoMerchantModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
+
+// Global window bindings for new systems
+window.castFishingLine = castFishingLine;
+window.reelInCatch = reelInCatch;
+window.openFishingCatchModal = openFishingCatchModal;
+window.closeFishingCatchModal = closeFishingCatchModal;
+window.updateAndDrawFishing = updateAndDrawFishing;
+window.updateAndDrawBeachCrabs = updateAndDrawBeachCrabs;
+window.checkHitBeachCrab = checkHitBeachCrab;
+window.updateAndDrawBeachShells = updateAndDrawBeachShells;
+window.checkHitBeachShell = checkHitBeachShell;
+window.openOttoMerchantModal = openOttoMerchantModal;
+window.closeOttoMerchantModal = closeOttoMerchantModal;
+window.buyOttoShopItem = buyOttoShopItem;
+window.renderOttoShopGrid = renderOttoShopGrid;
