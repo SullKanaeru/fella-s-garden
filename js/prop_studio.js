@@ -1035,7 +1035,7 @@ function extractTrimmedPropCanvas() {
     for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
             const alpha = imgData[(y * w + x) * 4 + 3];
-            if (alpha > 12) {
+            if (alpha > 28) {
                 hasPixels = true;
                 if (x < minX) minX = x;
                 if (x > maxX) maxX = x;
@@ -1047,11 +1047,13 @@ function extractTrimmedPropCanvas() {
 
     if (!hasPixels) return null;
 
-    const pad = 6;
-    minX = Math.max(0, minX - pad);
-    minY = Math.max(0, minY - pad);
-    maxX = Math.min(w, maxX + pad);
-    maxY = Math.min(h, maxY + pad);
+    const padSide = 4;
+    const padTop = 4;
+    const padBottom = 1;
+    minX = Math.max(0, minX - padSide);
+    minY = Math.max(0, minY - padTop);
+    maxX = Math.min(w, maxX + padSide);
+    maxY = Math.min(h, maxY + padBottom);
 
     const cropW = Math.max(16, maxX - minX);
     const cropH = Math.max(16, maxY - minY);

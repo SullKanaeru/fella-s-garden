@@ -102,38 +102,73 @@ function updateSeasonBadgeUI() {
 
 function updateAndDrawSeasonalEffects(targetCtx, dt, now) {
     const info = SEASON_DEFINITIONS[currentSeason] || SEASON_DEFINITIONS.spring;
-    const cx = WORLD_W * 0.5;
-    const cy = WORLD_H * 0.52;
+    const bounds = (typeof getIslandTightBounds === 'function')
+        ? getIslandTightBounds()
+        : {
+            cx: WORLD_W * 0.5,
+            cy: WORLD_H * 0.52,
+            rx: 440,
+            ry: 280,
+            rimPoints: null
+        };
+    const cx = bounds.cx;
+    const cy = bounds.cy;
+    const rx = bounds.rx || 440;
+    const ry = bounds.ry || 280;
 
-    // 1. Subtle seasonal atmosphere tint over the island
+    // 1. Subtle seasonal atmosphere tint over the island (scales with actual terrain size)
     if (info.tintOverlay && (typeof nightTransition === 'undefined' || nightTransition < 0.7)) {
         targetCtx.save();
         targetCtx.fillStyle = info.tintOverlay;
         targetCtx.beginPath();
-        targetCtx.ellipse(cx, cy, 560, 360, 0, 0, Math.PI * 2);
+        targetCtx.ellipse(cx, cy, rx + 90, ry + 90, 0, 0, Math.PI * 2);
         targetCtx.fill();
         targetCtx.restore();
     }
 
-    // 2. In Winter, draw soft frosty snow caps along island rim / pond shimmer
+    // 2. In Winter, draw soft frosty snow caps along the actual island rim (menyesuaikan besar & bentuk medan)
     if (currentSeason === 'winter' || (typeof dynamicWeather !== 'undefined' && dynamicWeather === 'blizzard')) {
         targetCtx.save();
         targetCtx.strokeStyle = 'rgba(255, 255, 255, 0.50)';
         targetCtx.lineWidth = 5;
+        targetCtx.lineJoin = 'round';
+        targetCtx.lineCap = 'round';
         targetCtx.beginPath();
-        targetCtx.ellipse(cx, cy - 4, 415, 232, 0, 0, Math.PI * 2);
+        const pts = bounds.rimPoints;
+        if (pts && pts.length >= 6) {
+            const n = pts.length;
+            const startMidX = (pts[n - 1].x + pts[0].x) * 0.5;
+            const startMidY = (pts[n - 1].y + pts[0].y) * 0.5;
+            targetCtx.moveTo(startMidX, startMidY);
+            for (let i = 0; i < n; i++) {
+                const p0 = pts[i];
+                const p1 = pts[(i + 1) % n];
+                const midX = (p0.x + p1.x) * 0.5;
+                const midY = (p0.y + p1.y) * 0.5;
+                targetCtx.quadraticCurveTo(p0.x, p0.y, midX, midY);
+            }
+            targetCtx.closePath();
+        } else {
+            targetCtx.ellipse(cx, cy - 4, Math.max(100, rx - 24), Math.max(60, ry - 24), 0, 0, Math.PI * 2);
+        }
         targetCtx.stroke();
         targetCtx.restore();
     }
 
-    // 3. Spawn seasonal ambient particles (sakura petals, autumn leaves, snowflakes, summer sunbeams)
-    const maxParticles = currentSeason === 'winter' ? 42 : (currentSeason === 'spring' || currentSeason === 'autumn' ? 28 : 14);
-    if (seasonalParticles.length < maxParticles && Math.random() < 0.25) {
+    // 3. Spawn seasonal ambient particles (sakura petals, autumn leaves, snowflakes, summer sunbeams) across full terrain
+    const areaScale = Math.max(1, Math.min(2.2, (rx * ry) / (440 * 280)));
+    const baseMax = currentSeason === 'winter' ? 42 : (currentSeason === 'spring' || currentSeason === 'autumn' ? 28 : 14);
+    const maxParticles = Math.round(baseMax * areaScale);
+    const spanW = Math.max(980, rx * 2.2);
+    const topSpawnY = cy - ry - 80;
+    const bottomKillY = cy + ry + 100;
+
+    if (seasonalParticles.length < maxParticles && Math.random() < 0.35) {
         if (currentSeason === 'spring') {
             seasonalParticles.push({
                 kind: 'sakura',
-                x: cx + (Math.random() - 0.5) * 980,
-                y: cy - 360 - Math.random() * 80,
+                x: cx + (Math.random() - 0.5) * spanW,
+                y: topSpawnY - Math.random() * 80,
                 vx: 14 + Math.random() * 16,
                 vy: 22 + Math.random() * 14,
                 size: 5 + Math.random() * 4,
@@ -141,14 +176,14 @@ function updateAndDrawSeasonalEffects(targetCtx, dt, now) {
                 vRot: (Math.random() - 0.5) * 2.5,
                 phase: Math.random() * Math.PI * 2,
                 alpha: 0.85,
-                life: 14
+                life: 18
             });
         } else if (currentSeason === 'autumn') {
             const colors = ['#E07A5F', '#F4A261', '#E9C46A', '#D64933'];
             seasonalParticles.push({
                 kind: 'leaf',
-                x: cx + (Math.random() - 0.5) * 980,
-                y: cy - 360 - Math.random() * 80,
+                x: cx + (Math.random() - 0.5) * spanW,
+                y: topSpawnY - Math.random() * 80,
                 vx: 18 + Math.random() * 20,
                 vy: 24 + Math.random() * 16,
                 size: 6 + Math.random() * 4.5,
@@ -157,31 +192,31 @@ function updateAndDrawSeasonalEffects(targetCtx, dt, now) {
                 vRot: (Math.random() - 0.5) * 3.0,
                 phase: Math.random() * Math.PI * 2,
                 alpha: 0.9,
-                life: 14
+                life: 18
             });
         } else if (currentSeason === 'winter') {
             seasonalParticles.push({
                 kind: 'snow',
-                x: cx + (Math.random() - 0.5) * 1020,
-                y: cy - 380 - Math.random() * 80,
+                x: cx + (Math.random() - 0.5) * spanW,
+                y: topSpawnY - Math.random() * 80,
                 vx: (Math.random() - 0.5) * 12,
                 vy: 18 + Math.random() * 15,
                 size: 2.5 + Math.random() * 3.2,
                 phase: Math.random() * Math.PI * 2,
                 alpha: 0.9,
-                life: 16
+                life: 22
             });
         } else if (currentSeason === 'summer') {
             seasonalParticles.push({
                 kind: 'sunmote',
-                x: cx + (Math.random() - 0.5) * 820,
-                y: cy + (Math.random() - 0.5) * 440,
+                x: cx + (Math.random() - 0.5) * (rx * 1.9),
+                y: cy + (Math.random() - 0.5) * (ry * 1.8),
                 vx: (Math.random() - 0.5) * 8,
                 vy: -6 - Math.random() * 6,
                 size: 2.5 + Math.random() * 3,
                 phase: Math.random() * Math.PI * 2,
                 alpha: 0.65,
-                life: 6
+                life: 7
             });
         }
     }
@@ -190,7 +225,7 @@ function updateAndDrawSeasonalEffects(targetCtx, dt, now) {
     for (let i = seasonalParticles.length - 1; i >= 0; i--) {
         const p = seasonalParticles[i];
         p.life -= dt;
-        if (p.life <= 0 || p.y > cy + 380) {
+        if (p.life <= 0 || p.y > bottomKillY) {
             seasonalParticles.splice(i, 1);
             continue;
         }
@@ -3358,15 +3393,18 @@ function drawDecorationInstance(ctx, d, now, dt) {
         ctx.setLineDash([]);
     }
 
-    // 1. Ambient Occlusion Ground Shadow
-    ctx.save();
-    ctx.fillStyle = 'rgba(25, 45, 20, 0.22)';
-    ctx.beginPath();
-    const shadowW = (d.width || 48) * 0.52;
-    const shadowH = (d.type === 'bridge' || d.type === 'fountain' || d.type === 'gazebo') ? 9 : 6;
-    ctx.ellipse(0, 3, shadowW, shadowH, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    // 1. Ambient Occlusion Ground Shadow (skip for custom hand-drawn props so they never look floating)
+    const isCustomProp = Boolean(d.isCustomProp || d.type === 'custom_prop');
+    if (!isCustomProp) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(25, 45, 20, 0.22)';
+        ctx.beginPath();
+        const shadowW = (d.width || 48) * 0.52;
+        const shadowH = (d.type === 'bridge' || d.type === 'fountain' || d.type === 'gazebo') ? 9 : 6;
+        ctx.ellipse(0, 3, shadowW, shadowH, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
 
     // 2. Realistic 2.5D Drawing per Decoration Type
     ctx.save();

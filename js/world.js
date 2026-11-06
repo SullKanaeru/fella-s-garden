@@ -398,6 +398,9 @@ function loadTerrainFromDataUrl(dataUrl) {
     img.onload = () => {
       maskCtx.clearRect(0, 0, WORLD_W, WORLD_H);
       maskCtx.drawImage(img, 0, 0, WORLD_W, WORLD_H);
+      if (typeof updateCollisionGrids === "function") {
+        updateCollisionGrids();
+      }
       populateGrassDetailsAcrossIsland();
       rebuildTerrain3DLayer();
       resolve();

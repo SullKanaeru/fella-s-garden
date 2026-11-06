@@ -310,6 +310,10 @@ function updateCollisionGrids() {
     } else if (typeof sandGrid !== "undefined") {
       sandGrid.fill(0);
     }
+    cachedIslandBB = null;
+    if (typeof invalidateIslandTightBounds === "function") {
+      invalidateIslandTightBounds();
+    }
   } catch (e) {
     console.warn("Collision update error:", e);
   }
@@ -1279,10 +1283,20 @@ if (typeof window !== "undefined") {
 function populateGrassDetailsAcrossIsland() {
   grassDetails = [];
   const step = 20;
-  const minX = Math.max(40, Math.floor(WORLD_W * 0.5 - 460));
-  const maxX = Math.min(WORLD_W - 40, Math.floor(WORLD_W * 0.5 + 460));
-  const minY = Math.max(40, Math.floor(WORLD_H * 0.52 - 300));
-  const maxY = Math.min(WORLD_H - 40, Math.floor(WORLD_H * 0.52 + 300));
+  const tb =
+    typeof getIslandTightBounds === "function" ? getIslandTightBounds() : null;
+  const minX = tb
+    ? Math.max(40, Math.floor(tb.minX - 20))
+    : Math.max(40, Math.floor(WORLD_W * 0.5 - 460));
+  const maxX = tb
+    ? Math.min(WORLD_W - 40, Math.ceil(tb.maxX + 20))
+    : Math.min(WORLD_W - 40, Math.floor(WORLD_W * 0.5 + 460));
+  const minY = tb
+    ? Math.max(40, Math.floor(tb.minY - 20))
+    : Math.max(40, Math.floor(WORLD_H * 0.52 - 300));
+  const maxY = tb
+    ? Math.min(WORLD_H - 40, Math.ceil(tb.maxY + 20))
+    : Math.min(WORLD_H - 40, Math.floor(WORLD_H * 0.52 + 300));
 
   for (let y = minY; y <= maxY; y += step) {
     for (let x = minX; x <= maxX; x += step) {
@@ -1340,6 +1354,13 @@ function addGrassDetailAt(x, y, forceTuft = false) {
  * Dramatically accelerates 3D extrusion by avoiding full 4200x3200 blitting.
  */
 var cachedIslandBB = null;
+var cachedIslandTightBounds = null;
+var lastTightBoundsComputeTime = 0;
+
+function invalidateIslandTightBounds() {
+  cachedIslandTightBounds = null;
+}
+window.invalidateIslandTightBounds = invalidateIslandTightBounds;
 
 function expandIslandBoundingBox(x, y, radius = 60) {
   if (!cachedIslandBB) {
@@ -1360,10 +1381,11 @@ function expandIslandBoundingBox(x, y, radius = 60) {
   cachedIslandBB.y = newMinY;
   cachedIslandBB.w = newMaxX - newMinX;
   cachedIslandBB.h = newMaxY - newMinY;
+  cachedIslandTightBounds = null;
 }
 
 function getIslandBoundingBox() {
-  if (cachedIslandBB && isPaintingTerrain) {
+  if (cachedIslandBB) {
     return cachedIslandBB;
   }
   let minGX = COLL_W,
@@ -1395,6 +1417,130 @@ function getIslandBoundingBox() {
   cachedIslandBB = { x, y, w, h };
   return cachedIslandBB;
 }
+
+/**
+ * Returns tight world-space bounds { minX, maxX, minY, maxY, cx, cy, rx, ry, rimPoints }
+ * of the current island terrain, plus a smoothed 72-point outer contour for seasonal effects.
+ */
+function getIslandTightBounds() {
+  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  if (
+    cachedIslandTightBounds &&
+    (!isPaintingTerrain || now - lastTightBoundsComputeTime < 120)
+  ) {
+    return cachedIslandTightBounds;
+  }
+  lastTightBoundsComputeTime = now;
+
+  let minGX = COLL_W,
+    maxGX = 0,
+    minGY = COLL_H,
+    maxGY = 0;
+  let found = false;
+  for (let gy = 0; gy < COLL_H; gy++) {
+    const row = gy * COLL_W;
+    for (let gx = 0; gx < COLL_W; gx++) {
+      if (grassGrid[row + gx] === 1 || waterGrid[row + gx] === 1) {
+        if (gx < minGX) minGX = gx;
+        if (gx > maxGX) maxGX = gx;
+        if (gy < minGY) minGY = gy;
+        if (gy > maxGY) maxGY = gy;
+        found = true;
+      }
+    }
+  }
+
+  if (!found) {
+    const defCx = WORLD_W * 0.5;
+    const defCy = WORLD_H * 0.52;
+    cachedIslandTightBounds = {
+      minX: defCx - 440,
+      maxX: defCx + 440,
+      minY: defCy - 280,
+      maxY: defCy + 280,
+      cx: defCx,
+      cy: defCy,
+      rx: 440,
+      ry: 280,
+      rimPoints: null,
+    };
+    return cachedIslandTightBounds;
+  }
+
+  const minX = minGX * COLL_SCALE;
+  const maxX = (maxGX + 1) * COLL_SCALE;
+  const minY = minGY * COLL_SCALE;
+  const maxY = (maxGY + 1) * COLL_SCALE;
+  const cx = (minX + maxX) * 0.5;
+  const cy = (minY + maxY) * 0.5;
+  const rx = Math.max(120, (maxX - minX) * 0.5);
+  const ry = Math.max(80, (maxY - minY) * 0.5);
+
+  // Compute 72-angle outer contour raycast from (cx, cy) so snow ring follows exact terrain size & shape
+  const numAngles = 72;
+  const maxRayDist = Math.hypot(rx, ry) + 24;
+  const rawRadii = new Float32Array(numAngles);
+
+  for (let i = 0; i < numAngles; i++) {
+    const theta = (i / numAngles) * Math.PI * 2;
+    const cosT = Math.cos(theta);
+    const sinT = Math.sin(theta);
+    let hitDist = 0;
+    for (let r = maxRayDist; r >= 16; r -= COLL_SCALE) {
+      const gx = ((cx + cosT * r) / COLL_SCALE) | 0;
+      const gy = ((cy + sinT * r) / COLL_SCALE) | 0;
+      if (gx >= 0 && gx < COLL_W && gy >= 0 && gy < COLL_H) {
+        const idx = gy * COLL_W + gx;
+        if (grassGrid[idx] === 1 || waterGrid[idx] === 1) {
+          hitDist = r;
+          break;
+        }
+      }
+    }
+    if (hitDist <= 0) {
+      const ellR = 1 / Math.hypot(cosT / rx, sinT / ry);
+      hitDist = ellR;
+    }
+    rawRadii[i] = Math.max(40, hitDist - 24);
+  }
+
+  // Smooth radial contour over 5 circular passes for a silky organic ring
+  let smoothed = rawRadii;
+  for (let pass = 0; pass < 5; pass++) {
+    const next = new Float32Array(numAngles);
+    for (let i = 0; i < numAngles; i++) {
+      const prev = smoothed[(i - 1 + numAngles) % numAngles];
+      const curr = smoothed[i];
+      const nxt = smoothed[(i + 1) % numAngles];
+      next[i] = prev * 0.25 + curr * 0.5 + nxt * 0.25;
+    }
+    smoothed = next;
+  }
+
+  const rimPoints = [];
+  for (let i = 0; i < numAngles; i++) {
+    const theta = (i / numAngles) * Math.PI * 2;
+    const r = smoothed[i];
+    rimPoints.push({
+      x: cx + Math.cos(theta) * r,
+      y: cy - 4 + Math.sin(theta) * r,
+    });
+  }
+
+  cachedIslandTightBounds = {
+    minX,
+    maxX,
+    minY,
+    maxY,
+    cx,
+    cy,
+    rx,
+    ry,
+    rimPoints,
+  };
+  return cachedIslandTightBounds;
+}
+window.getIslandTightBounds = getIslandTightBounds;
 
 /**
  * Updates the downsampled collision grid directly in RAM along a brush stroke
@@ -1440,6 +1586,7 @@ function paintCollisionGridStroke(grid, x1, y1, x2, y2, radius, val) {
       }
     }
   }
+  cachedIslandTightBounds = null;
 }
 
 function queueTerrainDirtyRect(minX, minY, maxX, maxY) {
@@ -7375,18 +7522,86 @@ function setDayNightMode(nightState, silent = false) {
   if (!silent && typeof scheduleAutoSave === "function") scheduleAutoSave();
 }
 
+var firefliesBoundsSignature = "";
+
+function isPointOnIslandTerrain(x, y) {
+  if (x < 0 || y < 0 || x >= WORLD_W || y >= WORLD_H) return false;
+  const gx = (x / COLL_SCALE) | 0;
+  const gy = (y / COLL_SCALE) | 0;
+  if (gx < 0 || gy < 0 || gx >= COLL_W || gy >= COLL_H) return false;
+  const idx = gy * COLL_W + gx;
+  return (
+    grassGrid[idx] === 1 ||
+    waterGrid[idx] === 1 ||
+    (typeof sandGrid !== "undefined" && sandGrid[idx] === 1)
+  );
+}
+
+function sampleRandomPointOnIsland(bounds) {
+  const b =
+    bounds ||
+    (typeof getIslandTightBounds === "function"
+      ? getIslandTightBounds()
+      : {
+          minX: WORLD_W * 0.5 - 440,
+          maxX: WORLD_W * 0.5 + 440,
+          minY: WORLD_H * 0.52 - 280,
+          maxY: WORLD_H * 0.52 + 280,
+          cx: WORLD_W * 0.5,
+          cy: WORLD_H * 0.52,
+          rx: 440,
+          ry: 280,
+        });
+  const spanW = Math.max(80, b.maxX - b.minX - 40);
+  const spanH = Math.max(60, b.maxY - b.minY - 40);
+
+  for (let attempt = 0; attempt < 35; attempt++) {
+    const px = b.minX + 20 + Math.random() * spanW;
+    const py = b.minY + 20 + Math.random() * spanH;
+    if (isPointOnIslandTerrain(px, py)) {
+      return {
+        x: px,
+        y: py - 12 - Math.random() * 32,
+      };
+    }
+  }
+
+  // Uniform disk fallback scaled to actual island rx/ry
+  const angle = Math.random() * Math.PI * 2;
+  const rNorm = Math.sqrt(Math.random()) * 0.92;
+  return {
+    x: b.cx + Math.cos(angle) * b.rx * rNorm,
+    y: b.cy + Math.sin(angle) * b.ry * rNorm - 15 - Math.random() * 30,
+  };
+}
+
 function initFireflies() {
   fireflies = [];
-  const count = 38;
-  const cx = WORLD_W * 0.5;
-  const cy = WORLD_H * 0.52;
+  const bounds =
+    typeof getIslandTightBounds === "function"
+      ? getIslandTightBounds()
+      : {
+          minX: WORLD_W * 0.5 - 440,
+          maxX: WORLD_W * 0.5 + 440,
+          minY: WORLD_H * 0.52 - 280,
+          maxY: WORLD_H * 0.52 + 280,
+          cx: WORLD_W * 0.5,
+          cy: WORLD_H * 0.52,
+          rx: 440,
+          ry: 280,
+        };
+
+  firefliesBoundsSignature = `${Math.round(bounds.minX / 48)}_${Math.round(bounds.maxX / 48)}_${Math.round(bounds.minY / 48)}_${Math.round(bounds.maxY / 48)}`;
+
+  // Scale firefly count proportionally to terrain size (38 on base island, up to 85 on expanded terrain)
+  const areaRatio = Math.max(1, (bounds.rx * bounds.ry) / (440 * 280));
+  const count = Math.min(85, Math.max(40, Math.round(40 * Math.pow(areaRatio, 0.65))));
 
   for (let i = 0; i < count; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = Math.random() * 380;
+    const pt = sampleRandomPointOnIsland(bounds);
     fireflies.push({
-      x: cx + Math.cos(angle) * dist,
-      y: cy + Math.sin(angle) * (dist * 0.6) - 15 - Math.random() * 45,
+      x: pt.x,
+      y: pt.y,
       vx: (Math.random() - 0.5) * 14,
       vy: (Math.random() - 0.5) * 10,
       size: 2.2 + Math.random() * 2.5,
@@ -7399,26 +7614,53 @@ function initFireflies() {
 }
 
 function updateAndDrawFireflies(targetCtx, dt, now) {
-  const cx = WORLD_W * 0.5;
-  const cy = WORLD_H * 0.52;
+  const bounds =
+    typeof getIslandTightBounds === "function"
+      ? getIslandTightBounds()
+      : {
+          minX: WORLD_W * 0.5 - 440,
+          maxX: WORLD_W * 0.5 + 440,
+          minY: WORLD_H * 0.52 - 280,
+          maxY: WORLD_H * 0.52 + 280,
+          cx: WORLD_W * 0.5,
+          cy: WORLD_H * 0.52,
+          rx: 440,
+          ry: 280,
+        };
+
+  // Automatically re-distribute fireflies if the island bounds expanded or loaded from save
+  const currentSig = `${Math.round(bounds.minX / 48)}_${Math.round(bounds.maxX / 48)}_${Math.round(bounds.minY / 48)}_${Math.round(bounds.maxY / 48)}`;
+  if (
+    fireflies.length === 0 ||
+    (!isPaintingTerrain && firefliesBoundsSignature !== currentSig)
+  ) {
+    initFireflies();
+  }
 
   for (const f of fireflies) {
-    // Gentle floating wander
+    // Gentle floating wander across the entire island
     f.x += f.vx * dt + Math.sin(now * 0.002 + f.pulseOffset) * 0.35;
     f.y += f.vy * dt + Math.cos(now * 0.0025 + f.pulseOffset) * 0.25;
 
     // Soft wander velocity steering
-    f.vx += (Math.random() - 0.5) * 4 * dt;
-    f.vy += (Math.random() - 0.5) * 3 * dt;
+    f.vx += (Math.random() - 0.5) * 4.5 * dt;
+    f.vy += (Math.random() - 0.5) * 3.5 * dt;
     f.vx = Math.max(-18, Math.min(18, f.vx));
     f.vy = Math.max(-14, Math.min(14, f.vy));
 
-    // Tether gently near island center
-    const dx = cx - f.x;
-    const dy = cy - f.y;
-    if (Math.hypot(dx, dy) > 420) {
-      f.vx += dx * 0.0004;
-      f.vy += dy * 0.0004;
+    // Keep fireflies within the actual painted terrain (never clustered only in center)
+    const groundY = f.y + 22;
+    if (!isPointOnIslandTerrain(f.x, groundY)) {
+      if (!f.returnTarget) {
+        f.returnTarget = sampleRandomPointOnIsland(bounds);
+      }
+      const dx = f.returnTarget.x - f.x;
+      const dy = f.returnTarget.y - f.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      f.vx += (dx / dist) * 24 * dt;
+      f.vy += (dy / dist) * 24 * dt;
+    } else if (f.returnTarget) {
+      f.returnTarget = null;
     }
 
     // Breathing glow pulse
