@@ -264,8 +264,9 @@ function switchGalleryTab(tabName) {
     const headerActionBtn = document.getElementById('galleryHeaderActionBtn');
 
     // Reset all tabs to inactive first
-    const inactiveClass = 'px-4 py-2 rounded-t-xl font-hand font-bold text-xs sm:text-sm flex items-center gap-2 transition bg-[#e1ecd9] text-gray-600 hover:text-[#2B5B35] border-t-2 border-x-2 border-transparent';
-    const activeClass = 'px-4 py-2 rounded-t-xl font-hand font-bold text-xs sm:text-sm flex items-center gap-2 transition bg-white text-[#2B5B35] border-t-2 border-x-2 border-[#2B5B35] shadow-xs active';
+    const baseTabClass = 'shrink-0 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-t-xl font-hand font-bold text-[11px] sm:text-xs md:text-sm flex items-center gap-1 sm:gap-1.5 transition border-t-2 border-x-2';
+    const inactiveClass = `${baseTabClass} bg-[#e1ecd9] text-gray-600 hover:text-[#2B5B35] border-transparent`;
+    const activeClass = `${baseTabClass} bg-white text-[#2B5B35] border-[#2B5B35] shadow-xs active`;
 
     if (flowerTabBtn) flowerTabBtn.className = inactiveClass;
     if (animalTabBtn) animalTabBtn.className = inactiveClass;
@@ -399,7 +400,7 @@ function renderFlowersGrid(container, filterQuery = '') {
     }
 
     container.innerHTML = `
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
             ${list.map(item => `
                 <div class="bg-white/95 rounded-2xl border-2 border-[#d7e2ce] hover:border-[#7DB852] p-2.5 sm:p-3 flex flex-col items-center justify-between shadow-sm hover:shadow-md transition duration-200 group">
                     <!-- Preview Box -->
@@ -411,32 +412,34 @@ function renderFlowersGrid(container, filterQuery = '') {
                     <!-- Name with inline rename -->
                     <div class="w-full mt-2 text-center">
                         <div class="flex items-center justify-center gap-1 group/title">
-                            <span class="font-hand font-bold text-base sm:text-lg text-[#2B5B35] truncate max-w-[130px]" title="${item.name}">
+                            <span class="font-hand font-bold text-sm sm:text-base md:text-lg text-[#2B5B35] truncate max-w-[120px]" title="${item.name}">
                                 ${item.name}
                             </span>
-                            <button onclick="renameFlowerInGallery('${item.id}')" title="Ubah Nama Bunga" class="opacity-0 group-hover/title:opacity-100 hover:text-[#2B5B35] text-gray-400 transition">
+                            <button onclick="renameFlowerInGallery('${item.id}')" title="Ubah Nama Bunga" class="opacity-0 group-hover/title:opacity-100 hover:text-[#2B5B35] text-gray-400 transition cursor-pointer">
                                 <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Action Buttons -->
-                    <div class="w-full mt-2.5 flex items-center gap-1.5">
-                        <button onclick="plantFlowerFromGallery('${item.id}')" class="flex-1 py-1.5 px-2.5 rounded-full bg-[#2B5B35] hover:bg-[#1f4627] text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1 transition active:scale-95 cursor-pointer" title="Tanam Bunga Ini ke Kebun">
-                            <svg class="w-3.5 h-3.5 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                    <!-- Action Buttons: 2-Row Responsive Layout -->
+                    <div class="w-full mt-2 flex flex-col gap-1.5">
+                        <button onclick="plantFlowerFromGallery('${item.id}')" class="w-full py-1.5 px-2 rounded-xl bg-[#2B5B35] hover:bg-[#1f4627] text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer" title="Tanam Bunga Ini ke Kebun">
+                            <svg class="w-3.5 h-3.5 text-emerald-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                             <span>Tanam</span>
                         </button>
-                        <button onclick="loadFlowerIntoStudio('${item.id}')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f4faee] hover:bg-[#e6f4dc] text-[#2B5B35] flex items-center justify-center transition border border-[#b5cca3] shadow-2xs cursor-pointer active:scale-95 shrink-0" title="Buka & Edit di Studio">
-                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                        </button>
-                        ${item.strokes && item.strokes.length > 0 ? `
-                            <button onclick="playGalleryItemTimelapse('flower', '${item.id}')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-700 flex items-center justify-center transition border border-amber-300 shadow-2xs cursor-pointer active:scale-95 shrink-0" title="Putar Timelapse Bunga">
-                                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+                        <div class="flex items-center justify-center gap-1.5 w-full">
+                            <button onclick="loadFlowerIntoStudio('${item.id}')" class="flex-1 h-7 rounded-lg bg-[#f4faee] hover:bg-[#e6f4dc] text-[#2B5B35] flex items-center justify-center transition border border-[#b5cca3] shadow-2xs cursor-pointer active:scale-95" title="Buka & Edit di Studio">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                             </button>
-                        ` : ''}
-                        <button onclick="deleteFlowerFromGallery('${item.id}')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition border border-rose-200 shadow-2xs cursor-pointer active:scale-95 shrink-0" title="Hapus dari Galeri">
-                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                        </button>
+                            ${item.strokes && item.strokes.length > 0 ? `
+                                <button onclick="playGalleryItemTimelapse('flower', '${item.id}')" class="flex-1 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 flex items-center justify-center transition border border-amber-300 shadow-2xs cursor-pointer active:scale-95" title="Putar Timelapse Bunga">
+                                    <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+                                </button>
+                            ` : ''}
+                            <button onclick="deleteFlowerFromGallery('${item.id}')" class="flex-1 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition border border-rose-200 shadow-2xs cursor-pointer active:scale-95" title="Hapus dari Galeri">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
             `).join('')}
@@ -704,14 +707,16 @@ function renderAnimalsGrid(container, filterQuery = '') {
     }
 
     container.innerHTML = `
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
             ${list.map(item => {
+                const isCustom = item.type === 'custom';
+                const hasTimelapse = item.strokes && item.strokes.length > 0;
                 let badgeText = 'Sahabat';
                 let avatarEmoji = '🐾';
                 let dotColor = '#2B5B35';
 
-                if (item.type === 'custom') {
-                    badgeText = 'Hewan Ciptaanmu';
+                if (isCustom) {
+                    badgeText = 'Kreasi Sendiri';
                     avatarEmoji = '🎨';
                 } else if (typeof animalVariants !== 'undefined' && animalVariants[item.type]) {
                     const vInfo = animalVariants[item.type].find(v => v.id === item.variant) || animalVariants[item.type][0];
@@ -727,13 +732,13 @@ function renderAnimalsGrid(container, filterQuery = '') {
                             ${item.spriteDataUrl ? `
                                 <img src="${item.spriteDataUrl}" class="max-w-[80%] max-h-[80%] object-contain drop-shadow-md" alt="${item.name}">
                             ` : `
-                                <div class="w-16 h-16 rounded-full bg-white border-2 border-[#d2e0cb] shadow-sm flex items-center justify-center text-3xl relative">
+                                <div class="w-14 h-14 rounded-full bg-white border-2 border-[#d2e0cb] shadow-sm flex items-center justify-center text-3xl relative">
                                     <span>${avatarEmoji}</span>
-                                    <span class="absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white shadow-xs" style="background-color: ${dotColor};"></span>
+                                    <span class="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white shadow-xs" style="background-color: ${dotColor};"></span>
                                 </div>
                             `}
-                            <span class="absolute top-1.5 left-2 text-[10px] text-[#477431]/75 font-mono">${item.createdAt || ''}</span>
-                            <span class="mt-2 text-[10px] px-2 py-0.5 rounded-full bg-white/90 border border-[#d2e0cb] text-[#2B5B35] font-bold">
+                            <span class="absolute top-1.5 left-2 text-[10px] text-[#477431]/75 font-mono">${isCustom ? (item.createdAt || '') : 'Katalog'}</span>
+                            <span class="mt-1.5 text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full bg-white/90 border border-[#d2e0cb] text-[#2B5B35] font-bold truncate max-w-[90%]">
                                 ${badgeText}
                             </span>
                         </div>
@@ -741,34 +746,39 @@ function renderAnimalsGrid(container, filterQuery = '') {
                         <!-- Name with inline rename -->
                         <div class="w-full mt-2 text-center">
                             <div class="flex items-center justify-center gap-1 group/title">
-                                <span class="font-hand font-bold text-base sm:text-lg text-[#2B5B35] truncate max-w-[130px]" title="${item.name}">
+                                <span class="font-hand font-bold text-sm sm:text-base md:text-lg text-[#2B5B35] truncate max-w-[120px]" title="${item.name}">
                                     ${item.name}
                                 </span>
-                                <button onclick="renameAnimalInGallery('${item.id}')" title="Ubah Nama Hewan" class="opacity-0 group-hover/title:opacity-100 hover:text-[#2B5B35] text-gray-400 transition">
-                                    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                                </button>
+                                ${isCustom ? `
+                                    <button onclick="renameAnimalInGallery('${item.id}')" title="Ubah Nama Hewan" class="opacity-0 group-hover/title:opacity-100 hover:text-[#2B5B35] text-gray-400 transition cursor-pointer">
+                                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                                    </button>
+                                ` : ''}
                             </div>
                         </div>
 
-                        <!-- Action Buttons -->
-                        <div class="w-full mt-2.5 flex items-center gap-1.5">
-                            <button onclick="summonAnimalFromGallery('${item.id}')" class="flex-1 py-1.5 px-2.5 rounded-full bg-[#2B5B35] hover:bg-[#1f4627] text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1 transition active:scale-95 cursor-pointer" title="Panggil Hewan Ini ke Kebun">
-                                <svg class="w-3.5 h-3.5 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                        <!-- Action Buttons: 2-Row Responsive Layout -->
+                        <div class="w-full mt-2 flex flex-col gap-1.5">
+                            <button onclick="summonAnimalFromGallery('${item.id}')" class="w-full py-1.5 px-2 rounded-xl bg-[#2B5B35] hover:bg-[#1f4627] text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer" title="Panggil Hewan Ini ke Kebun">
+                                <svg class="w-3.5 h-3.5 text-emerald-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                 <span>Panggil</span>
                             </button>
-                            ${item.type === 'custom' ? `
-                                <button onclick="loadAnimalIntoStudio('${item.id}')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f4faee] hover:bg-[#e6f4dc] text-[#2B5B35] flex items-center justify-center transition border border-[#b5cca3] shadow-2xs cursor-pointer active:scale-95 shrink-0" title="Edit di Studio Hewan">
-                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                            <div class="flex items-center justify-center gap-1.5 w-full">
+                                ${isCustom ? `
+                                    <button onclick="loadAnimalIntoStudio('${item.id}')" class="flex-1 h-7 rounded-lg bg-[#f4faee] hover:bg-[#e6f4dc] text-[#2B5B35] flex items-center justify-center transition border border-[#b5cca3] shadow-2xs cursor-pointer active:scale-95" title="Edit di Studio Hewan">
+                                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                                    </button>
+                                ` : ''}
+                                ${hasTimelapse ? `
+                                    <button onclick="playGalleryItemTimelapse('animal', '${item.id}')" class="flex-1 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 flex items-center justify-center transition border border-amber-300 shadow-2xs cursor-pointer active:scale-95" title="Putar Timelapse Hewan">
+                                        <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+                                    </button>
+                                ` : ''}
+                                <button onclick="deleteAnimalFromGallery('${item.id}')" class="${isCustom ? 'flex-1 h-7' : 'w-full h-7 text-[11px] font-medium gap-1'} rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition border border-rose-200 shadow-2xs cursor-pointer active:scale-95" title="Hapus dari Hewan Favorit">
+                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                    ${!isCustom ? '<span>Hapus Favorit</span>' : ''}
                                 </button>
-                            ` : ''}
-                            ${item.strokes && item.strokes.length > 0 ? `
-                                <button onclick="playGalleryItemTimelapse('animal', '${item.id}')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-700 flex items-center justify-center transition border border-amber-300 shadow-2xs cursor-pointer active:scale-95 shrink-0" title="Putar Timelapse Hewan">
-                                    <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>
-                                </button>
-                            ` : ''}
-                            <button onclick="deleteAnimalFromGallery('${item.id}')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition border border-rose-200 shadow-2xs cursor-pointer active:scale-95 shrink-0" title="Hapus dari Hewan Favorit">
-                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                            </button>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -811,7 +821,7 @@ function renderDecorationsGrid(container, filterQuery = '') {
     }
 
     container.innerHTML = `
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
             ${list.map(item => {
                 const isCustom = !!item.isCustomProp;
                 const catDef = (typeof DECORATION_CATALOG !== 'undefined') ? DECORATION_CATALOG.find(c => c.type === item.type) : null;
@@ -830,7 +840,7 @@ function renderDecorationsGrid(container, filterQuery = '') {
                                     ${iconSvg}
                                 </div>
                             `}
-                            <span class="absolute top-1.5 left-2 text-[10px] text-[#477431]/75 font-mono">${item.createdAt || ''}</span>
+                            <span class="absolute top-1.5 left-2 text-[10px] text-[#477431]/75 font-mono">${isCustom ? (item.createdAt || '') : 'Katalog'}</span>
                             <span class="absolute bottom-1.5 right-2 text-[9px] px-1.5 py-0.2 rounded-md bg-white/85 text-[#2B5B35] font-mono border border-[#d2e0cb]">
                                 ${habitatBadge}
                             </span>
@@ -839,7 +849,7 @@ function renderDecorationsGrid(container, filterQuery = '') {
                         <!-- Name with inline rename -->
                         <div class="w-full mt-2 text-center">
                             <div class="flex items-center justify-center gap-1 group/title">
-                                <span class="font-hand font-bold text-base sm:text-lg text-[#2B5B35] truncate max-w-[130px]" title="${item.name}">
+                                <span class="font-hand font-bold text-sm sm:text-base md:text-lg text-[#2B5B35] truncate max-w-[120px]" title="${item.name}">
                                     ${item.name}
                                 </span>
                                 ${isCustom ? `
@@ -850,25 +860,28 @@ function renderDecorationsGrid(container, filterQuery = '') {
                             </div>
                         </div>
 
-                        <!-- Action Buttons -->
-                        <div class="w-full mt-2.5 flex items-center gap-1.5">
-                            <button onclick="placeDecorFromGallery('${item.id}')" class="flex-1 py-1.5 px-2.5 rounded-full bg-[#2B5B35] hover:bg-[#1f4627] text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1 transition active:scale-95 cursor-pointer" title="Pasang ke Kebun">
-                                <svg class="w-3.5 h-3.5 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                        <!-- Action Buttons: 2-Row Responsive Layout -->
+                        <div class="w-full mt-2 flex flex-col gap-1.5">
+                            <button onclick="placeDecorFromGallery('${item.id}')" class="w-full py-1.5 px-2 rounded-xl bg-[#2B5B35] hover:bg-[#1f4627] text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer" title="Pasang ke Kebun">
+                                <svg class="w-3.5 h-3.5 text-emerald-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                 <span>Pasang</span>
                             </button>
-                            ${isCustom ? `
-                                <button onclick="loadPropIntoStudio('${item.id}')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f4faee] hover:bg-[#e6f4dc] text-[#2B5B35] flex items-center justify-center transition border border-[#b5cca3] shadow-2xs cursor-pointer active:scale-95 shrink-0" title="Edit di Studio Properti">
-                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                            <div class="flex items-center justify-center gap-1.5 w-full">
+                                ${isCustom ? `
+                                    <button onclick="loadPropIntoStudio('${item.id}')" class="flex-1 h-7 rounded-lg bg-[#f4faee] hover:bg-[#e6f4dc] text-[#2B5B35] flex items-center justify-center transition border border-[#b5cca3] shadow-2xs cursor-pointer active:scale-95" title="Edit di Studio Properti">
+                                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                                    </button>
+                                ` : ''}
+                                ${hasTimelapse ? `
+                                    <button onclick="playGalleryItemTimelapse('decor', '${item.id}')" class="flex-1 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 flex items-center justify-center transition border border-amber-300 shadow-2xs cursor-pointer active:scale-95" title="Putar Timelapse Pembuatan">
+                                        <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+                                    </button>
+                                ` : ''}
+                                <button onclick="deleteDecorFromGallery('${item.id}')" class="${isCustom ? 'flex-1 h-7' : 'w-full h-7 text-[11px] font-medium gap-1'} rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition border border-rose-200 shadow-2xs cursor-pointer active:scale-95" title="Hapus dari Favorit">
+                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                    ${!isCustom ? '<span>Hapus Favorit</span>' : ''}
                                 </button>
-                            ` : ''}
-                            ${hasTimelapse ? `
-                                <button onclick="playGalleryItemTimelapse('decor', '${item.id}')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-700 flex items-center justify-center transition border border-amber-300 shadow-2xs cursor-pointer active:scale-95 shrink-0" title="Putar Timelapse Pembuatan">
-                                    <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>
-                                </button>
-                            ` : ''}
-                            <button onclick="deleteDecorFromGallery('${item.id}')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition border border-rose-200 shadow-2xs cursor-pointer active:scale-95 shrink-0" title="Hapus dari Favorit">
-                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                            </button>
+                            </div>
                         </div>
                     </div>
                 `;

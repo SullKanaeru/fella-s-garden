@@ -396,33 +396,39 @@ body {
     }
 
     /* -------------------------------------------------------------
-       2. GALERI KEBUN (FLOWER & ANIMAL & PET GALLERY)
+       2. GALERI KEBUN (FLOWER & ANIMAL & DECOR & PET GALLERY)
        ------------------------------------------------------------- */
-    #flowerGalleryModal .px-5.pt-2\.5 {
-        padding: 3px 12px 0 12px !important;
-        gap: 4px !important;
+    #flowerGalleryModal .px-5.pt-2\.5,
+    #flowerGalleryModal [id^="galTab"] {
+        white-space: nowrap !important;
     }
     #galTabFlowers,
     #galTabAnimals,
+    #galTabDecorations,
     #galTabExclusive {
-        padding: 4px 10px !important;
+        padding: 4px 8px !important;
         font-size: 11px !important;
         border-top-left-radius: 10px !important;
         border-top-right-radius: 10px !important;
+        flex-shrink: 0 !important;
     }
     #galTabFlowers svg,
-    #galTabAnimals svg {
+    #galTabAnimals svg,
+    #galTabDecorations svg,
+    #galTabExclusive svg {
         width: 13px !important;
         height: 13px !important;
     }
     #galFlowersCount,
     #galAnimalsCount,
+    #galDecorCount,
     #galExclusiveCount {
         font-size: 9px !important;
         padding: 1px 5px !important;
     }
 
-    #flowerGalleryModal .px-5.py-2\.5.bg-\[\#f4faee\] {
+    #flowerGalleryModal .px-5.py-2\.5.bg-\[\#f4faee\],
+    #flowerGalleryModal .px-3.sm\:px-5.py-2 {
         padding: 4px 12px !important;
     }
     #gallerySearchInput {
@@ -449,7 +455,8 @@ body {
         border-radius: 12px !important;
     }
     #galleryGridContainer .aspect-square {
-        height: 68px !important;
+        height: 72px !important;
+        max-height: 72px !important;
         padding: 2px !important;
         border-radius: 8px !important;
     }
@@ -457,22 +464,29 @@ body {
         font-size: 12px !important;
         max-width: 105px !important;
     }
-    #galleryGridContainer .w-full.mt-2\.5 {
+    #galleryGridContainer .w-full.mt-2 {
         margin-top: 4px !important;
-        gap: 4px !important;
+        gap: 3px !important;
     }
     #galleryGridContainer button[onclick*="plantFlowerFromGallery"],
+    #galleryGridContainer button[onclick*="summonAnimalFromGallery"],
+    #galleryGridContainer button[onclick*="placeDecorFromGallery"],
     #galleryGridContainer button[onclick*="spawnSavedCustomAnimal"] {
         padding: 3px 6px !important;
         font-size: 10px !important;
         border-radius: 8px !important;
     }
     #galleryGridContainer button[onclick*="loadFlowerIntoStudio"],
+    #galleryGridContainer button[onclick*="loadAnimalIntoStudio"],
+    #galleryGridContainer button[onclick*="loadPropIntoStudio"],
+    #galleryGridContainer button[onclick*="playGalleryItemTimelapse"],
     #galleryGridContainer button[onclick*="deleteFlowerFromGallery"],
+    #galleryGridContainer button[onclick*="deleteAnimalFromGallery"],
+    #galleryGridContainer button[onclick*="deleteDecorFromGallery"],
     #galleryGridContainer button[onclick*="deleteCustomAnimalFromGallery"] {
-        width: 22px !important;
         height: 22px !important;
-        border-radius: 8px !important;
+        border-radius: 6px !important;
+        font-size: 10px !important;
     }
     #galleryGridContainer button svg {
         width: 12px !important;
@@ -1376,15 +1390,60 @@ body.zen-mode #zenModeRestorePill {
         width: 100% !important;
     }
 
-    /* Modal Headers */
-    #flowerGalleryModal .border-b,
-    #worldManagerModal .border-b,
-    #animalModal .border-b,
-    #achievementModal .border-b,
-    #photoStudioModal .border-b,
-    #decorModal .border-b,
-    #journalModal .border-b {
+    /* Modal Headers (first child header only) */
+    #flowerGalleryModal > div > div:first-child,
+    #worldManagerModal > div > div:first-child,
+    #animalModal > div > div:first-child,
+    #achievementModal > div > div:first-child,
+    #photoStudioModal > div > div:first-child,
+    #decorModal > div > div:first-child,
+    #journalModal > div > div:first-child {
         padding: 8px 12px !important;
+    }
+    #flowerGalleryModal .bg-\[\#eef5e6\].border-b {
+        padding: 6px 10px 0 10px !important;
+    }
+    #flowerGalleryModal .bg-\[\#f4faee\].border-b {
+        padding: 6px 10px !important;
+    }
+
+    /* Flower Gallery Mobile Tabs & Cards */
+    #galTabFlowers,
+    #galTabAnimals,
+    #galTabDecorations,
+    #galTabExclusive {
+        padding: 4px 8px !important;
+        font-size: 11px !important;
+        flex-shrink: 0 !important;
+    }
+    #galTabFlowers svg,
+    #galTabAnimals svg,
+    #galTabDecorations svg,
+    #galTabExclusive svg {
+        width: 13px !important;
+        height: 13px !important;
+    }
+    #galFlowersCount,
+    #galAnimalsCount,
+    #galDecorCount,
+    #galExclusiveCount {
+        font-size: 9px !important;
+        padding: 1px 4.5px !important;
+    }
+    #galleryGridContainer .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+    }
+    #galleryGridContainer .bg-white\/95 {
+        padding: 8px 6px !important;
+        border-radius: 14px !important;
+    }
+    #galleryGridContainer button[onclick*="plantFlowerFromGallery"],
+    #galleryGridContainer button[onclick*="summonAnimalFromGallery"],
+    #galleryGridContainer button[onclick*="placeDecorFromGallery"],
+    #galleryGridContainer button[onclick*="spawnSavedCustomAnimal"] {
+        padding: 4px 6px !important;
+        font-size: 11px !important;
     }
 
     #flowerGalleryModal h2,
