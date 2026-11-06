@@ -562,8 +562,14 @@ function renderDecorModalCatalog() {
         catalogEl.innerHTML = DECORATION_CATALOG.map(item => {
             const isStarItem = !!item.starShopItemId;
             const isLocked = isStarItem && (!dailyLoginState.unlockedStarItems || !dailyLoginState.unlockedStarItems.includes(item.starShopItemId));
+            const isFavorited = (typeof isDecorFavorited === 'function') ? isDecorFavorited(item.type) : false;
             return `
-            <div class="bg-white rounded-2xl border-2 ${isLocked ? 'border-amber-200 bg-[#fffdfa]' : 'border-[#d2e0cb] hover:border-[#7DB852]'} p-3 flex flex-col items-center text-center transition group shadow-xs">
+            <div class="relative bg-white rounded-2xl border-2 ${isLocked ? 'border-amber-200 bg-[#fffdfa]' : 'border-[#d2e0cb] hover:border-[#7DB852]'} p-3 flex flex-col items-center text-center transition group shadow-xs">
+                <!-- Favorite Toggle Button -->
+                <button onclick="event.stopPropagation(); if (typeof toggleFavoriteCatalogDecor === 'function') toggleFavoriteCatalogDecor('${item.type}');" title="${isFavorited ? 'Hapus dari Favorit' : 'Jadikan Favorit'}" class="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs transition active:scale-90 cursor-pointer ${isFavorited ? 'bg-amber-100 text-amber-500 border border-amber-300 shadow-xs' : 'bg-black/5 hover:bg-black/10 text-gray-400'}">
+                    ${isFavorited ? '⭐' : '☆'}
+                </button>
+
                 <div class="w-12 h-12 rounded-2xl ${isLocked ? 'bg-amber-50 border border-amber-200' : 'bg-[#f4faee] border border-[#c5d9b7]'} flex items-center justify-center mb-2 group-hover:scale-110 transition">
                     ${item.icon}
                 </div>
@@ -609,6 +615,7 @@ function renderDecorModalCatalog() {
                 const isEasel = d.type === 'easel';
                 const displayName = isCustom ? (d.name || 'Properti Kustom') : info.name;
                 const scaleVal = (typeof d.scale === 'number' ? d.scale : 1.0).toFixed(1);
+                const isFavorited = (typeof isDecorFavorited === 'function') ? isDecorFavorited(d) : false;
 
                 return `
                     <div class="flex items-center justify-between gap-2 p-2.5 bg-[#fdfbf7] rounded-xl border border-[#e2d5bc] shadow-xs">
@@ -625,11 +632,14 @@ function renderDecorModalCatalog() {
                             </div>
                         </div>
                         <div class="flex items-center gap-1.5 shrink-0">
-                            <button onclick="closeDecorModal(); selectDecorationForScaling('${d.id}');" class="px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-bold transition active:scale-95 shadow-2xs">
+                            <button onclick="if (typeof toggleFavoriteActiveDecor === 'function') toggleFavoriteActiveDecor('${d.id}');" title="${isFavorited ? 'Hapus dari Favorit' : 'Jadikan Favorit'}" class="w-7 h-7 rounded-full flex items-center justify-center text-xs transition active:scale-95 cursor-pointer ${isFavorited ? 'bg-amber-100 text-amber-600 border border-amber-300' : 'bg-gray-50 hover:bg-gray-100 text-gray-400 border border-gray-200'}">
+                                ${isFavorited ? '⭐' : '☆'}
+                            </button>
+                            <button onclick="closeDecorModal(); selectDecorationForScaling('${d.id}');" class="px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-bold transition active:scale-95 shadow-2xs cursor-pointer">
                                 🔍 Skala
                             </button>
-                            ${isEasel ? `<button onclick="closeDecorModal(); openEaselModal(decorations.find(x => x.id === '${d.id}'))" class="px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold transition active:scale-95 shadow-2xs">🖼️ Lukisan</button>` : ''}
-                            <button onclick="removeDecorationById('${d.id}')" class="px-2.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[11px] font-bold transition active:scale-95 shadow-2xs">
+                            ${isEasel ? `<button onclick="closeDecorModal(); openEaselModal(decorations.find(x => x.id === '${d.id}'))" class="px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold transition active:scale-95 shadow-2xs cursor-pointer">🖼️ Lukisan</button>` : ''}
+                            <button onclick="removeDecorationById('${d.id}')" class="px-2.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[11px] font-bold transition active:scale-95 shadow-2xs cursor-pointer">
                                 Hapus
                             </button>
                         </div>

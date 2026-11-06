@@ -693,12 +693,12 @@
         onscroll="if(window.updateSidebarScrollIndicators)window.updateSidebarScrollIndicators()"
         class="flex flex-col items-center overflow-y-auto no-scrollbar scroll-smooth snap-y snap-mandatory w-full"
       >
-        <!-- 1. Studio Button -->
+        <!-- 1. Studio Button (Bunga) -->
         <button
           id="openStudioBtn"
           onclick="openFlowerStudioModal()"
           class="launcher-btn group relative flex flex-col items-center justify-center gap-0.5 sm:gap-1 w-[56px] sm:w-[94px] h-[54px] sm:h-[86px] bg-[#FDFBF2]/95 hover:bg-white active:scale-95 border-2 border-[#477431] rounded-2xl p-1 sm:p-2 shadow-lg sm:shadow-xl hover:shadow-2xl transition duration-200 snap-start shrink-0"
-          title="Buka Studio Gambar Bunga"
+          title="Buka Studio Bunga"
         >
           <div
             class="w-7 h-7 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-[#2B5B35] text-white flex items-center justify-center shadow-md group-hover:scale-105 transition"
@@ -724,7 +724,7 @@
           <span
             class="font-hand font-bold text-[10px] sm:text-xs md:text-sm text-[#2B5B35] tracking-wide whitespace-nowrap"
           >
-            Gambar Bunga
+            Bunga
           </span>
           <span
             id="hasDraftBadge"
@@ -732,46 +732,7 @@
           ></span>
         </button>
 
-        <!-- 2. Gallery Button -->
-        <button
-          id="openGalleryBtn"
-          onclick="openGalleryModal()"
-          class="launcher-btn group relative flex flex-col items-center justify-center gap-0.5 sm:gap-1 w-[56px] sm:w-[94px] h-[54px] sm:h-[86px] bg-[#FDFBF2]/95 hover:bg-white active:scale-95 border-2 border-[#b5832a] rounded-2xl p-1 sm:p-2 shadow-lg sm:shadow-xl hover:shadow-2xl transition duration-200 snap-start shrink-0"
-          title="Buka Galeri (Bunga & Hewan Favorit)"
-        >
-          <div
-            class="w-7 h-7 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-md group-hover:scale-105 transition"
-          >
-            <svg
-              class="w-4 h-4 sm:w-5 sm:h-5 text-white"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path
-                d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"
-              />
-              <path d="M6 6h10" />
-              <path d="M6 10h10" />
-              <circle cx="12" cy="15" r="2.5" fill="#F7CE68" />
-            </svg>
-          </div>
-          <span
-            class="font-hand font-bold text-[10px] sm:text-xs md:text-sm text-[#8c5828] tracking-wide whitespace-nowrap"
-          >
-            Galeri
-          </span>
-          <span
-            id="galleryCountBadge"
-            class="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full text-[9px] sm:text-[10px] font-bold bg-amber-700 text-white border-2 border-white shadow"
-            >0</span
-          >
-        </button>
-
-        <!-- 3. Animals Button -->
+        <!-- 2. Animals Button (Hewan) -->
         <button
           id="openAnimalsBtn"
           onclick="openAnimalModal()"
@@ -810,7 +771,7 @@
           >
         </button>
 
-        <!-- 4. Decor Button (Dekorasi Kebun) -->
+        <!-- 3. Decor Button (Dekorasi Kebun) -->
         <button
           id="openDecorBtn"
           onclick="openDecorModal()"
@@ -838,6 +799,45 @@
           <span
             id="decorCountBadge"
             class="hidden absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full text-[9px] sm:text-[10px] font-bold bg-rose-600 text-white border-2 border-white shadow"
+            >0</span
+          >
+        </button>
+
+        <!-- 4. Gallery Button (Galeri) -->
+        <button
+          id="openGalleryBtn"
+          onclick="openGalleryModal()"
+          class="launcher-btn group relative flex flex-col items-center justify-center gap-0.5 sm:gap-1 w-[56px] sm:w-[94px] h-[54px] sm:h-[86px] bg-[#FDFBF2]/95 hover:bg-white active:scale-95 border-2 border-[#b5832a] rounded-2xl p-1 sm:p-2 shadow-lg sm:shadow-xl hover:shadow-2xl transition duration-200 snap-start shrink-0"
+          title="Buka Galeri (Bunga, Hewan & Dekorasi Favorit)"
+        >
+          <div
+            class="w-7 h-7 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-md group-hover:scale-105 transition"
+          >
+            <svg
+              class="w-4 h-4 sm:w-5 sm:h-5 text-white"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"
+              />
+              <path d="M6 6h10" />
+              <path d="M6 10h10" />
+              <circle cx="12" cy="15" r="2.5" fill="#F7CE68" />
+            </svg>
+          </div>
+          <span
+            class="font-hand font-bold text-[10px] sm:text-xs md:text-sm text-[#8c5828] tracking-wide whitespace-nowrap"
+          >
+            Galeri
+          </span>
+          <span
+            id="galleryCountBadge"
+            class="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full text-[9px] sm:text-[10px] font-bold bg-amber-700 text-white border-2 border-white shadow"
             >0</span
           >
         </button>
@@ -1292,23 +1292,20 @@
             </button>
           </div>
 
-          <!-- Gallery & Save to Gallery (Desktop) -->
-          <div class="hidden lg:flex items-center gap-1">
-            <button
-              type="button"
-              onclick="openGalleryModal()"
-              class="h-9 px-3 rounded-full bg-white/95 hover:bg-amber-50 text-amber-900 border border-amber-300 shadow-sm flex items-center gap-1 text-xs font-semibold transition hover:scale-105 active:scale-95 cursor-pointer"
-              title="Buka Galeri Bunga"
-            >
-              <span>📖 Galeri</span>
-            </button>
+          <!-- Save to Gallery Button (Desktop & Tablet) -->
+          <div class="flex items-center gap-1 sm:gap-1.5">
             <button
               type="button"
               onclick="promptSaveToGallery()"
-              class="h-9 px-3 rounded-full bg-white/95 hover:bg-emerald-50 text-[#2B5B35] border border-[#7DB852] shadow-sm flex items-center gap-1 text-xs font-semibold transition hover:scale-105 active:scale-95 cursor-pointer"
+              class="h-8 sm:h-9 px-2.5 sm:px-3 rounded-full bg-white/95 hover:bg-emerald-50 text-[#2B5B35] border border-[#7DB852] shadow-sm flex items-center gap-1.5 text-xs font-semibold transition hover:scale-105 active:scale-95 cursor-pointer"
               title="Simpan bunga ini ke Galeri"
             >
-              <span>💾 Simpan</span>
+              <svg class="w-3.5 h-3.5 text-[#2B5B35]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              <span>Simpan</span>
             </button>
           </div>
 
@@ -1695,7 +1692,7 @@
 <!-- SAVE TO GALLERY DIALOG MODAL -->
     <div
       id="saveToGalleryModal"
-      class="hidden fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/45 backdrop-blur-sm pointer-events-auto"
+      class="hidden fixed inset-0 z-[70] flex items-center justify-center p-2.5 sm:p-4 bg-black/45 backdrop-blur-sm pointer-events-auto"
     >
       <div
         class="bg-[#FDFBF2] border-2 sm:border-[3px] border-[#2B5B35] rounded-3xl max-w-sm w-full p-4 sm:p-5 shadow-2xl relative flex flex-col items-center max-h-[92vh] overflow-y-auto"
@@ -1717,10 +1714,10 @@
           </svg>
         </button>
 
-        <h3 class="font-hand font-bold text-xl text-[#2B5B35] mb-1">
+        <h3 id="saveToGalleryModalTitle" class="font-hand font-bold text-xl text-[#2B5B35] mb-1">
           Simpan ke Galeri Bunga
         </h3>
-        <p class="text-xs text-[#477431] text-center mb-4">
+        <p id="saveToGalleryModalDesc" class="text-xs text-[#477431] text-center mb-4">
           Beri nama cantik untuk bungamu agar mudah ditemukan kembali
         </p>
 
@@ -1736,7 +1733,7 @@
         </div>
 
         <div class="w-full mb-4">
-          <label class="block text-xs font-bold text-[#3a5a40] mb-1"
+          <label id="saveToGalleryNameLabel" class="block text-xs font-bold text-[#3a5a40] mb-1"
             >Nama Bunga:</label
           >
           <input
@@ -1775,6 +1772,80 @@
               <polyline points="7 3 7 8 15 8" />
             </svg>
             <span>Simpan</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GALLERY TIMELAPSE VIEWER MODAL -->
+    <div
+      id="galleryTimelapseModal"
+      class="hidden fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm pointer-events-auto"
+    >
+      <div
+        class="bg-[#FDFBF2] border-2 sm:border-[3px] border-[#2B5B35] rounded-3xl max-w-sm sm:max-w-md w-full p-4 sm:p-5 shadow-2xl relative flex flex-col items-center max-h-[95vh] overflow-y-auto"
+      >
+        <button
+          onclick="closeGalleryTimelapseModal()"
+          class="absolute top-4 right-4 w-7 h-7 rounded-full bg-white/80 hover:bg-white border border-[#c5d9b7] flex items-center justify-center text-[#2B5B35] cursor-pointer"
+        >
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+        </button>
+
+        <h3 id="galleryTimelapseTitle" class="font-hand font-bold text-lg sm:text-xl text-[#2B5B35] mb-1 flex items-center gap-2">
+          <svg class="w-5 h-5 text-[#2B5B35] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.2 6 3 11l-.9-3 17.2-5Z"/>
+            <path d="m6.2 5.3 3.1 4"/>
+            <path d="m12.1 3.6 3.1 4"/>
+            <rect width="20" height="12" x="2" y="9" rx="2"/>
+          </svg>
+          <span id="galleryTimelapseName">Putar Timelapse</span>
+        </h3>
+        <p class="text-xs text-[#477431] text-center mb-3">
+          Memutar ulang setiap goresan saat karya ini digambar
+        </p>
+
+        <div class="w-64 h-64 sm:w-80 sm:h-80 rounded-2xl bg-gradient-to-b from-white to-[#edf4e8] border-2 border-dashed border-[#8eb477] flex items-center justify-center p-1.5 mb-2 shadow-inner relative overflow-hidden">
+          <canvas id="galleryTimelapseCanvas" width="720" height="720" class="w-full h-full object-contain rounded-xl"></canvas>
+          <span id="galleryTimelapseRecBadge" class="hidden absolute top-2 left-2 px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-bold shadow inline-flex items-center gap-1 animate-pulse">
+            <span class="w-1.5 h-1.5 rounded-full bg-white"></span> REC
+          </span>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="w-64 sm:w-80 h-1.5 rounded-full bg-[#e1ecd9] overflow-hidden mb-3">
+          <div id="galleryTimelapseProgressBar" class="h-full bg-[#7DB852] rounded-full" style="width: 0%"></div>
+        </div>
+
+        <div class="flex items-center gap-2 w-full">
+          <button
+            id="galleryTimelapseReplayBtn"
+            onclick="restartGalleryTimelapse()"
+            class="flex-1 py-2 px-3 rounded-full bg-[#2B5B35] hover:bg-[#1f4627] text-white font-bold text-xs sm:text-sm shadow-md inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition"
+          >
+            <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white fill-current shrink-0" viewBox="0 0 24 24">
+              <polygon points="6 4 20 12 6 20 6 4"/>
+            </svg>
+            <span>Putar Ulang</span>
+          </button>
+          <button
+            id="galleryTimelapseSaveBtn"
+            onclick="saveGalleryTimelapseVideo()"
+            class="flex-1 py-2 px-3 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm shadow-md inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition"
+            title="Rekam dan simpan video timelapse"
+          >
+            <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m22 8-6 4 6 4V8Z" />
+              <rect width="14" height="12" x="2" y="6" rx="2" ry="2" />
+            </svg>
+            <span data-label>Simpan Video</span>
+          </button>
+          <button
+            id="galleryTimelapseCloseBtn"
+            onclick="closeGalleryTimelapseModal()"
+            class="py-2 px-4 rounded-full border border-[#b5cca3] bg-white hover:bg-gray-50 text-[#2B5B35] font-semibold text-xs sm:text-sm cursor-pointer"
+          >
+            Tutup
           </button>
         </div>
       </div>
@@ -1928,6 +1999,21 @@
             <span
               id="galAnimalsCount"
               class="px-2 py-0.5 rounded-full text-[10px] font-sans font-bold bg-amber-100 text-amber-800 border border-amber-300"
+              >0</span
+            >
+          </button>
+          <button
+            id="galTabDecorations"
+            onclick="switchGalleryTab('decorations')"
+            class="px-4 py-2 rounded-t-xl font-hand font-bold text-xs sm:text-sm flex items-center gap-2 transition bg-[#e1ecd9] text-gray-600 hover:text-[#2B5B35] border-t-2 border-x-2 border-transparent"
+          >
+            <span class="inline-flex items-center gap-1.5">
+              <span class="text-xs sm:text-sm">🏮</span>
+              <span>Dekorasi Favorit</span>
+            </span>
+            <span
+              id="galDecorCount"
+              class="px-2 py-0.5 rounded-full text-[10px] font-sans font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"
               >0</span
             >
           </button>
@@ -2987,7 +3073,7 @@
     <!-- ============================================================== -->
     <div
       id="animalStudioModal"
-      class="hidden fixed inset-0 z-50 w-screen h-screen bg-[#F3EFE6] select-none pointer-events-auto overflow-hidden transition-opacity duration-200"
+      class="hidden fixed inset-0 z-[60] w-screen h-screen bg-[#F3EFE6] select-none pointer-events-auto overflow-hidden transition-opacity duration-200"
     >
       <!-- Subtly textured canvas viewport with interactive pan & zoom -->
       <div
@@ -3114,6 +3200,27 @@
               </svg>
             </button>
 
+            <!-- Timelapse Replay Button -->
+            <button
+              id="animalStudioTimelapseBtn"
+              type="button"
+              onclick="replayAnimalStudioTimelapse()"
+              class="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-emerald-50 text-[#2B5B35] transition active:scale-90 cursor-pointer"
+              title="Putar Ulang Goresan Hewan (Timelapse)"
+            >
+              <svg
+                class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-700"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </button>
+
             <div class="w-px h-4 bg-gray-200 mx-0.5"></div>
 
             <!-- Clear -->
@@ -3194,6 +3301,23 @@
             </div>
           </div>
 
+          <!-- Save to Gallery Button (Desktop & Tablet) -->
+          <div class="flex items-center gap-1 sm:gap-1.5">
+            <button
+              type="button"
+              onclick="promptSaveAnimalToGallery()"
+              class="h-8 sm:h-9 px-2.5 sm:px-3 rounded-full bg-white/95 hover:bg-emerald-50 text-[#2B5B35] border border-[#7DB852] shadow-sm flex items-center gap-1.5 text-xs font-semibold transition hover:scale-105 active:scale-95 cursor-pointer"
+              title="Simpan hewan ini ke Galeri"
+            >
+              <svg class="w-3.5 h-3.5 text-[#2B5B35]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              <span>Simpan</span>
+            </button>
+          </div>
+
           <!-- Primary Finish Button (Lepaskan ke Kebun!) -->
           <button
             type="button"
@@ -3218,33 +3342,54 @@
       </header>
 
       <!-- ============================================================== -->
-      <!-- 2. FLOATING LEFT TOOL SHELF (Pencil, Eraser, Eyedropper)       -->
+      <!-- 2. FLOATING LEFT TOOL SHELF (Brushes, Eraser, Eyedropper)       -->
       <!-- ============================================================== -->
       <nav
         id="animalStudioFullscreenLeftToolbar"
         class="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 sm:gap-1.5 p-1.5 sm:p-2 bg-white/95 backdrop-blur-md rounded-2xl border border-[#c5d9b7] shadow-lg pointer-events-auto transition-opacity duration-200 select-none"
       >
-        <!-- Tool: Pencil -->
+        <!-- Brush: Pencil -->
         <button
           type="button"
-          id="animalStudioToolPencil"
-          onclick="setAnimalStudioTool('pencil')"
+          id="animalBrushTypeBtn-pencil"
+          onclick="setAnimalStudioBrushType('pencil')"
           class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-[#2B5B35] text-white shadow-xs ring-2 ring-[#7DB852] cursor-pointer"
-          title="Pensil Gambar (P)"
+          title="Pensil Klasik"
         >
-          <svg
-            class="w-3.5 h-3.5 sm:w-4 sm:h-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-            <path d="m15 5 4 4" />
-          </svg>
+          <span class="text-xs sm:text-sm">✏️</span>
         </button>
+        <!-- Brush: Watercolor -->
+        <button
+          type="button"
+          id="animalBrushTypeBtn-watercolor"
+          onclick="setAnimalStudioBrushType('watercolor')"
+          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-white/80 text-[#2B5B35] hover:bg-[#eef5e6] border border-[#c5d9b7] cursor-pointer"
+          title="Cat Air Bergradasi Lembut"
+        >
+          <span class="text-xs sm:text-sm">💧</span>
+        </button>
+        <!-- Brush: Crayon -->
+        <button
+          type="button"
+          id="animalBrushTypeBtn-crayon"
+          onclick="setAnimalStudioBrushType('crayon')"
+          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-white/80 text-[#2B5B35] hover:bg-[#eef5e6] border border-[#c5d9b7] cursor-pointer"
+          title="Krayon Bertekstur Bulu Hewan"
+        >
+          <span class="text-xs sm:text-sm">🖍️</span>
+        </button>
+        <!-- Brush: Glow -->
+        <button
+          type="button"
+          id="animalBrushTypeBtn-glow"
+          onclick="setAnimalStudioBrushType('glow')"
+          class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-white/80 text-[#2B5B35] hover:bg-[#eef5e6] border border-[#c5d9b7] cursor-pointer"
+          title="Kuas Cahaya Hewan Misterius"
+        >
+          <span class="text-xs sm:text-sm">🌙</span>
+        </button>
+
+        <div class="w-4 sm:w-5 h-px bg-gray-200 my-0.5"></div>
 
         <!-- Tool: Eraser -->
         <button
@@ -3295,6 +3440,9 @@
             />
           </svg>
         </button>
+
+        <!-- Hidden animalStudioToolPencil for backward compatibility -->
+        <button id="animalStudioToolPencil" class="hidden" onclick="setAnimalStudioTool('pencil')"></button>
       </nav>
 
       <!-- ============================================================== -->
@@ -3451,7 +3599,7 @@
       <!-- ============================================================== -->
       <div
         id="animalConfigModal"
-        class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/45 backdrop-blur-sm pointer-events-auto transition-opacity"
+        class="hidden fixed inset-0 z-[65] flex items-center justify-center p-3 sm:p-4 bg-black/45 backdrop-blur-sm pointer-events-auto transition-opacity"
       >
         <div
           class="bg-[#FDFBF2] border-2 sm:border-[3px] border-[#2B5B35] rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-2xl relative flex flex-col gap-3 max-h-[92vh] overflow-y-auto"
@@ -3581,7 +3729,7 @@
     <!-- ============================================================== -->
     <div
       id="propStudioModal"
-      class="hidden fixed inset-0 z-50 w-screen h-screen bg-[#F3EFE6] select-none pointer-events-auto overflow-hidden transition-opacity duration-200"
+      class="hidden fixed inset-0 z-[60] w-screen h-screen bg-[#F3EFE6] select-none pointer-events-auto overflow-hidden transition-opacity duration-200"
     >
       <!-- Subtly textured canvas viewport with interactive pan & zoom -->
       <div
@@ -3708,6 +3856,27 @@
               </svg>
             </button>
 
+            <!-- Timelapse Replay Button -->
+            <button
+              id="propStudioTimelapseBtn"
+              type="button"
+              onclick="replayPropStudioTimelapse()"
+              class="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-emerald-50 text-[#2B5B35] transition active:scale-90 cursor-pointer"
+              title="Putar Ulang Goresan Properti (Timelapse)"
+            >
+              <svg
+                class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-700"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </button>
+
             <div class="w-px h-4 bg-gray-200 mx-0.5"></div>
 
             <!-- Clear -->
@@ -3786,6 +3955,23 @@
                 </svg>
               </button>
             </div>
+          </div>
+
+          <!-- Save to Gallery Button (Desktop & Tablet) -->
+          <div class="flex items-center gap-1 sm:gap-1.5">
+            <button
+              type="button"
+              onclick="promptSavePropToGallery()"
+              class="h-8 sm:h-9 px-2.5 sm:px-3 rounded-full bg-white/95 hover:bg-emerald-50 text-[#2B5B35] border border-[#7DB852] shadow-sm flex items-center gap-1.5 text-xs font-semibold transition hover:scale-105 active:scale-95 cursor-pointer"
+              title="Simpan properti ini ke Galeri"
+            >
+              <svg class="w-3.5 h-3.5 text-[#2B5B35]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              <span>Simpan</span>
+            </button>
           </div>
 
           <!-- Primary Finish Button (Pasang ke Kebun!) -->
@@ -4112,7 +4298,7 @@
       <!-- ============================================================== -->
       <div
         id="propConfigModal"
-        class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/45 backdrop-blur-sm pointer-events-auto transition-opacity"
+        class="hidden fixed inset-0 z-[65] flex items-center justify-center p-3 sm:p-4 bg-black/45 backdrop-blur-sm pointer-events-auto transition-opacity"
       >
         <div
           class="bg-[#FDFBF2] border-2 sm:border-[3px] border-[#2B5B35] rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-2xl relative flex flex-col gap-3 max-h-[92vh] overflow-y-auto"
@@ -4370,7 +4556,7 @@
 <!-- CUSTOM DIALOG MODAL (Replaces native browser alert, confirm, and prompt) -->
     <div
       id="customDialogModal"
-      class="hidden fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm pointer-events-auto transition-opacity duration-200"
+      class="hidden fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm pointer-events-auto transition-opacity duration-200"
     >
       <div
         class="bg-[#FDFBF2] border-2 sm:border-[3px] border-[#3a5a40] rounded-3xl p-5 sm:p-6 max-w-sm sm:max-w-md w-full shadow-2xl relative"

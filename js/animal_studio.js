@@ -8,9 +8,12 @@
 var animalPadCanvas = null;
 var animalPadCtx = null;
 var animalStudioTool = 'pencil';
+var animalStudioBrushType = 'pencil'; // 'pencil', 'watercolor', 'crayon', 'glow'
 var animalStudioCurrentColor = '#2c2c2c';
 var animalStudioBrushSize = 7;
 var isDrawingAnimalStudio = false;
+var animalStudioCurrentStroke = null;
+var animalLiveStroke = null;
 var animalStudioStrokes = [];
 var animalStudioRedoStack = [];
 var selectedAnimalHabitat = 'land';
@@ -32,6 +35,188 @@ var animalGestureInitialPanX = 0;
 var animalGestureInitialPanY = 0;
 var suppressAnimalDrawUntilAllUp = false;
 var activeAnimalTouchPointers = new Set();
+
+// =========================================================================
+// BRUSH RENDERING ENGINE HELPERS
+// =========================================================================
+
+function hexToRgb(hex) {
+    let clean = (hex || '#000000').replace('#', '').trim();
+    if (clean.length === 3) clean = clean.split('').map(ch => ch + ch).join('');
+    const n = parseInt(clean, 16) || 0;
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function rgba(c, a) {
+    return `rgba(${c.r}, ${c.g}, ${c.b}, ${a})`;
+}
+
+function mixWithWhite(c, t) {
+    return {
+        r: Math.round(c.r + (255 - c.r) * t),
+        g: Math.round(c.g + (255 - c.g) * t),
+        b: Math.round(c.b + (255 - c.b) * t)
+    };
+}
+
+function traceSmoothPath(ctx, pts) {
+    if (!pts || pts.length === 0) return;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    if (pts.length < 3) {
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        return;
+    }
+    for (let i = 1; i < pts.length - 1; i++) {
+        const mx = (pts[i].x + pts[i + 1].x) * 0.5;
+        const my = (pts[i].y + pts[i + 1].y) * 0.5;
+        ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+    }
+    const last = pts[pts.length - 1];
+    ctx.lineTo(last.x, last.y);
+}
+
+function relaxPoints(pts) {
+    if (!pts || pts.length < 3) return pts || [];
+    const out = [pts[0]];
+    for (let i = 1; i < pts.length - 1; i++) {
+        out.push({
+            x: pts[i - 1].x * 0.25 + pts[i].x * 0.5 + pts[i + 1].x * 0.25,
+            y: pts[i - 1].y * 0.25 + pts[i].y * 0.5 + pts[i + 1].y * 0.25
+        });
+    }
+    out.push(pts[pts.length - 1]);
+    return out;
+}
+
+function paintWatercolorLayer(lctx, pts, color, size) {
+    const c = hexToRgb(color);
+    const W = Math.max(6, size * 1.7);
+    lctx.lineCap = 'round';
+    lctx.lineJoin = 'round';
+
+    const rings = 8;
+    for (let i = 0; i < rings; i++) {
+        const k = i / (rings - 1);
+        lctx.lineWidth = W * (1.35 - k * 0.7);
+        lctx.strokeStyle = rgba(c, 0.085);
+        traceSmoothPath(lctx, pts);
+        lctx.stroke();
+    }
+
+    lctx.lineWidth = W * 0.66;
+    lctx.strokeStyle = rgba(c, 0.26);
+    traceSmoothPath(lctx, pts);
+    lctx.stroke();
+}
+
+function paintGlowLayer(lctx, pts, color, size) {
+    const c = hexToRgb(color);
+    const core = Math.max(2.5, size * 0.95);
+    lctx.lineCap = 'round';
+    lctx.lineJoin = 'round';
+
+    const halo = 9;
+    for (let i = 0; i < halo; i++) {
+        const k = i / (halo - 1);
+        lctx.lineWidth = core * (4.2 - k * 3.0);
+        lctx.strokeStyle = rgba(c, 0.045);
+        traceSmoothPath(lctx, pts);
+        lctx.stroke();
+    }
+
+    lctx.lineWidth = core * 1.15;
+    lctx.strokeStyle = rgba(c, 0.85);
+    traceSmoothPath(lctx, pts);
+    lctx.stroke();
+
+    lctx.lineWidth = Math.max(1.2, core * 0.5);
+    lctx.strokeStyle = rgba(mixWithWhite(c, 0.82), 0.95);
+    traceSmoothPath(lctx, pts);
+    lctx.stroke();
+}
+
+function paintCrayonSegment(ctx, fromPos, toPos, color, size) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = color;
+    const dist = Math.hypot(toPos.x - fromPos.x, toPos.y - fromPos.y);
+    const steps = Math.max(1, Math.ceil(dist / 3));
+    const rad = Math.max(2, size * 0.6);
+    for (let s = 0; s <= steps; s++) {
+        const t = s / steps;
+        const cx = fromPos.x + (toPos.x - fromPos.x) * t;
+        const cy = fromPos.y + (toPos.y - fromPos.y) * t;
+        for (let i = 0; i < 6; i++) {
+            const ox = (Math.random() - 0.5) * rad * 1.4;
+            const oy = (Math.random() - 0.5) * rad * 1.4;
+            ctx.globalAlpha = 0.4 + Math.random() * 0.5;
+            ctx.fillRect(cx + ox, cy + oy, 2.1, 2.1);
+        }
+    }
+    ctx.restore();
+}
+
+function renderAnimalLiveStroke() {
+    const s = animalLiveStroke;
+    if (!s) return;
+    const ctx = s.ctx;
+    const lctx = s.layerCtx;
+    lctx.clearRect(0, 0, s.layer.width, s.layer.height);
+    const pts = relaxPoints(s.points);
+    if (s.type === 'watercolor') {
+        paintWatercolorLayer(lctx, pts, s.color, s.size);
+    } else {
+        paintGlowLayer(lctx, pts, s.color, s.size);
+    }
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.drawImage(s.base, 0, 0);
+    ctx.drawImage(s.layer, 0, 0);
+    ctx.restore();
+}
+
+function beginAnimalLiveStroke(ctx, pos, brushType, color, size) {
+    const cv = ctx.canvas;
+    const base = document.createElement('canvas');
+    base.width = cv.width;
+    base.height = cv.height;
+    base.getContext('2d').drawImage(cv, 0, 0);
+    const layer = document.createElement('canvas');
+    layer.width = cv.width;
+    layer.height = cv.height;
+    animalLiveStroke = {
+        ctx: ctx,
+        type: brushType,
+        color: color,
+        size: size,
+        base: base,
+        layer: layer,
+        layerCtx: layer.getContext('2d'),
+        points: [{ x: pos.x, y: pos.y }]
+    };
+    renderAnimalLiveStroke();
+}
+
+function extendAnimalLiveStroke(ctx, fromPos, toPos, brushType, color, size) {
+    if (!animalLiveStroke || animalLiveStroke.ctx !== ctx || animalLiveStroke.type !== brushType) {
+        beginAnimalLiveStroke(ctx, fromPos, brushType, color, size);
+    }
+    const pts = animalLiveStroke.points;
+    const last = pts[pts.length - 1];
+    if (Math.hypot(toPos.x - last.x, toPos.y - last.y) < 1.2) return;
+    pts.push({ x: toPos.x, y: toPos.y });
+    renderAnimalLiveStroke();
+}
+
+function endAnimalLiveStroke() {
+    if (!animalLiveStroke) return null;
+    const pts = animalLiveStroke.points.slice();
+    animalLiveStroke = null;
+    return pts;
+}
 
 function applyAnimalTransform(immediate = false) {
     const paper = document.getElementById('animalCanvasPaper');
@@ -110,8 +295,8 @@ function openAnimalStudioModal() {
     const configModal = document.getElementById('animalConfigModal');
     if (configModal) configModal.classList.add('hidden');
     resetAnimalZoom();
-    clearAnimalPad();
-    setAnimalStudioTool('pencil');
+    clearAnimalPad(true);
+    setAnimalStudioBrushType('pencil');
     selectAnimalColor('#2c2c2c');
     updateAnimalHabitatUI('land');
     updateAnimalInfoPillText();
@@ -126,30 +311,81 @@ function closeAnimalStudioModal() {
     if (configModal) configModal.classList.add('hidden');
 }
 
-function clearAnimalPad() {
+function clearAnimalPad(force = false) {
     initAnimalStudioCanvas();
     if (!animalPadCanvas || !animalPadCtx) return;
-    animalPadCtx.clearRect(0, 0, animalPadCanvas.width, animalPadCanvas.height);
-    animalStudioStrokes = [];
-    animalStudioRedoStack = [];
-    const hint = document.getElementById('drawAnimalBoxHint');
-    if (hint) hint.style.opacity = '0.4';
+
+    const performClear = () => {
+        animalPadCtx.clearRect(0, 0, animalPadCanvas.width, animalPadCanvas.height);
+        animalStudioStrokes = [];
+        animalStudioRedoStack = [];
+        endAnimalLiveStroke();
+        const hint = document.getElementById('drawAnimalBoxHint');
+        if (hint) hint.style.opacity = '0.4';
+    };
+
+    if (force) {
+        performClear();
+        return;
+    }
+
+    const trimmed = extractTrimmedAnimalCanvas();
+    if (!trimmed && animalStudioStrokes.length === 0) {
+        performClear();
+        return;
+    }
+
+    const confirmClear = (typeof cuteConfirm === 'function')
+        ? cuteConfirm('Apakah kamu yakin ingin menghapus seluruh gambar hewan?', 'Hapus Kanvas', true, 'Ya, Hapus', '🗑️')
+        : (typeof cuteAlert === 'function')
+            ? cuteAlert('Apakah kamu yakin ingin menghapus seluruh gambar hewan?', 'Hapus Kanvas', '🗑️', true)
+            : Promise.resolve(confirm('Hapus seluruh gambar hewan di kanvas?'));
+
+    confirmClear.then(ok => {
+        if (ok) performClear();
+    });
 }
+window.clearAnimalPad = clearAnimalPad;
+
+function setAnimalStudioBrushType(type) {
+    animalStudioBrushType = type;
+    setAnimalStudioTool('pencil');
+
+    const activePill = 'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-[#2B5B35] text-white shadow-xs ring-2 ring-[#7DB852] cursor-pointer';
+    const inactiveBrush = 'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-white/80 text-[#2B5B35] hover:bg-[#eef5e6] border border-[#c5d9b7] cursor-pointer';
+
+    const types = ['pencil', 'watercolor', 'crayon', 'glow'];
+    types.forEach(t => {
+        const btn = document.getElementById('animalBrushTypeBtn-' + t);
+        if (btn) {
+            btn.className = (t === type) ? activePill : inactiveBrush;
+        }
+    });
+}
+window.setAnimalStudioBrushType = setAnimalStudioBrushType;
 
 function setAnimalStudioTool(toolName) {
     animalStudioTool = toolName;
     isAnimalPanMode = false;
     updateAnimalPanButtonUI();
-    const pencilBtn = document.getElementById('animalStudioToolPencil');
+
+    const activePill = 'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-[#2B5B35] text-white shadow-xs ring-2 ring-[#7DB852] cursor-pointer';
+    const inactivePill = 'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition hover:bg-[#eef5e6] text-gray-700 cursor-pointer';
+    const inactiveBrush = 'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-white/80 text-[#2B5B35] hover:bg-[#eef5e6] border border-[#c5d9b7] cursor-pointer';
+
+    const types = ['pencil', 'watercolor', 'crayon', 'glow'];
+    types.forEach(t => {
+        const btn = document.getElementById('animalBrushTypeBtn-' + t);
+        if (btn) {
+            btn.className = (toolName === 'pencil' && animalStudioBrushType === t) ? activePill : inactiveBrush;
+        }
+    });
+
     const eraserBtn = document.getElementById('animalStudioToolEraser');
     const eyedropBtn = document.getElementById('animalStudioToolEyedrop');
 
-    const activeCls = 'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition bg-[#2B5B35] text-white shadow-xs ring-2 ring-[#7DB852] cursor-pointer';
-    const inactiveCls = 'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition hover:bg-[#eef5e6] text-gray-700 cursor-pointer';
-
-    if (pencilBtn) pencilBtn.className = (toolName === 'pencil') ? activeCls : inactiveCls;
-    if (eraserBtn) eraserBtn.className = (toolName === 'eraser') ? activeCls : inactiveCls;
-    if (eyedropBtn) eyedropBtn.className = (toolName === 'eyedropper') ? activeCls : inactiveCls;
+    if (eraserBtn) eraserBtn.className = (toolName === 'eraser') ? activePill : inactivePill;
+    if (eyedropBtn) eyedropBtn.className = (toolName === 'eyedropper') ? activePill : inactivePill;
 
     if (animalPadCanvas) {
         if (toolName === 'eyedropper') animalPadCanvas.style.cursor = 'crosshair';
@@ -157,6 +393,7 @@ function setAnimalStudioTool(toolName) {
         else animalPadCanvas.style.cursor = 'crosshair';
     }
 }
+window.setAnimalStudioTool = setAnimalStudioTool;
 
 function setAnimalBrushSize(size, btnEl) {
     animalStudioBrushSize = size;
@@ -275,24 +512,48 @@ function redrawAnimalPadFromStrokes() {
     }
     for (const stroke of animalStudioStrokes) {
         if (!stroke.points || stroke.points.length === 0) continue;
-        animalPadCtx.save();
-        animalPadCtx.beginPath();
-        animalPadCtx.lineCap = 'round';
-        animalPadCtx.lineJoin = 'round';
-        animalPadCtx.lineWidth = stroke.size;
         if (stroke.tool === 'eraser') {
+            animalPadCtx.save();
             animalPadCtx.globalCompositeOperation = 'destination-out';
             animalPadCtx.strokeStyle = 'rgba(0,0,0,1)';
+            animalPadCtx.lineWidth = stroke.size;
+            animalPadCtx.lineCap = 'round';
+            animalPadCtx.lineJoin = 'round';
+            animalPadCtx.beginPath();
+            animalPadCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+            for (let i = 1; i < stroke.points.length; i++) {
+                animalPadCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            }
+            animalPadCtx.stroke();
+            animalPadCtx.restore();
+            continue;
+        }
+
+        const bType = stroke.brushType || 'pencil';
+        if (bType === 'watercolor') {
+            paintWatercolorLayer(animalPadCtx, relaxPoints(stroke.points), stroke.color, stroke.size);
+        } else if (bType === 'glow') {
+            paintGlowLayer(animalPadCtx, relaxPoints(stroke.points), stroke.color, stroke.size);
+        } else if (bType === 'crayon') {
+            for (let i = 1; i < stroke.points.length; i++) {
+                paintCrayonSegment(animalPadCtx, stroke.points[i - 1], stroke.points[i], stroke.color, stroke.size);
+            }
         } else {
+            // Classic pencil
+            animalPadCtx.save();
             animalPadCtx.globalCompositeOperation = 'source-over';
             animalPadCtx.strokeStyle = stroke.color;
+            animalPadCtx.lineWidth = stroke.size;
+            animalPadCtx.lineCap = 'round';
+            animalPadCtx.lineJoin = 'round';
+            animalPadCtx.beginPath();
+            animalPadCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+            for (let i = 1; i < stroke.points.length; i++) {
+                animalPadCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            }
+            animalPadCtx.stroke();
+            animalPadCtx.restore();
         }
-        animalPadCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-        for (let i = 1; i < stroke.points.length; i++) {
-            animalPadCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
-        }
-        animalPadCtx.stroke();
-        animalPadCtx.restore();
     }
 }
 
@@ -435,26 +696,44 @@ function initAnimalStudioEventListeners() {
 
         isDrawingAnimalStudio = true;
         document.getElementById('animalStudioModal')?.classList.add('drawing-active');
-        currentStroke = {
+        animalStudioCurrentStroke = {
             tool: animalStudioTool,
+            brushType: animalStudioBrushType,
             color: animalStudioCurrentColor,
             size: animalStudioBrushSize,
             points: [pos]
         };
 
-        animalPadCtx.save();
-        animalPadCtx.beginPath();
-        animalPadCtx.lineCap = 'round';
-        animalPadCtx.lineJoin = 'round';
-        animalPadCtx.lineWidth = animalStudioBrushSize;
         if (animalStudioTool === 'eraser') {
+            animalPadCtx.save();
+            animalPadCtx.beginPath();
+            animalPadCtx.lineCap = 'round';
+            animalPadCtx.lineJoin = 'round';
+            animalPadCtx.lineWidth = animalStudioBrushSize;
             animalPadCtx.globalCompositeOperation = 'destination-out';
             animalPadCtx.strokeStyle = 'rgba(0,0,0,1)';
+            animalPadCtx.moveTo(pos.x, pos.y);
+            animalPadCtx.lineTo(pos.x + 0.1, pos.y + 0.1);
+            animalPadCtx.stroke();
+            animalPadCtx.restore();
+        } else if (animalStudioBrushType === 'crayon') {
+            paintCrayonSegment(animalPadCtx, pos, { x: pos.x + 0.1, y: pos.y + 0.1 }, animalStudioCurrentColor, animalStudioBrushSize);
+        } else if (animalStudioBrushType === 'watercolor' || animalStudioBrushType === 'glow') {
+            beginAnimalLiveStroke(animalPadCtx, pos, animalStudioBrushType, animalStudioCurrentColor, animalStudioBrushSize);
         } else {
+            // Classic pencil
+            animalPadCtx.save();
+            animalPadCtx.beginPath();
+            animalPadCtx.lineCap = 'round';
+            animalPadCtx.lineJoin = 'round';
+            animalPadCtx.lineWidth = animalStudioBrushSize;
             animalPadCtx.globalCompositeOperation = 'source-over';
             animalPadCtx.strokeStyle = animalStudioCurrentColor;
+            animalPadCtx.moveTo(pos.x, pos.y);
+            animalPadCtx.lineTo(pos.x + 0.1, pos.y + 0.1);
+            animalPadCtx.stroke();
+            animalPadCtx.restore();
         }
-        animalPadCtx.moveTo(pos.x, pos.y);
     });
 
     window.addEventListener('pointermove', (e) => {
@@ -468,11 +747,41 @@ function initAnimalStudioEventListeners() {
             return;
         }
 
-        if (!isDrawingAnimalStudio || !currentStroke || suppressAnimalDrawUntilAllUp || isTwoFingerTransformingAnimal) return;
+        if (!isDrawingAnimalStudio || !animalStudioCurrentStroke || suppressAnimalDrawUntilAllUp || isTwoFingerTransformingAnimal) return;
         const pos = getPos(e);
-        currentStroke.points.push(pos);
-        animalPadCtx.lineTo(pos.x, pos.y);
-        animalPadCtx.stroke();
+        const lastPos = animalStudioCurrentStroke.points[animalStudioCurrentStroke.points.length - 1];
+        animalStudioCurrentStroke.points.push(pos);
+
+        if (animalStudioTool === 'eraser') {
+            animalPadCtx.save();
+            animalPadCtx.beginPath();
+            animalPadCtx.lineCap = 'round';
+            animalPadCtx.lineJoin = 'round';
+            animalPadCtx.lineWidth = animalStudioBrushSize;
+            animalPadCtx.globalCompositeOperation = 'destination-out';
+            animalPadCtx.strokeStyle = 'rgba(0,0,0,1)';
+            animalPadCtx.moveTo(lastPos.x, lastPos.y);
+            animalPadCtx.lineTo(pos.x, pos.y);
+            animalPadCtx.stroke();
+            animalPadCtx.restore();
+        } else if (animalStudioBrushType === 'crayon') {
+            paintCrayonSegment(animalPadCtx, lastPos, pos, animalStudioCurrentColor, animalStudioBrushSize);
+        } else if (animalStudioBrushType === 'watercolor' || animalStudioBrushType === 'glow') {
+            extendAnimalLiveStroke(animalPadCtx, lastPos, pos, animalStudioBrushType, animalStudioCurrentColor, animalStudioBrushSize);
+        } else {
+            // Classic pencil
+            animalPadCtx.save();
+            animalPadCtx.beginPath();
+            animalPadCtx.lineCap = 'round';
+            animalPadCtx.lineJoin = 'round';
+            animalPadCtx.lineWidth = animalStudioBrushSize;
+            animalPadCtx.globalCompositeOperation = 'source-over';
+            animalPadCtx.strokeStyle = animalStudioCurrentColor;
+            animalPadCtx.moveTo(lastPos.x, lastPos.y);
+            animalPadCtx.lineTo(pos.x, pos.y);
+            animalPadCtx.stroke();
+            animalPadCtx.restore();
+        }
     });
 
     function endDrawing(e) {
@@ -489,10 +798,13 @@ function initAnimalStudioEventListeners() {
         if (!isDrawingAnimalStudio) return;
         isDrawingAnimalStudio = false;
         document.getElementById('animalStudioModal')?.classList.remove('drawing-active');
-        if (currentStroke && currentStroke.points.length > 0) {
-            animalStudioStrokes.push(currentStroke);
+        if (animalStudioCurrentStroke && animalStudioCurrentStroke.points.length > 0) {
+            if (animalStudioBrushType === 'watercolor' || animalStudioBrushType === 'glow') {
+                endAnimalLiveStroke();
+            }
+            animalStudioStrokes.push(animalStudioCurrentStroke);
             animalStudioRedoStack = [];
-            currentStroke = null;
+            animalStudioCurrentStroke = null;
         }
         try { animalPadCtx.restore(); } catch (err) {}
     }
@@ -567,6 +879,7 @@ async function finishDrawingAndSpawnAnimal() {
     const habitat = selectedAnimalHabitat || 'land';
 
     const spriteDataUrl = trimmed.toDataURL('image/png');
+    const strokeData = (animalStudioStrokes && animalStudioStrokes.length > 0) ? JSON.parse(JSON.stringify(animalStudioStrokes)) : [];
 
     // Spawn animal into the world with chosen habitat
     const customAnimal = spawnCustomAnimalInstance({
@@ -574,6 +887,7 @@ async function finishDrawingAndSpawnAnimal() {
         spriteDataUrl: spriteDataUrl,
         sound: animalSound,
         habitat: habitat,
+        strokes: strokeData,
         width: Math.min(68, Math.max(34, trimmed.width * 0.45)),
         height: Math.min(68, Math.max(34, trimmed.height * 0.45))
     });
@@ -593,6 +907,7 @@ async function finishDrawingAndSpawnAnimal() {
             habitat: habitat,
             sound: animalSound,
             spriteDataUrl: spriteDataUrl,
+            strokes: strokeData,
             createdAt: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
         });
         if (typeof saveGalleryAnimalsToStorage === 'function') saveGalleryAnimalsToStorage();
@@ -621,11 +936,134 @@ async function finishDrawingAndSpawnAnimal() {
     }
 }
 
+// =========================================================================
+// TIMELAPSE REPLAY & GALLERY SAVE IN ANIMAL STUDIO
+// =========================================================================
+var isReplayingAnimalTimelapse = false;
+
+async function replayAnimalStudioTimelapse() {
+    if (isReplayingAnimalTimelapse) return;
+    if (!animalPadCanvas || !animalPadCtx) return;
+    if (!animalStudioStrokes || animalStudioStrokes.length === 0) {
+        if (typeof showGardenNotice === 'function') {
+            showGardenNotice('Gambarlah beberapa goresan hewan terlebih dahulu untuk memutar Timelapse! 🎨');
+        }
+        return;
+    }
+
+    isReplayingAnimalTimelapse = true;
+    const snapshot = animalPadCtx.getImageData(0, 0, animalPadCanvas.width, animalPadCanvas.height);
+    animalPadCtx.clearRect(0, 0, animalPadCanvas.width, animalPadCanvas.height);
+
+    const strokesCopy = JSON.parse(JSON.stringify(animalStudioStrokes));
+    const totalPoints = strokesCopy.reduce((acc, s) => acc + (s.points ? s.points.length : 0), 0);
+    const stepDelay = Math.max(3, Math.min(20, Math.floor(1000 / Math.max(1, totalPoints))));
+
+    for (let sIdx = 0; sIdx < strokesCopy.length; sIdx++) {
+        const s = strokesCopy[sIdx];
+        if (!s.points || s.points.length === 0) continue;
+
+        const bType = s.brushType || 'pencil';
+        if (s.tool === 'eraser') {
+            animalPadCtx.save();
+            animalPadCtx.lineCap = 'round';
+            animalPadCtx.lineJoin = 'round';
+            animalPadCtx.lineWidth = s.size || 6;
+            animalPadCtx.globalCompositeOperation = 'destination-out';
+            animalPadCtx.strokeStyle = 'rgba(0,0,0,1)';
+            animalPadCtx.beginPath();
+            animalPadCtx.moveTo(s.points[0].x, s.points[0].y);
+            for (let pIdx = 1; pIdx < s.points.length; pIdx++) {
+                animalPadCtx.lineTo(s.points[pIdx].x, s.points[pIdx].y);
+                animalPadCtx.stroke();
+                animalPadCtx.beginPath();
+                animalPadCtx.moveTo(s.points[pIdx].x, s.points[pIdx].y);
+                if (pIdx % 2 === 0) await new Promise(r => setTimeout(r, stepDelay));
+            }
+            animalPadCtx.restore();
+        } else if (bType === 'watercolor') {
+            const pts = relaxPoints(s.points);
+            for (let pIdx = 2; pIdx <= pts.length; pIdx += 2) {
+                paintWatercolorLayer(animalPadCtx, pts.slice(0, pIdx), s.color, s.size);
+                await new Promise(r => setTimeout(r, stepDelay));
+            }
+            paintWatercolorLayer(animalPadCtx, pts, s.color, s.size);
+        } else if (bType === 'glow') {
+            const pts = relaxPoints(s.points);
+            for (let pIdx = 2; pIdx <= pts.length; pIdx += 2) {
+                paintGlowLayer(animalPadCtx, pts.slice(0, pIdx), s.color, s.size);
+                await new Promise(r => setTimeout(r, stepDelay));
+            }
+            paintGlowLayer(animalPadCtx, pts, s.color, s.size);
+        } else if (bType === 'crayon') {
+            for (let pIdx = 1; pIdx < s.points.length; pIdx++) {
+                paintCrayonSegment(animalPadCtx, s.points[pIdx - 1], s.points[pIdx], s.color, s.size);
+                if (pIdx % 2 === 0) await new Promise(r => setTimeout(r, stepDelay));
+            }
+        } else {
+            // Classic pencil
+            animalPadCtx.save();
+            animalPadCtx.lineCap = 'round';
+            animalPadCtx.lineJoin = 'round';
+            animalPadCtx.lineWidth = s.size || 6;
+            animalPadCtx.globalCompositeOperation = 'source-over';
+            animalPadCtx.strokeStyle = s.color || '#2B5B35';
+            animalPadCtx.beginPath();
+            animalPadCtx.moveTo(s.points[0].x, s.points[0].y);
+            for (let pIdx = 1; pIdx < s.points.length; pIdx++) {
+                animalPadCtx.lineTo(s.points[pIdx].x, s.points[pIdx].y);
+                animalPadCtx.stroke();
+                animalPadCtx.beginPath();
+                animalPadCtx.moveTo(s.points[pIdx].x, s.points[pIdx].y);
+                if (pIdx % 2 === 0) await new Promise(r => setTimeout(r, stepDelay));
+            }
+            animalPadCtx.restore();
+        }
+        await new Promise(r => setTimeout(r, stepDelay));
+    }
+
+    // Restore crisp pixel buffer
+    animalPadCtx.putImageData(snapshot, 0, 0);
+    isReplayingAnimalTimelapse = false;
+    if (typeof playChimeSound === 'function') playChimeSound();
+}
+
+function promptSaveAnimalToGallery() {
+    const trimmed = extractTrimmedAnimalCanvas();
+    if (!trimmed) {
+        if (typeof cuteAlert === 'function') {
+            cuteAlert('Gambarlah hewanmu di kanvas terlebih dahulu sebelum menyimpannya!', 'Kanvas Kosong', '🎨');
+        } else {
+            alert('Gambarlah hewanmu terlebih dahulu!');
+        }
+        return;
+    }
+    const nameInput = document.getElementById('customAnimalNameInput');
+    const animalName = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : `Sahabat Kebun #${(typeof galleryAnimals !== 'undefined' ? galleryAnimals.length : 0) + 1}`;
+    const soundSelect = document.getElementById('customAnimalSoundSelect');
+    const animalSound = (soundSelect && soundSelect.value) ? soundSelect.value : 'chime';
+
+    if (typeof openSaveToGalleryDialogWithConfig === 'function') {
+        openSaveToGalleryDialogWithConfig({
+            category: 'animal',
+            canvas: trimmed,
+            defaultName: animalName,
+            title: 'Simpan ke Galeri Hewan',
+            desc: 'Beri nama sahabat barumu agar bisa dipanggil kapan saja',
+            nameLabel: 'Nama Hewan:',
+            strokes: (animalStudioStrokes && animalStudioStrokes.length > 0) ? JSON.parse(JSON.stringify(animalStudioStrokes)) : [],
+            habitat: selectedAnimalHabitat || 'land',
+            sound: animalSound
+        });
+    }
+}
+
 // Global function bindings on window
 window.initAnimalStudioCanvas = initAnimalStudioCanvas;
 window.openAnimalStudioModal = openAnimalStudioModal;
 window.closeAnimalStudioModal = closeAnimalStudioModal;
 window.clearAnimalPad = clearAnimalPad;
+window.setAnimalStudioBrushType = setAnimalStudioBrushType;
 window.setAnimalStudioTool = setAnimalStudioTool;
 window.setAnimalBrushSize = setAnimalBrushSize;
 window.setAnimalBrushSizeFromSlider = setAnimalBrushSizeFromSlider;
@@ -642,3 +1080,5 @@ window.resetAnimalZoom = resetAnimalZoom;
 window.toggleAnimalPanMode = toggleAnimalPanMode;
 window.toggleAnimalConfigModal = toggleAnimalConfigModal;
 window.updateAnimalInfoPillText = updateAnimalInfoPillText;
+window.replayAnimalStudioTimelapse = replayAnimalStudioTimelapse;
+window.promptSaveAnimalToGallery = promptSaveAnimalToGallery;

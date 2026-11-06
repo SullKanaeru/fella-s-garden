@@ -207,19 +207,43 @@
             }
         }
 
-        function clearFlowerPad() {
+        function clearFlowerPad(force = false) {
             if (!flowerPadCanvas) {
                 flowerPadCanvas = document.getElementById('flowerPadCanvas');
                 if (flowerPadCanvas) flowerPadCtx = flowerPadCanvas.getContext('2d', { willReadFrequently: true });
             }
             if (!flowerPadCanvas || !flowerPadCtx) return;
-            saveFlowerPadState();
-            flowerPadCtx.clearRect(0, 0, flowerPadCanvas.width, flowerPadCanvas.height);
-            if (typeof resetPadPainterMetadata === 'function') resetPadPainterMetadata();
-            const hint = document.getElementById('drawBoxHint');
-            if (hint) hint.style.opacity = '0.4';
-            pendingFlowerSprite = null;
-            updateDraftBadge();
+
+            const performClear = () => {
+                saveFlowerPadState();
+                flowerPadCtx.clearRect(0, 0, flowerPadCanvas.width, flowerPadCanvas.height);
+                if (typeof resetPadPainterMetadata === 'function') resetPadPainterMetadata();
+                const hint = document.getElementById('drawBoxHint');
+                if (hint) hint.style.opacity = '0.4';
+                pendingFlowerSprite = null;
+                updateDraftBadge();
+            };
+
+            if (force) {
+                performClear();
+                return;
+            }
+
+            const trimmed = extractTrimmedFlowerCanvas();
+            if (!trimmed) {
+                performClear();
+                return;
+            }
+
+            const confirmClear = (typeof cuteConfirm === 'function')
+                ? cuteConfirm('Apakah kamu yakin ingin menghapus seluruh gambar bunga?', 'Hapus Kanvas', true, 'Ya, Hapus', '🗑️')
+                : (typeof cuteAlert === 'function')
+                    ? cuteAlert('Apakah kamu yakin ingin menghapus seluruh gambar bunga?', 'Hapus Kanvas', '🗑️', true)
+                    : Promise.resolve(confirm('Hapus seluruh gambar bunga di kanvas?'));
+
+            confirmClear.then(ok => {
+                if (ok) performClear();
+            });
         }
 
         function selectFlowerColor(hexColor, btnEl) {

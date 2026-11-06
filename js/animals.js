@@ -688,12 +688,46 @@ function petAnimal(a) {
 
     // Catat juga curhatan hangat hewan ke modal pesan jika belum sering curhat
     if (Math.random() < 0.65 && typeof recordAnimalMessage === 'function') {
-        const dialogs = [
-            "Rasanya nyaman sekali waktu kamu elus... Makasih ya sudah memperhatikanku!",
-            "Aku suka berada di dekatmu, bikin hatiku tenang dan damai.",
-            "Tadi waktu kamu sentuh kepalaku, rasanya hangat sekali! Sayang kamu selalu~",
-            "Kebun ini makin indah karena ada kamu yang merawatnya dengan tulus."
+        const isCat = a.type === 'cat';
+        const isDog = a.type === 'dog';
+        const isRabbit = a.type === 'rabbit';
+        const isFish = a.type === 'fish' || a.habitat === 'water' || (a.name && a.name.toLowerCase().includes('ikan'));
+        const isTurtle = a.type === 'turtle';
+
+        let dialogs = [
+            "Rasanya hangat saat kamu elus tadi. Terima kasih, ya.",
+            "Dielus begini bikin rasa lelahku hilang.",
+            "Aku suka saat kamu perhatian seperti ini."
         ];
+        if (isCat) {
+            dialogs = [
+                "Elusan di dagu tadi pas sekali. Jangan berhenti dulu.",
+                "Rasanya nyaman saat kamu elus kepalaku.",
+                "Aku suka saat kamu duduk dekat-dekat dan mengelusku."
+            ];
+        } else if (isDog) {
+            dialogs = [
+                "Senang sekali waktu kamu elus! Mau lagi, dong.",
+                "Ekorku langsung bergoyang setiap kali kamu sentuh kepalaku.",
+                "Terima kasih sudah meluangkan waktu mengelusku."
+            ];
+        } else if (isRabbit) {
+            dialogs = [
+                "Sentuhanmu lembut sekali di telingaku.",
+                "Dielus pelan begini rasanya menenangkan.",
+                "Terima kasih sudah mengelusku dengan hati-hati."
+            ];
+        } else if (isFish) {
+            dialogs = [
+                "Senang melihat tanganmu mendekat ke permukaan air.",
+                "Riak air saat kamu mendekat selalu membuatku ingin menyapa."
+            ];
+        } else if (isTurtle) {
+            dialogs = [
+                "Tempurungku terasa hangat saat kamu elus pelan.",
+                "Terima kasih sudah menemaniku jalan santai hari ini."
+            ];
+        }
         recordAnimalMessage(a, dialogs[Math.floor(Math.random() * dialogs.length)], 'bahagia');
     }
 
@@ -999,7 +1033,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: pt.y,
                 action: 'warming_campfire',
                 duration: 9.5,
-                bubble: '( ˶˘ ³˘˶) Hangat🔥',
+                bubble: '( ˶˘ ³˘˶) 🔥',
                 faceX: d.x,
                 maxOccupants: 1
             };
@@ -1011,7 +1045,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: d.y + 5,
                 action: 'sheltering_house',
                 duration: 10.0,
-                bubble: '(｡･ω･｡) Teduh🏠',
+                bubble: '(｡･ω･｡) 🏠',
                 maxOccupants: 1
             };
         case 'gazebo':
@@ -1021,7 +1055,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: d.y + 3,
                 action: 'sheltering_gazebo',
                 duration: 10.5,
-                bubble: '(っ˘ω˘ς) Damai✨',
+                bubble: '(っ˘ω˘ς) ✨',
                 maxOccupants: 1
             };
         case 'fountain': {
@@ -1032,7 +1066,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: pt.y,
                 action: 'splashing_fountain',
                 duration: 8.5,
-                bubble: 'Uff! Segar! 💦',
+                bubble: '(˶ᵔ ᵕ ᵔ˶) 💦',
                 faceX: d.x,
                 maxOccupants: 1
             };
@@ -1046,7 +1080,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                     targetY: pt.y,
                     action: 'stalking_bird',
                     duration: 8.5,
-                    bubble: '(ФωФ)! 🐦',
+                    bubble: '(ФωФ) 🐦',
                     faceX: d.x,
                     maxOccupants: 1
                 };
@@ -1059,7 +1093,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                     targetY: pt.y,
                     action: 'watching_birdbath',
                     duration: 8.0,
-                    bubble: '(•ө•)♡ Burung Lucu!',
+                    bubble: '(•ө•)♡ 🐦',
                     faceX: d.x,
                     maxOccupants: 1
                 };
@@ -1073,7 +1107,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                     targetY: pt.y,
                     action: 'sitting_bench',
                     duration: 9.0,
-                    bubble: '(❍ᴥ❍ʋ) Setia!',
+                    bubble: '(❍ᴥ❍ʋ) 🪑',
                     faceX: d.x,
                     maxOccupants: 1
                 };
@@ -1084,7 +1118,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: d.y - 1,
                 action: 'lounging_bench',
                 duration: 10.0,
-                bubble: '(=^･ω･^=) Nyaman~',
+                bubble: '(=^･ω･^=) 🪑',
                 maxOccupants: 1
             };
         case 'tree_swing':
@@ -1094,7 +1128,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: d.y - 2,
                 action: 'swinging',
                 duration: 10.0,
-                bubble: '( ˘ ³˘)♪ Ayun~ 🌸',
+                bubble: '( ˘ ³˘)♪ 🌸',
                 maxOccupants: 1
             };
         case 'wind_chime': {
@@ -1105,7 +1139,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: pt.y,
                 action: 'listening_chime',
                 duration: 8.0,
-                bubble: '(•ㅅ•)? Merdu🎐',
+                bubble: '(•ㅅ•) 🎐',
                 faceX: d.x,
                 maxOccupants: 1
             };
@@ -1117,7 +1151,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: d.y + 16,
                 action: 'admiring_art',
                 duration: 8.5,
-                bubble: '(🎨˘꒳˘) Indah!',
+                bubble: '(🎨˘꒳˘) 🎨',
                 faceX: d.x,
                 maxOccupants: 1
             };
@@ -1128,7 +1162,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: d.y + 4,
                 action: 'picnic_snack',
                 duration: 9.5,
-                bubble: '(๑´ڡ`๑) Nyam! 🍵',
+                bubble: '(๑´ڡ`๑) 🍵',
                 faceX: d.x,
                 maxOccupants: 1
             };
@@ -1139,7 +1173,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: d.y + 5,
                 action: 'lounging_umbrella',
                 duration: 10.0,
-                bubble: '(～￣▽￣)～ Adem🏖️',
+                bubble: '(～￣▽￣)～ 🏖️',
                 maxOccupants: 1
             };
         case 'lantern':
@@ -1151,7 +1185,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: pt.y,
                 action: 'lantern_glow',
                 duration: 9.0,
-                bubble: '(✨´꒳`✨) Berpendar~',
+                bubble: '(✨´꒳`✨) 🏮',
                 faceX: d.x,
                 maxOccupants: 1
             };
@@ -1163,7 +1197,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: d.y + 3,
                 action: 'arch_strut',
                 duration: 8.0,
-                bubble: '(★ω★) Mekar🌸',
+                bubble: '(★ω★) 🌸',
                 maxOccupants: 1
             };
         case 'windmill': {
@@ -1174,7 +1208,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: pt.y,
                 action: 'watching_windmill',
                 duration: 8.5,
-                bubble: '(✪ω✪) Berputar🍃',
+                bubble: '(✪ω✪) 🍃',
                 faceX: d.x,
                 maxOccupants: 1
             };
@@ -1187,7 +1221,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: pt.y,
                 action: 'peering_well',
                 duration: 8.5,
-                bubble: '(⊙_⊙)! Dalamnya🫧',
+                bubble: '(⊙_⊙) 🫧',
                 faceX: d.x,
                 maxOccupants: 1
             };
@@ -1200,7 +1234,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: pt.y,
                 action: 'booping_statue',
                 duration: 8.5,
-                bubble: '(•ㅅ•) Boop! 🐰',
+                bubble: '(•ㅅ•) 🗿',
                 faceX: d.x,
                 maxOccupants: 1
             };
@@ -1213,7 +1247,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: pt.y,
                 action: 'sniffing_cart',
                 duration: 8.5,
-                bubble: '(>o<) Achioo! 🌸',
+                bubble: '(>o<) 💐',
                 faceX: d.x,
                 maxOccupants: 1
             };
@@ -1225,7 +1259,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: d.y + 2,
                 action: 'hopping_stones',
                 duration: 7.5,
-                bubble: '(ﾉ◕ヮ◕)ﾉ Hop🎵',
+                bubble: '(ﾉ◕ヮ◕)ﾉ 🎵',
                 maxOccupants: 1
             };
         case 'mushroom': {
@@ -1236,7 +1270,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: pt.y,
                 action: 'mushroom_shade',
                 duration: 9.0,
-                bubble: '(๑˘︶˘๑) Payung Jamur🍄',
+                bubble: '(๑˘︶˘๑) 🍄',
                 faceX: d.x,
                 maxOccupants: 1
             };
@@ -1250,7 +1284,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                     targetY: d.y,
                     action: 'fence_walk',
                     duration: 8.5,
-                    bubble: '(🐾˘꒳˘) Titian~',
+                    bubble: '(🐾˘꒳˘) 🐾',
                     maxOccupants: 1
                 };
             }
@@ -1260,7 +1294,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: d.y + 12,
                 action: 'peeking_fence',
                 duration: 7.5,
-                bubble: '(•ᴥ•) Intip!',
+                bubble: '(•ᴥ•) 🐾',
                 faceX: d.x,
                 maxOccupants: 1
             };
@@ -1272,7 +1306,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                 targetY: pt.y,
                 action: 'admiring_castle',
                 duration: 8.0,
-                bubble: '(✧ω✧) Kastil Pasir🏰',
+                bubble: '(✧ω✧) 🏰',
                 faceX: d.x,
                 maxOccupants: 1
             };
@@ -1286,7 +1320,7 @@ function getDecorInteractionAnchorAndMeta(d, a) {
                     targetY: pt.y,
                     action: 'admiring_art',
                     duration: 8.5,
-                    bubble: '(✨•ㅅ•) Bagus!',
+                    bubble: '(✨•ㅅ•) 🎨',
                     faceX: d.x,
                     maxOccupants: 1
                 };
@@ -1294,6 +1328,104 @@ function getDecorInteractionAnchorAndMeta(d, a) {
             return null;
     }
 }
+
+/**
+ * Menghasilkan pesan teks humanis, hangat, dan ekspresif saat hewan berinteraksi dengan dekorasi,
+ * untuk disimpan ke dalam modal riwayat pesan hewan.
+ */
+function getDecorHumanMessage(decorType, animal) {
+    if (!decorType || !animal) return null;
+    const isCat = animal.type === 'cat';
+    const isDog = animal.type === 'dog';
+    const isRabbit = animal.type === 'rabbit';
+
+    const messages = {
+        campfire: [
+            { text: "Duduk di dekat api ini terasa hangat di badan.", category: "bahagia", emoji: "🔥" },
+            { text: "Suara kayu bakarnya menenangkan sekali waktu malam.", category: "bahagia", emoji: "🔥" }
+        ],
+        pet_house: [
+            { text: "Rumah kecil ini pas sekali untukku beristirahat.", category: "bahagia", emoji: "🏠" },
+            { text: "Di dalam sini teduh dan tidak bising.", category: "bahagia", emoji: "🏠" }
+        ],
+        gazebo: [
+            { text: "Duduk di sini nyaman, tidak kena terik matahari.", category: "bahagia", emoji: "🍃" },
+            { text: "Pemandangan kebun dari gazebo ini kelihatan luas.", category: "bahagia", emoji: "✨" }
+        ],
+        fountain: [
+            { text: "Suara gemericik airnya enak didengar.", category: "bahagia", emoji: "💦" },
+            { text: "Percikan airnya terasa sejuk di dekat sini.", category: "bahagia", emoji: "💦" }
+        ],
+        birdbath: [
+            { text: isCat ? "Aku memperhatikan burung yang mampir dari balik semak." : "Air di kolam burung ini bersih. Tadi ada yang mampir sebentar.", category: "bahagia", emoji: "🐦" }
+        ],
+        bench: [
+            { text: "Bangku ini cukup luas untuk kita duduk berdua.", category: "request", emoji: "🪑" },
+            { text: "Duduk santai di sini sambil melihat bunga mekar.", category: "bahagia", emoji: "🪑" }
+        ],
+        tree_swing: [
+            { text: "Ayunan ini gerakannya pelan dan bikin rileks.", category: "bahagia", emoji: "🌸" },
+            { text: "Berayun di bawah pohon begini udaranya sejuk.", category: "bahagia", emoji: "🍃" }
+        ],
+        wind_chime: [
+            { text: "Suara denting loncengnya pelan dan berirama.", category: "mengantuk", emoji: "🎐" },
+            { text: "Tiap kali angin lewat, lonceng ini berbunyi merdu.", category: "bahagia", emoji: "🎐" }
+        ],
+        easel: [
+            { text: "Lukisan yang kamu pasang di sini menarik dilihat.", category: "bahagia", emoji: "🎨" },
+            { text: "Warna di kanvas lukisan ini cerah sekali.", category: "bahagia", emoji: "🎨" }
+        ],
+        picnic_set: [
+            { text: "Karpet pikniknya bersih dan empuk.", category: "bahagia", emoji: "🍵" },
+            { text: "Duduk santai di atas tikar sambil menikmati udara sore.", category: "bahagia", emoji: "🥪" }
+        ],
+        beach_umbrella: [
+            { text: "Payung ini teduh sekali untuk tempat berteduh di pasir.", category: "bahagia", emoji: "🏖️" },
+            { text: "Suara ombak terdengar jelas dari bawah payung ini.", category: "bahagia", emoji: "🐚" }
+        ],
+        lantern: [
+            { text: "Lentera ini membantu menerangi jalan saat malam hari.", category: "bahagia", emoji: "🏮" }
+        ],
+        lantern_mushroom: [
+            { text: "Jamur ini mengeluarkan cahaya lembut waktu gelap.", category: "bahagia", emoji: "🍄" }
+        ],
+        flower_arch: [
+            { text: "Gerbang bunga ini aromanya harum waktu dilewati.", category: "bahagia", emoji: "🌸" }
+        ],
+        windmill: [
+            { text: "Baling-baling kincirnya terus berputar ditiup angin.", category: "bahagia", emoji: "🍃" }
+        ],
+        wishing_well: [
+            { text: "Air di dalam sumur ini dalam dan tenang.", category: "bahagia", emoji: "🫧" }
+        ],
+        statue: [
+            { text: "Patung batu kecil ini ditaruh di sini cocok sekali.", category: "bahagia", emoji: "🗿" }
+        ],
+        flower_cart: [
+            { text: "Bunga-bunga di atas gerobak ini tertata rapi dan harum.", category: "bahagia", emoji: "💐" }
+        ],
+        stepping_stone: [
+            { text: "Melompat di atas batu pijakan ini tidak licin.", category: "bahagia", emoji: "🎵" }
+        ],
+        mushroom: [
+            { text: "Payung jamur ini cukup lebar untuk tempat berteduh.", category: "bahagia", emoji: "🍄" }
+        ],
+        sandcastle: [
+            { text: "Istana pasirnya rapi. Semoga tidak cepat terkena air.", category: "bahagia", emoji: "🏰" }
+        ],
+        golden_lotus: [
+            { text: "Bunga teratai emas ini berkilau di atas air.", category: "bahagia", emoji: "🪷" }
+        ]
+    };
+
+    const pool = messages[decorType] || [
+        { text: "Dekorasi ini cocok ditaruh di sudut kebun ini.", category: "bahagia", emoji: "🎨" },
+        { text: "Benda baru ini membuat sudut sini jadi lebih rapi.", category: "bahagia", emoji: "✨" },
+        { text: "Aku suka melihat benda yang kamu pasang di sini.", category: "bahagia", emoji: "🌱" }
+    ];
+    return pool[Math.floor(Math.random() * pool.length)];
+}
+window.getDecorHumanMessage = getDecorHumanMessage;
 
 /**
  * Menghitung transformasi animasi 60fps yang mulus (dx, dy, rot, scaleX, scaleY)
@@ -1861,6 +1993,12 @@ function updateAnimals(dt, now) {
                         a.bubbleTimer = 3.6;
                         a.orbitAngle = Math.atan2(a.y - dec.y, a.x - dec.x);
                         dec.interactBounce = 0.8;
+                        if (typeof recordAnimalMessage === 'function') {
+                            const decMsg = getDecorHumanMessage(dec.type, a);
+                            if (decMsg) {
+                                recordAnimalMessage(a, decMsg.text, decMsg.category, decMsg.emoji);
+                            }
+                        }
                     } else {
                         a.targetDecorId = null;
                         a.pendingDecorMeta = null;
@@ -2354,6 +2492,12 @@ function updateAnimals(dt, now) {
                             a.facingLeft = meta.faceX < a.x;
                         }
                         dec.interactBounce = 0.75;
+                        if (typeof recordAnimalMessage === 'function') {
+                            const decMsg = getDecorHumanMessage(dec.type, a);
+                            if (decMsg) {
+                                recordAnimalMessage(a, decMsg.text, decMsg.category, decMsg.emoji);
+                            }
+                        }
                         continue;
                     } else {
                         a.targetDecorId = null;
@@ -2615,9 +2759,9 @@ function resolveAnimalToAnimalOverlap(dt) {
                         b.x = bx;
                         b.y = by;
                     }
-                    if (b.state === 'idle' || b.state === 'happy') {
-                        const tx = b.x + nx * 44;
-                        const ty = b.y + ny * 34;
+                    if (b.state === 'idle' || b.state === 'happy' || b.state === 'walking') {
+                        const tx = b.x + nx * 50;
+                        const ty = b.y + ny * 38;
                         if (canStandOnGround(tx, ty, bIsWater)) {
                             b.targetX = tx;
                             b.targetY = ty;
@@ -2633,9 +2777,9 @@ function resolveAnimalToAnimalOverlap(dt) {
                         a.x = ax;
                         a.y = ay;
                     }
-                    if (a.state === 'idle' || a.state === 'happy') {
-                        const tx = a.x - nx * 44;
-                        const ty = a.y - ny * 34;
+                    if (a.state === 'idle' || a.state === 'happy' || a.state === 'walking') {
+                        const tx = a.x - nx * 50;
+                        const ty = a.y - ny * 38;
                         if (canStandOnGround(tx, ty, aIsWater)) {
                             a.targetX = tx;
                             a.targetY = ty;
@@ -4067,101 +4211,186 @@ var animalMessageHistory = [];
 window.animalMessageHistory = animalMessageHistory;
 var currentAnimalMessageFilter = 'all';
 
-const HUMANIZED_ANIMAL_DIALOGS = {
+const CAT_DIALOGS = {
     bahagia: [
-        {
-            text: "Kebun ini sejuk dan tenang sekali hari ini... Aku betah banget ada di sampingmu.",
-            emoji: "🌸✨",
-            bubble: "(˶ᵔ ᵕ ᵔ˶) 💖"
-        },
-        {
-            text: "Bunga-bunga yang kamu rawat mekar harum sekali! Bikin langkah kakiku jadi ringan.",
-            emoji: "🌷🐾",
-            bubble: "(✿◠‿◠) ✨"
-        },
-        {
-            text: "Tadi waktu kamu elus kepalaku, rasanya hangat dan nyaman sekali... Makasih ya, Sahabat!",
-            emoji: "🥰💕",
-            bubble: "( ˶˘ ³˘)♡"
-        },
-        {
-            text: "Melihatmu sibuk berkebun bikin hatiku senang. Rasanya seperti punya rumah yang sesungguhnya.",
-            emoji: "🏡🌼",
-            bubble: "(๑•᎑•๑) ✨"
-        },
-        {
-            text: "Aku baru saja menemukan sudut rumput yang empuk banget untuk santai. Hari ini damai sekali!",
-            emoji: "🍃☀️",
-            bubble: "(っ˘ω˘ς) 🌿"
-        }
+        { text: "Tempat ini tenang. Aku suka duduk di sini.", emoji: "🐱", bubble: "(˶ᵔ ᵕ ᵔ˶)" },
+        { text: "Rumputnya hangat kena matahari. Nyaman buat rebahan.", emoji: "🐱", bubble: "(っ˘ω˘ς)" },
+        { text: "Bunga yang itu baunya enak. Aku suka lewat dekat situ.", emoji: "🐱", bubble: "(✿◠‿◠)" },
+        { text: "Duduk di dekatmu rasanya pas. Tidak terlalu berisik.", emoji: "🐱", bubble: "( ˶˘ ³˘)" },
+        { text: "Hari ini sepi, tidak banyak gangguan. Enak.", emoji: "🐱", bubble: "(๑•᎑•๑)" }
     ],
     request: [
-        {
-            text: "Hmm, kalau ada tanaman bunga berwarna cerah di dekat kolam, pasti pemandangannya makin cantik ya?",
-            emoji: "🌺💭",
-            bubble: "(•ㅅ•)? 🌸"
-        },
-        {
-            text: "Boleh elus kepalaku sebentar lagi? Sentuhanmu selalu bikin aku tenang dan bersemangat.",
-            emoji: "🐾🥺",
-            bubble: "𐔌՞ ܸ.ˬ.ܸ՞𐦯"
-        },
-        {
-            text: "Cuaca hari ini pas banget untuk jalan-jalan santai. Jangan lupa istirahat dan minum air ya!",
-            emoji: "🍵💧",
-            bubble: "(๑´ڡ`๑) 🍵"
-        },
-        {
-            text: "Rasanya seru kalau kita pasang lonceng angin atau tempat duduk kayu di dekat sini...",
-            emoji: "🎐🪵",
-            bubble: "(✧ω✧) 🎐"
-        },
-        {
-            text: "Aku ingin mencium wangi bunga baru yang sedang kamu gambar. Pasti hasilnya bagus sekali!",
-            emoji: "🎨🌸",
-            bubble: "(🎨˘꒳˘) ✨"
-        }
+        { text: "Elus daguku sebentar, dong.", emoji: "🐱", bubble: "𐔌՞ ܸ.ˬ.ܸ՞𐦯" },
+        { text: "Bisa geser batu itu sedikit? Menghalangi jalanku.", emoji: "🐱", bubble: "(•ㅅ•)?" },
+        { text: "Tempat tidurku di sana agak berdebu. Nanti bersihkan, ya.", emoji: "🐱", bubble: "(=^･ω･^=)" },
+        { text: "Jangan cuma lihat bunga terus. Aku di sini, loh.", emoji: "🐱", bubble: "(✧ω✧)" }
     ],
     sedih: [
-        {
-            text: "Tadi waktu kamu pergi sebentar, aku sempat celingukan mencarimu... Jangan pergi terlalu lama ya.",
-            emoji: "🥺🍂",
-            bubble: "(⸝⸝๑﹏๑⸝⸝)"
-        },
-        {
-            text: "Kakiku sedikit lelah melompat ke sana kemari... Boleh aku duduk diam di dekatmu?",
-            emoji: "🐾🌧️",
-            bubble: ".·°՞(っ-ᯅ-ς)՞°·."
-        },
-        {
-            text: "Suara angin kencang tadi sempat bikin aku kaget. Tapi kalau ada kamu di dekatku, aku merasa aman.",
-            emoji: "🍃⛈️",
-            bubble: "(⊙_⊙;) !"
-        },
-        {
-            text: "Kadang aku merasa kecil di pulau yang luas ini, tapi melihat senyummu bikin rasa takutku hilang.",
-            emoji: "🌱💧",
-            bubble: "(っ-ᯅ-ς) 💖"
-        }
+        { text: "Tadi kamu lama sekali perginya. Aku menunggu dari tadi.", emoji: "🐱", bubble: "(⸝⸝๑﹏๑⸝⸝)" },
+        { text: "Ada suara keras barusan. Bikin kaget.", emoji: "🐱", bubble: "(⊙_⊙;)" },
+        { text: "Kakiku basah kena embun. Dingin.", emoji: "🐱", bubble: ".·°՞(っ-ᯅ-ς)՞°·." }
     ],
     mengantuk: [
-        {
-            text: "Hooaam... Semilir angin kebun ini bikin mataku berat sekali. Bantal tidur empuk memanggil-manggilku...",
-            emoji: "💤☁️",
-            bubble: "(∪｡∪) ｡｡zZ"
-        },
-        {
-            text: "Hangatnya sinar matahari bikin aku ingin meringkuk tidur sebentar di bawah naungan daun...",
-            emoji: "☀️😴",
-            bubble: "(๑˘︶˘๑) 💤"
-        },
-        {
-            text: "Kelopak mataku sudah menyipit nih. Kalau aku ketiduran, tolong jangan bangunkan aku ya~",
-            emoji: "🛏️✨",
-            bubble: "(=^･ω･^=) zZ"
-        }
+        { text: "Mataku sudah berat. Mau tidur dulu di bawah daun.", emoji: "🐱", bubble: "(∪｡∪)" },
+        { text: "Jangan ganggu dulu, ya. Waktunya tidur siang.", emoji: "🐱", bubble: "( -ω-)zzZ" },
+        { text: "Nanti kalau sudah sore bangunkan aku.", emoji: "🐱", bubble: "(=^･ω･^=)" },
+        { text: "Udara hangat begini memang paling enak buat tidur.", emoji: "🐱", bubble: "(๑˘︶˘๑)" }
     ]
 };
+
+const DOG_DIALOGS = {
+    bahagia: [
+        { text: "Kamu datang! Aku senang sekali kalau kamu ke sini.", emoji: "🐶", bubble: "(˶ᵔ ᵕ ᵔ˶)" },
+        { text: "Ayo jalan keliling kebun lagi, masih banyak tempat yang belum kita lihat.", emoji: "🐶", bubble: "(★ω★)" },
+        { text: "Bunga yang baru kamu tanam bagus. Aku bantu jaga dari sini, ya!", emoji: "🐶", bubble: "(๑•᎑•๑)" },
+        { text: "Hari ini udaranya segar. Bikin semangat gerak terus.", emoji: "🐶", bubble: "( ˶˘ ³˘)" }
+    ],
+    request: [
+        { text: "Ayo main lempar ranting sebentar saja!", emoji: "🐶", bubble: "(✧ω✧)" },
+        { text: "Mau elus perutku lagi tidak? Tadi enak sekali.", emoji: "🐶", bubble: "𐔌՞ ܸ.ˬ.ܸ՞𐦯" },
+        { text: "Boleh minta air sedikit? Haus sehabis lari-lari.", emoji: "🐶", bubble: "(•ㅅ•)?" },
+        { text: "Jangan diam saja di situ, ayo jalan sama aku!", emoji: "🐶", bubble: "(๑´ڡ`๑)" }
+    ],
+    sedih: [
+        { text: "Tadi kamu jalan cepat sekali, aku hampir ketinggalan.", emoji: "🐶", bubble: "(⸝⸝๑﹏๑⸝⸝)" },
+        { text: "Aku kira kamu lupa mampir ke sini tadi.", emoji: "🐶", bubble: ".·°՞(っ-ᯅ-ς)՞°·." },
+        { text: "Capek juga ya kalau cuma mondar-mandir sendiri.", emoji: "🐶", bubble: "(｡•́︿•̀｡)" }
+    ],
+    mengantuk: [
+        { text: "Tiba-tiba mengantuk sehabis jalan jauh. Istirahat dulu sebentar.", emoji: "🐶", bubble: "(∪｡∪)" },
+        { text: "Aku tidur di dekat kakimu, ya.", emoji: "🐶", bubble: "(っ˘ω˘ς)" },
+        { text: "Kelopak mataku tidak mau terbuka lagi. Mengantuk sekali.", emoji: "🐶", bubble: "( -ω-)zzZ" }
+    ]
+};
+
+const RABBIT_DIALOGS = {
+    bahagia: [
+        { text: "Rumput di sini empuk. Daunnya juga segar.", emoji: "🐰", bubble: "(˶ᵔ ᵕ ᵔ˶)" },
+        { text: "Senang rasanya bisa lompat-lompat santai tanpa ada yang mengagetkan.", emoji: "🐰", bubble: "(✿◠‿◠)" },
+        { text: "Kebun ini tenang sekali. Aku suka aromanya.", emoji: "🐰", bubble: "(っ˘ω˘ς)" },
+        { text: "Aku merasa aman kalau kamu ada di dekat sini.", emoji: "🐰", bubble: "( ˶˘ ³˘)" }
+    ],
+    request: [
+        { text: "Boleh minta selembar daun wortel kalau ada?", emoji: "🐰", bubble: "𐔌՞ ܸ.ˬ.ܸ՞𐦯" },
+        { text: "Elus telingaku pelan-pelan, ya. Rasanya menenangkan.", emoji: "🐰", bubble: "(•ㅅ•)?" },
+        { text: "Bisa temani aku sebentar? Agak sepi di sini.", emoji: "🐰", bubble: "(✧ω✧)" }
+    ],
+    sedih: [
+        { text: "Tadi ada bayangan lewat di atas, aku sempat takut.", emoji: "🐰", bubble: "(⸝⸝๑﹏๑⸝⸝)" },
+        { text: "Suara ranting patah barusan bikin aku kaget.", emoji: "🐰", bubble: "(⊙_⊙;)" },
+        { text: "Jangan jalan terlalu cepat, ya. Nanti aku kaget.", emoji: "🐰", bubble: ".·°՞(っ-ᯅ-ς)՞°·." }
+    ],
+    mengantuk: [
+        { text: "Mataku mulai sayu. Mau sembunyi di balik semak dulu buat tidur.", emoji: "🐰", bubble: "(∪｡∪)" },
+        { text: "Hangat sekali di sini. Jadi mengantuk.", emoji: "🐰", bubble: "(๑˘︶˘๑)" },
+        { text: "Mau meringkuk sebentar. Nanti bangun kalau kamu panggil.", emoji: "🐰", bubble: "( -ω-)zzZ" }
+    ]
+};
+
+const FISH_DIALOGS = {
+    bahagia: [
+        { text: "Air kolam hari ini jernih sekali. Cahaya mataharinya sampai ke dasar.", emoji: "🐟", bubble: "(˶ᵔ ᵕ ᵔ˶)" },
+        { text: "Riak airnya tenang. Senang melihatmu merawat bunga dari tepi kolam.", emoji: "🐟", bubble: "(✿◠‿◠)" },
+        { text: "Berenang santai seperti ini memang paling nyaman.", emoji: "🐟", bubble: "(っ˘ω˘ς)" },
+        { text: "Ada bayangan kelopak bunga jatuh di permukaan air. Cantik sekali.", emoji: "🐟", bubble: "(★ω★)" }
+    ],
+    request: [
+        { text: "Boleh mampir ke tepi kolam sebentar? Aku mau menyapa.", emoji: "🐟", bubble: "𐔌՞ ܸ.ˬ.ܸ՞𐦯" },
+        { text: "Kalau ada daun teratai tambahan di kolam, pasti teduh sekali.", emoji: "🐟", bubble: "(•ㅅ•)?" },
+        { text: "Ada sedikit pakan untukku hari ini?", emoji: "🐟", bubble: "(✧ω✧)" },
+        { text: "Tepi kolam yang itu sepertinya cocok ditanami bunga teratai baru.", emoji: "🐟", bubble: "(๑´ڡ`๑)" }
+    ],
+    sedih: [
+        { text: "Tadi ada gemuruh di atas, permukaan airnya jadi berguncang.", emoji: "🐟", bubble: "(⸝⸝๑﹏๑⸝⸝)" },
+        { text: "Dari tadi kamu cuma di darat terus. Sesekali tengok ke kolam, ya.", emoji: "🐟", bubble: ".·°՞(っ-ᯅ-ς)՞°·." },
+        { text: "Airnya agak dingin hari ini. Aku berenang di bagian yang lebih dalam dulu.", emoji: "🐟", bubble: "(｡•́︿•̀｡)" }
+    ],
+    mengantuk: [
+        { text: "Mau diam mengapung di dekat batu kolam dulu sebentar.", emoji: "🐟", bubble: "(∪｡∪)" },
+        { text: "Arus airnya tenang sekali. Bikin mengantuk.", emoji: "🐟", bubble: "(っ˘ω˘ς)" },
+        { text: "Beristirahat di bawah bayangan daun teratai rasanya nyaman.", emoji: "🐟", bubble: "( -ω-)zzZ" }
+    ]
+};
+
+const TURTLE_DIALOGS = {
+    bahagia: [
+        { text: "Batu di pinggir air ini pas sekali buat berjemur.", emoji: "🐢", bubble: "(˶ᵔ ᵕ ᵔ˶)" },
+        { text: "Jalan pelan-pelan sambil menikmati angin sepoi memang paling enak.", emoji: "🐢", bubble: "(っ˘ω˘ς)" },
+        { text: "Hari yang tenang. Tidak perlu buru-buru ke mana pun.", emoji: "🐢", bubble: "(✿◠‿◠)" }
+    ],
+    request: [
+        { text: "Elus tempurungku pelan, ya. Rasanya hangat.", emoji: "🐢", bubble: "𐔌՞ ܸ.ˬ.ܸ՞𐦯" },
+        { text: "Kalau tanam sesuatu di dekat jalur jalanku, tolong yang pendek ya.", emoji: "🐢", bubble: "(•ㅅ•)?" }
+    ],
+    sedih: [
+        { text: "Tadi aku jalan terlalu lambat, jadi tidak sempat menyapamu.", emoji: "🐢", bubble: "(⸝⸝๑﹏๑⸝⸝)" },
+        { text: "Anginnya dingin sekali. Aku masuk tempurung dulu.", emoji: "🐢", bubble: ".·°՞(っ-ᯅ-ς)՞°·." }
+    ],
+    mengantuk: [
+        { text: "Mataku sudah berat. Mau tidur di dalam tempurung dulu.", emoji: "🐢", bubble: "(∪｡∪)" },
+        { text: "Berjemur sambil tidur sebentar enak sekali.", emoji: "🐢", bubble: "( -ω-)zzZ" }
+    ]
+};
+
+const GENERAL_DIALOGS = {
+    bahagia: [
+        { text: "Kebun ini makin hari makin nyaman ditinggali.", emoji: "🐾", bubble: "(˶ᵔ ᵕ ᵔ˶)" },
+        { text: "Melihat bunga-bunga mekar bikin hariku jadi menyenangkan.", emoji: "🐾", bubble: "(✿◠‿◠)" },
+        { text: "Aku betah tinggal di kebun yang kamu rawat ini.", emoji: "🐾", bubble: "(っ˘ω˘ς)" },
+        { text: "Senang melihat kamu rajin mengurus kebun setiap hari.", emoji: "🐾", bubble: "( ˶˘ ³˘)" }
+    ],
+    request: [
+        { text: "Istirahat dulu sebentar, jangan bekerja terus.", emoji: "🐾", bubble: "𐔌՞ ܸ.ˬ.ܸ՞𐦯" },
+        { text: "Boleh temani aku duduk di sini sebentar?", emoji: "🐾", bubble: "(•ㅅ•)?" },
+        { text: "Bisa elus aku sebentar?", emoji: "🐾", bubble: "(✧ω✧)" }
+    ],
+    sedih: [
+        { text: "Tadi kamu pergi agak lama, kirain tidak kembali lagi hari ini.", emoji: "🐾", bubble: "(⸝⸝๑﹏๑⸝⸝)" },
+        { text: "Cuacanya agak mendung, jadi terasa sepi.", emoji: "🐾", bubble: "(｡•́︿•̀｡)" },
+        { text: "Sedang agak lemas hari ini. Mau duduk diam saja.", emoji: "🐾", bubble: ".·°՞(っ-ᯅ-ς)՞°·." }
+    ],
+    mengantuk: [
+        { text: "Udaranya sejuk begini, bikin susah menahan kantuk.", emoji: "🐾", bubble: "(∪｡∪)" },
+        { text: "Aku tidur sebentar di sini, ya.", emoji: "🐾", bubble: "(っ˘ω˘ς)" },
+        { text: "Mataku sudah mengantuk sekali.", emoji: "🐾", bubble: "( -ω-)zzZ" }
+    ]
+};
+
+const HUMANIZED_ANIMAL_DIALOGS = GENERAL_DIALOGS;
+
+function getAnimalHumanizedDialogue(animal, category = 'bahagia') {
+    if (!animal) return { text: "Kebun ini tenang hari ini.", emoji: "🌸", bubble: "(˶ᵔ ᵕ ᵔ˶)" };
+    const type = animal.type || '';
+    const name = (animal.name || '').toLowerCase();
+    const habitat = animal.habitat || '';
+
+    let pool = GENERAL_DIALOGS;
+    let fallbackEmoji = '🐾';
+    if (type === 'cat' || name.includes('kucing')) {
+        pool = CAT_DIALOGS;
+        fallbackEmoji = '🐱';
+    } else if (type === 'dog' || name.includes('anjing')) {
+        pool = DOG_DIALOGS;
+        fallbackEmoji = '🐶';
+    } else if (type === 'rabbit' || name.includes('kelinci')) {
+        pool = RABBIT_DIALOGS;
+        fallbackEmoji = '🐰';
+    } else if (type === 'fish' || habitat === 'water' || name.includes('ikan') || name.includes('koi')) {
+        pool = FISH_DIALOGS;
+        fallbackEmoji = '🐟';
+    } else if (type === 'turtle' || name.includes('kura') || name.includes('penyu')) {
+        pool = TURTLE_DIALOGS;
+        fallbackEmoji = '🐢';
+    }
+
+    const list = pool[category] || pool.bahagia;
+    const item = list[Math.floor(Math.random() * list.length)];
+    return {
+        text: item.text,
+        emoji: item.emoji || fallbackEmoji,
+        bubble: item.bubble || "(˶ᵔ ᵕ ᵔ˶)"
+    };
+}
 
 /**
  * Membersihkan teks kalimat latin dari speech bubble di layar,
@@ -4170,11 +4399,13 @@ const HUMANIZED_ANIMAL_DIALOGS = {
 function sanitizeEmojiBubble(raw) {
     if (!raw) return '';
     let s = String(raw).trim();
-    // Hapus kata-kata berhuruf latin (2 huruf atau lebih), menyisakan kaomoji, simbol, dan emoji
-    s = s.replace(/[a-zA-Z]{2,}/g, '').trim();
-    // Rapikan spasi dan tanda baca lepas yang tersisa dari pemotongan kata
+    // Hapus semua kata atau huruf latin (a-z, A-Z), termasuk zZ atau singkatan
+    s = s.replace(/[a-zA-Z]+/g, '').trim();
+    // Rapikan tanda baca terisolasi dan spasi ganda
     s = s.replace(/\s+/g, ' ').trim();
-    s = s.replace(/\s+[!?,~;:]+/g, '').replace(/^[!?,~;:]+\s+/g, '').trim();
+    s = s.replace(/\s+[!?,~;:_\-]+/g, '').replace(/^[!?,~;:_\-]+\s+/g, '').trim();
+    // Bersihkan tanda kurung yang isinya kosong
+    s = s.replace(/\(\s*\)/g, '').trim();
     return s || '🐾✨';
 }
 
@@ -4233,7 +4464,6 @@ function generateFreshAnimalThoughts(targetAnimalId = null) {
     const pool = targetAnimalId ? animals.filter(a => a.id === targetAnimalId) : animals;
     if (pool.length === 0) return;
 
-    const categories = ['bahagia', 'request', 'sedih', 'mengantuk'];
     const chosenAnimal = pool[Math.floor(Math.random() * pool.length)];
 
     let category = 'bahagia';
@@ -4245,9 +4475,7 @@ function generateFreshAnimalThoughts(targetAnimalId = null) {
         category = 'request';
     }
 
-    const dialogList = HUMANIZED_ANIMAL_DIALOGS[category] || HUMANIZED_ANIMAL_DIALOGS.bahagia;
-    const template = dialogList[Math.floor(Math.random() * dialogList.length)];
-
+    const template = getAnimalHumanizedDialogue(chosenAnimal, category);
     recordAnimalMessage(chosenAnimal, template.text, category, template.emoji);
     return template;
 }
@@ -4275,8 +4503,7 @@ function openAnimalMessagesModal(filterAnimalId = null) {
             const a = animals[i];
             const cats = ['bahagia', 'request', 'sedih', 'mengantuk'];
             const cat = cats[i % cats.length];
-            const dList = HUMANIZED_ANIMAL_DIALOGS[cat];
-            const tmpl = dList[i % dList.length];
+            const tmpl = getAnimalHumanizedDialogue(a, cat);
             recordAnimalMessage(a, tmpl.text, cat, tmpl.emoji);
         }
     }

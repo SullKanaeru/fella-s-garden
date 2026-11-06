@@ -7757,7 +7757,7 @@ function resetToDefaultGarden() {
       birthScale: 1,
     });
   }
-  clearFlowerPad();
+  clearFlowerPad(true);
   centerGardenView();
   closeHelpModal();
   playPlantSound();
@@ -8348,8 +8348,8 @@ function updateAndDrawBeachCrabs(ctx, dt, now) {
           c.bubbleTimer = 4.5;
           if (typeof recordAnimalMessage === 'function') {
             const crabThought = targetD.type === "sandcastle"
-              ? "Siap sedia! Aku kepiting pantai yang gagah berani, siap menjaga istana pasir megahmu dari ombak!"
-              : "Wah, payung pantai ini teduh sekali. Pasir di bawahnya sejuk, enak untuk bersantai sejenak.";
+              ? "Aku jaga istana pasir ini dari ombak pantai."
+              : "Pasir di bawah payung ini sejuk untuk berteduh sebentar.";
             recordAnimalMessage({ id: c.id, name: "Kepiting Pantai", type: "crab" }, crabThought, "bahagia", "🦀");
           }
         } else {

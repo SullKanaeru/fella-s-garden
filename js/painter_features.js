@@ -569,7 +569,7 @@
                 chosen.bubbleText = '🎨 (•ㅅ•)? ✨';
                 chosen.bubbleTimer = 5.5;
                 if (typeof recordAnimalMessage === 'function') {
-                    recordAnimalMessage(chosen, `Hai Sahabat! Aku punya ide dan ingin memesan lukisan bunga bertema "${tmpl.title || 'bunga cantik'}". Boleh tolong gambarkan di studio?`, 'request', '🎨');
+                    recordAnimalMessage(chosen, `Aku sedang ingin melihat lukisan bertema "${tmpl.title || 'bunga cantik'}". Kalau ada waktu luang, boleh tolong gambarkan di studio?`, 'request', '🎨');
                 }
             }
         }
@@ -621,7 +621,7 @@
                     targetAnimal.bubbleTimer = 6.0;
                     targetAnimal.carryingFlowerTimer = 12.0;
                     if (typeof recordAnimalMessage === 'function') {
-                        recordAnimalMessage(targetAnimal, `Wahh, lukisan pesanan ini indah sekali!! Kamu berbakat banget. Bunga ini bakal jadi kenang-kenangan favoritku! (+${starsEarned} Bintang)`, 'bahagia', '🌸');
+                        recordAnimalMessage(targetAnimal, `Lukisan pesanan ini bagus sekali. Terima kasih banyak ya sudah menggambarkannya! (+${starsEarned} Bintang)`, 'bahagia', '🌸');
                     }
                 }
             }
@@ -1065,10 +1065,10 @@
         if (!easel || typeof animals === 'undefined' || !Array.isArray(animals)) return;
         const admirers = animals.filter(a => a.habitat !== 'water').slice(0, 3);
         const comments = [
-            'Wah, lukisannya indah sekali~ 🎨✨',
-            'Warnanya bikin hati hangat! 💕',
-            'Karya seni kebun terbaik! 🌟',
-            'Aku suka goresan kuasnya~ 🐾'
+            'Lukisan ini enak dilihat, warnanya rapi.',
+            'Aku suka detail gambar di kanvas ini.',
+            'Pilihan warnanya pas dan menenangkan.',
+            'Karya lukisan yang bagus untuk dipajang di kebun.'
         ];
         const commentEmojis = [
             '(🎨˘꒳˘) ✨',
@@ -2548,6 +2548,8 @@
     window.cancelRecordingStroke = cancelRecordingStroke;
     window.resetPadPainterMetadata = resetPadPainterMetadata;
     window.replayStudioTimelapse = replayStudioTimelapse;
+    window.getRecordedFlowerStrokes = () => (recordedFlowerStrokes ? recordedFlowerStrokes.slice() : []);
+    window.setRecordedFlowerStrokes = (strokes) => { recordedFlowerStrokes = Array.isArray(strokes) ? strokes.slice() : []; };
     window.attachPainterDataToNewFlower = attachPainterDataToNewFlower;
     window.drawFlowerPainterEffects = drawFlowerPainterEffects;
     window.cycleAnimalCommission = cycleAnimalCommission;

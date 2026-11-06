@@ -798,61 +798,181 @@ const WEATHER_STATES = {
 
 function triggerAnimalWeatherReactions(newWeather) {
     if (typeof animals === 'undefined' || !Array.isArray(animals) || animals.length === 0) return;
-    const dialogs = {
-        thunderstorm: [
-            'Waa ada petir kilat! Ayo berlari berteduh! ⚡🏠',
-            'Suara petirnya menggelegar! Tapi aku berani! ⛈️🐾',
-            'Hujan deras sekali! Buluku basah kuyup! 🌧️🐱'
-        ],
-        drizzle: [
-            'Rintik gerimis sejuk sekali... 🌧️🌱',
-            'Tanah kebun jadi wangi sehabis gerimis! 💧🐕',
-            'Aku suka suara tetesan hujan di atas daun! 🍃🌧️'
-        ],
-        rainbow: [
-            'Lihat ke atas! Ada pelangi indah sekali di langit! 🌈✨',
-            'Warna-warni langit yang ajaib! ✨💖',
-            'Pelanginya berkilau indah di atas kebun kita! 🌈🐾'
-        ],
-        sakura_storm: [
-            'Kelopak bunga sakura beterbangan di mana-mana! 🌸🍃',
-            'Angin sakura ini wangi sekali! 🌸✨',
-            'Ayo menari di antara kelopak bunga! 🌸🐱'
-        ],
-        blizzard: [
-            'Salju turun begitu lebat! Dingin tapi seru! ❄️🧣',
-            'Semuanya memutih tertutup salju halus! ⛄❄️',
-            'Brrr~ Untung aku punya bulu yang hangat! 🐾❄️'
-        ],
-        heatwave: [
-            'Matahari terik sekali hari ini, ayo siram bunga! ☀️💧',
-            'Hangatnya siang ini, enak untuk berjemur santai~ ☀️🐱',
-            'Jangan lupa minum dan dinginkan diri di kolam! 🌊🐟'
-        ],
-        clear: [
-            'Cuaca cerah yang indah untuk merawat kebun! ☀️🌸',
-            'Semangat merawat kebun hari ini! 🌱✨'
-        ],
-        breeze: [
-            'Semilir angin sejuk... Rasanya ingin tidur siang 🍃💤',
-            'Dedaunan berbisik ditiup angin sepoi~ 🍃'
-        ]
-    };
-
-    const pool = dialogs[newWeather] || dialogs.clear;
     const eligible = animals.filter(a => a && a.state !== 'sleeping' && a.state !== 'decor_interact' && !a.interactingDecorId && !(a.bubbleTimer > 0));
-    if (eligible.length > 0) {
-        const a = eligible[Math.floor(Math.random() * eligible.length)];
-        const fullMessage = pool[Math.floor(Math.random() * pool.length)];
+    if (eligible.length === 0) return;
 
-        // Teks kalimat humanis dicatat ke modal Pesan Hewan
-        if (typeof recordAnimalMessage === 'function') {
-            let cat = 'bahagia';
-            if (newWeather === 'thunderstorm') cat = 'sedih';
-            else if (newWeather === 'heatwave') cat = 'request';
-            else if (newWeather === 'breeze') cat = 'mengantuk';
-            recordAnimalMessage(a, fullMessage, cat);
+    const a = eligible[Math.floor(Math.random() * eligible.length)];
+    const type = a.type || '';
+    const name = (a.name || '').toLowerCase();
+    const isFish = type === 'fish' || a.habitat === 'water' || name.includes('ikan') || name.includes('koi');
+    const isCat = type === 'cat' || name.includes('kucing');
+    const isDog = type === 'dog' || name.includes('anjing');
+    const isRabbit = type === 'rabbit' || name.includes('kelinci');
+
+    let pool = [];
+
+    if (newWeather === 'thunderstorm') {
+        if (isFish) {
+            pool = [
+                'Petirnya keras sekali di atas. Aku menyelam ke dasar kolam dulu.',
+                'Permukaan air bergetar kena suara petir. Agak seram, ya.'
+            ];
+        } else if (isCat) {
+            pool = [
+                'Suara petirnya mengagetkan. Aku sembunyi di tempat teduh dulu.',
+                'Hujan dan petir begini tidak enak. Tempat yang kering di mana, ya?'
+            ];
+        } else if (isDog) {
+            pool = [
+                'Gluduknya kencang sekali! Aku jaga kamu di sini biar tidak takut.',
+                'Kilatnya terang sekali tadi. Ayo kita menepi dulu!'
+            ];
+        } else if (isRabbit) {
+            pool = [
+                'Suara petirnya menggelegar. Aku takut, mau sembunyi dulu.',
+                'Telingaku kaget dengar suara petir barusan.'
+            ];
+        } else {
+            pool = [
+                'Petirnya kencang sekali. Sebaiknya berteduh dulu sekarang.',
+                'Suara petir tadi mengejutkan. Hati-hati di kebun, ya.'
+            ];
         }
+    } else if (newWeather === 'drizzle') {
+        if (isFish) {
+            pool = [
+                'Rintik hujan di permukaan air membuat air kolam terasa sejuk.',
+                'Banyak tetesan air jatuh di atas kolam hari ini.'
+            ];
+        } else if (isCat) {
+            pool = [
+                'Gerimis lagi. Buluku mulai kena tetesan air, aku cari tempat berteduh dulu.',
+                'Tanah basah begini kurang nyaman diinjak.'
+            ];
+        } else if (isDog) {
+            pool = [
+                'Gerimis sejuk begini masih enak buat jalan-jalan sebentar.',
+                'Aroma tanah basah sehabis hujan segar sekali.'
+            ];
+        } else {
+            pool = [
+                'Gerimisnya lembut, udara kebun jadi terasa sejuk.',
+                'Tanah kebun jadi wangi sehabis gerimis turun.'
+            ];
+        }
+    } else if (newWeather === 'rainbow') {
+        pool = [
+            'Lihat, ada pelangi di atas kebun.',
+            'Langit sehabis hujan jadi berwarna-warni.',
+            'Pelanginya kelihatan jelas dari sudut sini.'
+        ];
+    } else if (newWeather === 'sakura_storm') {
+        if (isFish) {
+            pool = [
+                'Ada beberapa kelopak bunga sakura mengapung di atas kolam.',
+                'Bayangan kelopak bunga yang jatuh di air kelihatan cantik.'
+            ];
+        } else if (isCat) {
+            pool = [
+                'Kelopak bunganya terbang di mana-mana. Mau coba kutangkap satu.',
+                'Ada kelopak bunga jatuh tepat di kepalaku.'
+            ];
+        } else if (isDog) {
+            pool = [
+                'Bunganya berterbangan ditiup angin. Wanginya enak!',
+                'Bagus sekali melihat kelopak sakura terbang ke sana kemari.'
+            ];
+        } else {
+            pool = [
+                'Angin membawa banyak kelopak bunga gugur hari ini.',
+                'Bunga yang berguguran ini membuat jalanan kebun jadi berwarna merah muda.'
+            ];
+        }
+    } else if (newWeather === 'blizzard') {
+        if (isFish) {
+            pool = [
+                'Bagian atas kolam mulai dingin sekali. Aku berenang di bawah saja.',
+                'Salju yang jatuh di permukaan air langsung mencair.'
+            ];
+        } else if (isCat) {
+            pool = [
+                'Dingin sekali hari ini. Buluku sampai merinding.',
+                'Saljunya menumpuk. Aku malas melangkah di atasnya.'
+            ];
+        } else if (isDog) {
+            pool = [
+                'Saljunya putih semua! Dingin di kaki tapi menyenangkan.',
+                'Bulu tebalku lumayan hangat, tapi hidungku kedinginan.'
+            ];
+        } else {
+            pool = [
+                'Salju turun cukup lebat hari ini. Dingin sekali.',
+                'Semuanya memutih tertutup salju.'
+            ];
+        }
+    } else if (newWeather === 'heatwave') {
+        if (isFish) {
+            pool = [
+                'Mataharinya terik sekali. Aku berteduh di bawah daun teratai dulu.',
+                'Air di permukaan kolam terasa mulai hangat.'
+            ];
+        } else if (isCat) {
+            pool = [
+                'Panas sekali. Aku mau tidur di bawah naungan semak.',
+                'Hari ini malas gerak, gerah.'
+            ];
+        } else if (isDog) {
+            pool = [
+                'Hawanya panas ya. Boleh minta air minum lagi?',
+                'Mataharinya terik sekali hari ini.'
+            ];
+        } else {
+            pool = [
+                'Siang ini udaranya cukup panas. Jangan lupa minum air, ya.',
+                'Mataharinya terik sekali hari ini.'
+            ];
+        }
+    } else if (newWeather === 'breeze') {
+        pool = [
+            'Anginnya sepoi-sepoi begini bikin mengantuk.',
+            'Semilir anginnya sejuk sekali di kebun hari ini.',
+            'Dedaunan bergoyang pelan ditiup angin.'
+        ];
+    } else {
+        // clear / default
+        if (isFish) {
+            pool = [
+                'Airnya jernih kena sinar matahari. Enak buat berenang bolak-balik.',
+                'Pemandangan dari dalam kolam kelihatan jelas hari ini.'
+            ];
+        } else if (isCat) {
+            pool = [
+                'Mataharinya hangat. Pas sekali buat berjemur di rumput.',
+                'Cuaca cerah begini enak untuk leyeh-leyeh santai.'
+            ];
+        } else if (isDog) {
+            pool = [
+                'Langitnya cerah sekali! Semangat buat temani kamu keliling kebun.',
+                'Cuaca bagus hari ini. Mau ke sudut kebun yang mana?'
+            ];
+        } else {
+            pool = [
+                'Hari yang cerah untuk menghabiskan waktu di kebun.',
+                'Langitnya bersih sekali hari ini. Udaranya segar.'
+            ];
+        }
+    }
+
+    const fullMessage = pool[Math.floor(Math.random() * pool.length)];
+
+    // Teks kalimat humanis dicatat ke modal Pesan Hewan
+    if (typeof recordAnimalMessage === 'function') {
+        let cat = 'bahagia';
+        if (newWeather === 'thunderstorm') cat = 'sedih';
+        else if (newWeather === 'heatwave') cat = 'request';
+        else if (newWeather === 'breeze') cat = 'mengantuk';
+        recordAnimalMessage(a, fullMessage, cat);
+    }
 
         // Di layar kebun, gelembung murni hanya menampilkan emoji/kaomoji reaksi
         const weatherReactionEmojis = {

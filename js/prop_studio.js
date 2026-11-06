@@ -341,27 +341,30 @@ function closePropStudioModal() {
     }
 }
 
-function clearPropPad() {
-    if (propStudioStrokes.length === 0) return;
-    if (typeof cuteAlert === 'function') {
-        cuteAlert('Apakah kamu yakin ingin menghapus seluruh gambar properti?', 'Hapus Kanvas', '🗑️', true).then(ok => {
-            if (ok) {
-                propStudioStrokes = [];
-                propStudioRedoStack = [];
-                endPropLiveStroke();
-                redrawPropPadFromStrokes();
-                updatePropScalePreview();
-            }
-        });
-    } else {
-        if (confirm('Hapus seluruh gambar di kanvas?')) {
-            propStudioStrokes = [];
-            propStudioRedoStack = [];
-            endPropLiveStroke();
-            redrawPropPadFromStrokes();
-            updatePropScalePreview();
-        }
+function clearPropPad(force = false) {
+    const performClear = () => {
+        propStudioStrokes = [];
+        propStudioRedoStack = [];
+        endPropLiveStroke();
+        redrawPropPadFromStrokes();
+        updatePropScalePreview();
+    };
+
+    if (force) {
+        performClear();
+        return;
     }
+    if (propStudioStrokes.length === 0) return;
+
+    const confirmClear = (typeof cuteConfirm === 'function')
+        ? cuteConfirm('Apakah kamu yakin ingin menghapus seluruh gambar dekorasi?', 'Hapus Kanvas', true, 'Ya, Hapus', '🗑️')
+        : (typeof cuteAlert === 'function')
+            ? cuteAlert('Apakah kamu yakin ingin menghapus seluruh gambar dekorasi?', 'Hapus Kanvas', '🗑️', true)
+            : Promise.resolve(confirm('Hapus seluruh gambar dekorasi di kanvas?'));
+
+    confirmClear.then(ok => {
+        if (ok) performClear();
+    });
 }
 
 // =========================================================================
@@ -1087,6 +1090,7 @@ async function finishDrawingAndSpawnProp() {
     const scale = Number(selectedPropScale.toFixed(2)) || 1.0;
 
     const spriteDataUrl = trimmed.toDataURL('image/png');
+    const strokeData = (propStudioStrokes && propStudioStrokes.length > 0) ? JSON.parse(JSON.stringify(propStudioStrokes)) : [];
 
     // Create an Image object for instantaneous rendering on canvas
     const img = new Image();
@@ -1113,6 +1117,7 @@ async function finishDrawingAndSpawnProp() {
         rotation: 0,
         spriteDataUrl: spriteDataUrl,
         spriteImg: img,
+        strokes: strokeData,
         birthScale: 0.1 // Smooth birth bounce
     };
 
@@ -1132,9 +1137,27 @@ async function finishDrawingAndSpawnProp() {
         height: baseH,
         habitat: habitat,
         scale: scale,
+        strokes: strokeData,
         createdAt: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
     });
     saveCustomPropsCatalog(catalog);
+
+    // Also save custom prop to favorite decorations gallery
+    if (typeof galleryDecorations !== 'undefined' && Array.isArray(galleryDecorations)) {
+        galleryDecorations.unshift({
+            id: 'fav_dec_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            type: 'custom_prop',
+            name: propName,
+            isCustomProp: true,
+            habitat: habitat,
+            scale: scale,
+            spriteDataUrl: spriteDataUrl,
+            strokes: strokeData,
+            createdAt: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+        });
+        if (typeof saveGalleryDecorationsToStorage === 'function') saveGalleryDecorationsToStorage();
+        if (typeof updateGalleryBadge === 'function') updateGalleryBadge();
+    }
 
     // Automatically select the new prop in the garden and show the scale widget
     selectedDecoration = newProp;
@@ -1350,6 +1373,121 @@ function closeDecorScaleWidget() {
     updateDecorScaleWidgetUI();
 }
 
+// =========================================================================
+// TIMELAPSE REPLAY & GALLERY SAVE IN PROP STUDIO
+// =========================================================================
+var isReplayingPropTimelapse = false;
+
+async function replayPropStudioTimelapse() {
+    if (isReplayingPropTimelapse) return;
+    if (!propPadCanvas || !propPadCtx) return;
+    if (!propStudioStrokes || propStudioStrokes.length === 0) {
+        if (typeof showGardenNotice === 'function') {
+            showGardenNotice('Gambarlah beberapa goresan properti terlebih dahulu untuk memutar Timelapse! 🎨');
+        }
+        return;
+    }
+
+    isReplayingPropTimelapse = true;
+    const snapshot = propPadCtx.getImageData(0, 0, propPadCanvas.width, propPadCanvas.height);
+    propPadCtx.clearRect(0, 0, propPadCanvas.width, propPadCanvas.height);
+
+    const strokesCopy = JSON.parse(JSON.stringify(propStudioStrokes));
+    const totalPoints = strokesCopy.reduce((acc, s) => acc + (s.points ? s.points.length : 0), 0);
+    const stepDelay = Math.max(3, Math.min(20, Math.floor(1000 / Math.max(1, totalPoints))));
+
+    for (let sIdx = 0; sIdx < strokesCopy.length; sIdx++) {
+        const stroke = strokesCopy[sIdx];
+        if (!stroke.points || stroke.points.length === 0) continue;
+
+        if (stroke.tool === 'eraser') {
+            propPadCtx.save();
+            propPadCtx.globalCompositeOperation = 'destination-out';
+            propPadCtx.lineWidth = (stroke.size || 12) * 1.8;
+            propPadCtx.lineCap = 'round';
+            propPadCtx.lineJoin = 'round';
+            propPadCtx.beginPath();
+            propPadCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+            for (let i = 1; i < stroke.points.length; i++) {
+                propPadCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                propPadCtx.stroke();
+                propPadCtx.beginPath();
+                propPadCtx.moveTo(stroke.points[i].x, stroke.points[i].y);
+                if (i % 2 === 0) await new Promise(r => setTimeout(r, stepDelay));
+            }
+            propPadCtx.restore();
+            await new Promise(r => setTimeout(r, stepDelay));
+            continue;
+        }
+
+        const bType = stroke.brushType || 'pencil';
+        if (bType === 'watercolor') {
+            paintWatercolorLayer(propPadCtx, relaxPoints(stroke.points), stroke.color, stroke.size);
+            await new Promise(r => setTimeout(r, stepDelay * 3));
+        } else if (bType === 'glow') {
+            paintGlowLayer(propPadCtx, relaxPoints(stroke.points), stroke.color, stroke.size);
+            await new Promise(r => setTimeout(r, stepDelay * 3));
+        } else if (bType === 'crayon') {
+            for (let i = 1; i < stroke.points.length; i++) {
+                paintCrayonSegment(propPadCtx, stroke.points[i - 1], stroke.points[i], stroke.color, stroke.size);
+                if (i % 2 === 0) await new Promise(r => setTimeout(r, stepDelay));
+            }
+            await new Promise(r => setTimeout(r, stepDelay));
+        } else {
+            // Classic pencil
+            propPadCtx.save();
+            propPadCtx.globalCompositeOperation = 'source-over';
+            propPadCtx.strokeStyle = stroke.color;
+            propPadCtx.lineWidth = stroke.size;
+            propPadCtx.lineCap = 'round';
+            propPadCtx.lineJoin = 'round';
+            propPadCtx.beginPath();
+            propPadCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+            for (let i = 1; i < stroke.points.length; i++) {
+                propPadCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                propPadCtx.stroke();
+                propPadCtx.beginPath();
+                propPadCtx.moveTo(stroke.points[i].x, stroke.points[i].y);
+                if (i % 2 === 0) await new Promise(r => setTimeout(r, stepDelay));
+            }
+            propPadCtx.restore();
+            await new Promise(r => setTimeout(r, stepDelay));
+        }
+    }
+
+    propPadCtx.putImageData(snapshot, 0, 0);
+    isReplayingPropTimelapse = false;
+    if (typeof playChimeSound === 'function') playChimeSound();
+}
+
+function promptSavePropToGallery() {
+    const trimmed = extractTrimmedPropCanvas();
+    if (!trimmed) {
+        if (typeof cuteAlert === 'function') {
+            cuteAlert('Gambarlah bentuk propertimu di kanvas terlebih dahulu sebelum menyimpannya!', 'Kanvas Kosong', '🎨');
+        } else {
+            alert('Gambarlah propertimu terlebih dahulu!');
+        }
+        return;
+    }
+    const nameInput = document.getElementById('customPropNameInput');
+    const propName = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : `Dekorasi Kreasiku #${(typeof galleryDecorations !== 'undefined' ? galleryDecorations.length : 0) + 1}`;
+
+    if (typeof openSaveToGalleryDialogWithConfig === 'function') {
+        openSaveToGalleryDialogWithConfig({
+            category: 'decor',
+            canvas: trimmed,
+            defaultName: propName,
+            title: 'Simpan ke Dekorasi Favorit',
+            desc: 'Beri nama dekorasi kreasimu agar mudah dipasang kembali',
+            nameLabel: 'Nama Dekorasi:',
+            strokes: (propStudioStrokes && propStudioStrokes.length > 0) ? JSON.parse(JSON.stringify(propStudioStrokes)) : [],
+            habitat: selectedPropHabitat || 'land',
+            scale: selectedPropScale || 1.0
+        });
+    }
+}
+
 // Global window bindings
 window.openPropStudioModal = openPropStudioModal;
 window.closePropStudioModal = closePropStudioModal;
@@ -1382,3 +1520,5 @@ window.duplicateSelectedDecoration = duplicateSelectedDecoration;
 window.removeSelectedDecoration = removeSelectedDecoration;
 window.selectDecorationForScaling = selectDecorationForScaling;
 window.closeDecorScaleWidget = closeDecorScaleWidget;
+window.replayPropStudioTimelapse = replayPropStudioTimelapse;
+window.promptSavePropToGallery = promptSavePropToGallery;

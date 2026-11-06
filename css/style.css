@@ -1130,7 +1130,7 @@ body.zen-mode #zenModeRestorePill {
     bottom: 64px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
-    z-index: 45 !important;
+    z-index: 80 !important;
     background: rgba(29, 64, 37, 0.94) !important;
     color: #FDFBF2 !important;
     padding: 3.5px 12px !important;

@@ -144,7 +144,10 @@ function handleCustomDialogCancel() {
 }
 
 // Global Dialog helper shortcuts
-window.cuteAlert = function (message, title = "Perhatian", icon = "💡") {
+window.cuteAlert = function (message, title = "Perhatian", icon = "💡", isConfirm = false) {
+  if (isConfirm) {
+    return window.cuteConfirm(message, title, true, "Ya, Hapus", icon);
+  }
   return showCustomDialog({ type: "alert", message, title, icon });
 };
 
